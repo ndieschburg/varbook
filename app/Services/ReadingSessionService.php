@@ -1,0 +1,174 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Book;
+use App\Models\BookSyncIdentifier;
+use App\Models\ReadingSession;
+use Carbon\Carbon;
+
+class ReadingSessionService
+{
+    protected int $sessionGapMinutes;
+    protected int $maxSessionHours;
+    protected float $finishedThreshold;
+
+    public function __construct()
+    {
+        $this->sessionGapMinutes = config('bookshelf.session_gap_minutes', 10);
+        $this->maxSessionHours = config('bookshelf.max_session_hours', 4);
+        $this->finishedThreshold = config('bookshelf.finished_threshold', 95);
+    }
+
+    public function processSyncEvent(
+        Book $book,
+        string $client,
+        string $externalIdentifier,
+        float $progress,
+        ?array $rawPayload = null
+    ): ReadingSession {
+        $now = Carbon::now();
+
+        // Get or create sync identifier
+        $syncIdentifier = BookSyncIdentifier::firstOrCreate(
+            [
+                'book_id' => $book->id,
+                'client' => $client,
+                'external_identifier' => $externalIdentifier,
+            ],
+            [
+                'last_sync_at' => $now,
+                'last_progress' => $progress,
+            ]
+        );
+
+        // Determine if this is same session or new session
+        $session = $this->getOrCreateSession($book, $syncIdentifier, $client, $progress, $now, $rawPayload);
+
+        // Update sync identifier
+        $syncIdentifier->updateSync($progress);
+
+        // Update book progress
+        $book->updateProgress($progress);
+
+        // Recalculate total reading time
+        $book->recalculateReadingTime();
+
+        return $session;
+    }
+
+    protected function getOrCreateSession(
+        Book $book,
+        BookSyncIdentifier $syncIdentifier,
+        string $client,
+        float $progress,
+        Carbon $now,
+        ?array $rawPayload
+    ): ReadingSession {
+        $lastSyncAt = $syncIdentifier->last_sync_at;
+
+        // If this is the first sync or gap too large, create new session
+        if (!$lastSyncAt) {
+            return $this->createNewSession($book, $client, $progress, $now, $rawPayload);
+        }
+
+        $gapMinutes = $lastSyncAt->diffInMinutes($now);
+
+        // Check if we should continue existing session
+        if ($gapMinutes <= $this->sessionGapMinutes) {
+            return $this->continueSession($book, $client, $progress, $now, $rawPayload);
+        }
+
+        // Gap too large, create new session
+        return $this->createNewSession($book, $client, $progress, $now, $rawPayload);
+    }
+
+    protected function createNewSession(
+        Book $book,
+        string $client,
+        float $progress,
+        Carbon $now,
+        ?array $rawPayload
+    ): ReadingSession {
+        return ReadingSession::create([
+            'book_id' => $book->id,
+            'started_at' => $now,
+            'ended_at' => $now,
+            'duration_seconds' => 0,
+            'progress_before' => $book->progress,
+            'progress_after' => $progress,
+            'client' => $client,
+            'raw_payload' => $rawPayload,
+        ]);
+    }
+
+    protected function continueSession(
+        Book $book,
+        string $client,
+        float $progress,
+        Carbon $now,
+        ?array $rawPayload
+    ): ReadingSession {
+        // Find the most recent session for this book
+        $session = ReadingSession::where('book_id', $book->id)
+            ->where('client', $client)
+            ->orderBy('ended_at', 'desc')
+            ->first();
+
+        if (!$session) {
+            return $this->createNewSession($book, $client, $progress, $now, $rawPayload);
+        }
+
+        // Check if session duration would exceed max hours
+        $sessionDurationHours = $session->started_at->diffInHours($now);
+
+        if ($sessionDurationHours >= $this->maxSessionHours) {
+            // Cap the current session and create a new one
+            return $this->createNewSession($book, $client, $progress, $now, $rawPayload);
+        }
+
+        // Update existing session
+        $session->ended_at = $now;
+        $session->duration_seconds = $session->started_at->diffInSeconds($now);
+        $session->progress_after = $progress;
+
+        if ($rawPayload) {
+            $session->raw_payload = $rawPayload;
+        }
+
+        $session->save();
+
+        return $session;
+    }
+
+    public function findBookByExternalIdentifier(int $userId, string $client, string $externalIdentifier): ?Book
+    {
+        $syncIdentifier = BookSyncIdentifier::where('client', $client)
+            ->where('external_identifier', $externalIdentifier)
+            ->whereHas('book', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })
+            ->first();
+
+        return $syncIdentifier?->book;
+    }
+
+    public function findBookByHash(int $userId, string $fileHash): ?Book
+    {
+        return Book::where('user_id', $userId)
+            ->where('file_hash', $fileHash)
+            ->first();
+    }
+
+    public function createSyncIdentifier(Book $book, string $client, string $externalIdentifier): BookSyncIdentifier
+    {
+        return BookSyncIdentifier::firstOrCreate([
+            'book_id' => $book->id,
+            'client' => $client,
+            'external_identifier' => $externalIdentifier,
+        ], [
+            'last_sync_at' => now(),
+            'last_progress' => $book->progress,
+        ]);
+    }
+}
