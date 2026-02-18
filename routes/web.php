@@ -40,9 +40,18 @@ Route::middleware(['basic.auth'])->prefix('opds')->name('opds.')->group(function
     Route::get('/book/{book}/download', [OpdsController::class, 'download'])->name('download');
 });
 
-// WebDAV routes
-Route::any('/webdav/{path?}', WebDavController::class)
+// WebDAV routes (include all WebDAV methods, exclude session middleware)
+Route::match(
+    ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PROPFIND', 'PROPPATCH', 'MKCOL', 'COPY', 'MOVE', 'LOCK', 'UNLOCK'],
+    '/webdav/{path?}',
+    WebDavController::class
+)
     ->where('path', '.*')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    ])
     ->middleware(['basic.auth'])
     ->name('webdav');
 

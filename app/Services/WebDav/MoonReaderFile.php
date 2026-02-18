@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\BookSyncIdentifier;
 use App\Models\User;
 use App\Services\ReadingSessionService;
+use Illuminate\Support\Facades\Log;
 use Sabre\DAV\File;
 use Sabre\DAV\Exception\NotFound;
 
@@ -15,12 +16,14 @@ class MoonReaderFile extends File
     protected ?Book $book;
     protected User $user;
     protected ?string $data = null;
+    protected string $fullPath;
 
-    public function __construct(string $name, ?Book $book, User $user)
+    public function __construct(string $name, ?Book $book, User $user, string $fullPath = '')
     {
         $this->name = $name;
         $this->book = $book;
         $this->user = $user;
+        $this->fullPath = $fullPath ?: $name;
     }
 
     public function getName(): string
@@ -30,22 +33,35 @@ class MoonReaderFile extends File
 
     public function get()
     {
-        if ($this->book) {
-            // Return the last sync data if available
-            $syncIdentifier = BookSyncIdentifier::where('book_id', $this->book->id)
-                ->where('external_identifier', $this->name)
+        // Try to find book and sync data
+        $book = $this->findBook();
+
+        if ($book) {
+            // Get the most recent sync for this book
+            $syncIdentifier = BookSyncIdentifier::where('book_id', $book->id)
                 ->where('client', 'moon')
+                ->orderBy('last_sync_at', 'desc')
                 ->first();
 
-            if ($syncIdentifier) {
-                return json_encode([
-                    'progress' => $syncIdentifier->last_progress,
-                    'last_sync' => $syncIdentifier->last_sync_at?->toIso8601String(),
+            if ($syncIdentifier && $syncIdentifier->last_progress > 0) {
+                // Reconstruct Moon+ Reader format: timestamp*flags@offset#total:percentage%
+                // Format: 1771436798155*5@0#4903:2.5%
+                $timestamp = $syncIdentifier->last_sync_at
+                    ? $syncIdentifier->last_sync_at->getTimestampMs()
+                    : now()->getTimestampMs();
+                $progress = number_format($syncIdentifier->last_progress, 1, '.', '');
+
+                Log::channel('webdav')->debug('GET returning position', [
+                    'book_id' => $book->id,
+                    'progress' => $progress,
                 ]);
+
+                return "{$timestamp}*0@0#0:{$progress}%";
             }
         }
 
-        return '{}';
+        // Return empty/default position
+        return '0*0@0#0:0%';
     }
 
     public function getSize(): int
@@ -60,7 +76,7 @@ class MoonReaderFile extends File
 
     public function getContentType(): ?string
     {
-        return 'application/json';
+        return 'text/plain';
     }
 
     public function getLastModified(): ?int
@@ -167,24 +183,49 @@ class MoonReaderFile extends File
             return $this->book;
         }
 
-        // Try to match by filename in the identifier
-        $cleanName = preg_replace('/\.(pos|json|sync)$/i', '', $this->name);
-        $cleanName = preg_replace('/[_-]/', ' ', $cleanName);
+        // Extract book name from the file path
+        // Example: Apps/Books/.Moon+/Cache/Les Bienveillantes - Jonathan Littell.epub.po
+        $bookName = $this->extractBookName();
 
-        // Try exact filename match
+        Log::channel('webdav')->debug('Finding book', [
+            'name' => $this->name,
+            'fullPath' => $this->fullPath,
+            'extractedName' => $bookName,
+        ]);
+
+        if (empty($bookName)) {
+            return null;
+        }
+
+        // Try exact filename match first
         $book = Book::where('user_id', $this->user->id)
-            ->where(function ($query) use ($cleanName) {
-                $query->where('filename', 'like', "%{$cleanName}%")
-                    ->orWhere('title', 'like', "%{$cleanName}%");
-            })
+            ->where('filename', 'like', "%{$bookName}%")
             ->first();
 
+        // If not found, try title match
+        if (!$book) {
+            // Extract title without author (before the dash)
+            $titleOnly = preg_replace('/\s*-\s*[^-]+$/', '', $bookName);
+
+            $book = Book::where('user_id', $this->user->id)
+                ->where(function ($query) use ($bookName, $titleOnly) {
+                    $query->where('title', 'like', "%{$bookName}%")
+                        ->orWhere('title', 'like', "%{$titleOnly}%");
+                })
+                ->first();
+        }
+
         if ($book) {
+            Log::channel('webdav')->info('Book found', [
+                'book_id' => $book->id,
+                'title' => $book->title,
+            ]);
+
             // Create sync identifier for future use
             BookSyncIdentifier::firstOrCreate([
                 'book_id' => $book->id,
                 'client' => 'moon',
-                'external_identifier' => $this->name,
+                'external_identifier' => $this->fullPath,
             ], [
                 'last_sync_at' => now(),
                 'last_progress' => 0,
@@ -194,5 +235,22 @@ class MoonReaderFile extends File
         }
 
         return null;
+    }
+
+    protected function extractBookName(): string
+    {
+        // Get the filename from the path
+        $filename = basename($this->fullPath);
+
+        // Remove Moon+ Reader extensions (.po, .pos, etc.)
+        $cleanName = preg_replace('/\.(po|pos|json|sync)$/i', '', $filename);
+
+        // Remove .epub extension if present
+        $cleanName = preg_replace('/\.epub$/i', '', $cleanName);
+
+        // URL decode
+        $cleanName = urldecode($cleanName);
+
+        return trim($cleanName);
     }
 }

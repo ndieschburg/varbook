@@ -6,37 +6,41 @@ use App\Models\User;
 use Sabre\DAV\Collection;
 use Sabre\DAV\ICollection;
 
-class MoonReaderDirectory extends Collection implements ICollection
+class VirtualDirectory extends Collection implements ICollection
 {
     protected User $user;
+    protected string $name;
+    protected string $path;
 
-    public function __construct(User $user)
+    public function __construct(User $user, string $name, string $path = '')
     {
         $this->user = $user;
+        $this->name = $name;
+        $this->path = $path;
     }
 
     public function getName(): string
     {
-        return '';
+        return $this->name;
     }
 
     public function getChildren(): array
     {
-        // Return Apps directory as the main entry point for Moon+ Reader
-        return [
-            new VirtualDirectory($this->user, 'Apps', 'Apps'),
-        ];
+        // Return empty array - children are created on demand
+        return [];
     }
 
     public function getChild($name): VirtualDirectory|MoonReaderFile
     {
-        // If it looks like a file, return a file
+        $fullPath = $this->path ? "{$this->path}/{$name}" : $name;
+
+        // If it looks like a file (has extension), return a file
         if (preg_match('/\.(po|pos|json|sync)$/i', $name)) {
-            return new MoonReaderFile($name, null, $this->user, $name);
+            return new MoonReaderFile($name, null, $this->user, $fullPath);
         }
 
-        // Otherwise return a virtual directory
-        return new VirtualDirectory($this->user, $name, $name);
+        // Otherwise return a directory
+        return new VirtualDirectory($this->user, $name, $fullPath);
     }
 
     public function childExists($name): bool
@@ -47,7 +51,8 @@ class MoonReaderDirectory extends Collection implements ICollection
 
     public function createFile($name, $data = null): ?string
     {
-        $file = new MoonReaderFile($name, null, $this->user, $name);
+        $fullPath = $this->path ? "{$this->path}/{$name}" : $name;
+        $file = new MoonReaderFile($name, null, $this->user, $fullPath);
         $file->put($data);
         return null;
     }
