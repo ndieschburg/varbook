@@ -1,59 +1,259 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# BookShelf
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A self-hosted Laravel application for managing personal EPUB libraries with multi-device reading position sync. Serves books via OPDS and synchronizes reading progress via WebDAV for Moon+ Reader.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **EPUB Library Management**: Upload, organize, and manage your EPUB collection
+- **Automatic Metadata Extraction**: Title, author, description, cover image extracted from EPUB files
+- **Reading Progress Tracking**: Track reading progress and total reading time per book
+- **Reading Sessions**: Detailed history of reading sessions with duration and progress
+- **OPDS Catalog**: Browse and download books from any OPDS-compatible reader
+- **WebDAV Sync**: Sync reading positions with Moon+ Reader Pro
+- **Multi-user Support**: Each user has an isolated library
+- **Admin Dashboard**: Manage users and view statistics
+- **Dark Theme UI**: Modern, responsive interface inspired by streaming platforms
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.2+
+- MySQL 8.0+ or MariaDB 10.6+
+- Composer
+- Node.js 18+ (for building assets)
+- PHP Extensions: `mbstring`, `xml`, `dom`, `gd`, `zip`, `pdo_mysql`
 
-## Learning Laravel
+## Installation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 1. Clone the repository
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone https://github.com/yourusername/bookshelf.git
+cd bookshelf
+```
 
-## Laravel Sponsors
+### 2. Install dependencies
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+```
 
-### Premium Partners
+### 3. Configure environment
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-## Contributing
+Edit `.env` with your database credentials and application URL:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```env
+APP_NAME=BookShelf
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.com
 
-## Code of Conduct
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=bookshelf
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+SESSION_DRIVER=database
 
-## Security Vulnerabilities
+# BookShelf Configuration
+BOOKSHELF_MAX_SESSION_HOURS=4
+BOOKSHELF_SESSION_GAP_MINUTES=10
+BOOKSHELF_FINISHED_THRESHOLD=95
+BOOKSHELF_MAX_UPLOAD_SIZE_MB=50
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 4. Run migrations
+
+```bash
+php artisan migrate --force
+```
+
+### 5. Set permissions
+
+```bash
+chmod -R 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+```
+
+### 6. Create admin user
+
+```bash
+php artisan bookshelf:create-admin
+```
+
+### 7. Optimize for production
+
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+## Web Server Configuration
+
+### Nginx
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /var/www/bookshelf/public;
+
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    client_max_body_size 100M;
+}
+```
+
+## Moon+ Reader Configuration
+
+Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV (for syncing reading positions).
+
+### OPDS Setup (Browse & Download Books)
+
+1. Open Moon+ Reader Pro
+2. Go to **Menu** → **Net Library** → **OPDS catalogs**
+3. Tap **+** to add a new catalog
+4. Enter the following:
+   - **Name**: BookShelf (or any name you prefer)
+   - **URL**: `https://your-domain.com/opds`
+   - **Username**: Your BookShelf email
+   - **Password**: Your BookShelf password
+5. Tap **OK** to save
+
+You can now browse your library, search books, and download them directly to Moon+ Reader.
+
+#### OPDS Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/opds` | Root catalog |
+| `/opds/all` | All books (paginated) |
+| `/opds/by-author` | Browse by author |
+| `/opds/by-author/{author}` | Books by specific author |
+| `/opds/search?q={query}` | Search by title or author |
+
+### WebDAV Setup (Sync Reading Positions)
+
+WebDAV sync allows Moon+ Reader to save and restore your reading position across devices.
+
+1. Open Moon+ Reader Pro
+2. Go to **Menu** → **Miscellaneous** → **Sync reading positions**
+3. Select **WebDAV** as the sync method
+4. Enter the following:
+   - **WebDAV URL**: `https://your-domain.com/webdav`
+   - **Username**: Your BookShelf email
+   - **Password**: Your BookShelf password
+5. Tap **Test** to verify the connection
+6. Enable **Auto sync** for automatic position syncing
+
+#### How WebDAV Sync Works
+
+- Moon+ Reader automatically syncs your reading position on every page turn
+- BookShelf groups these syncs into reading sessions (configurable gap: 10 minutes default)
+- Reading time is calculated and tracked per book
+- Progress percentage is updated in real-time
+- When progress reaches 95% (configurable), the book is marked as finished
+
+#### Troubleshooting WebDAV
+
+- Ensure your server supports HTTPS (required for Moon+ Reader)
+- Check that HTTP Basic Auth is working: `curl -u email:password https://your-domain.com/webdav`
+- Verify the WebDAV URL ends with `/webdav` (no trailing slash)
+- If using a reverse proxy, ensure it passes `Authorization` headers
+
+## Usage
+
+### Library Management
+
+- **Upload Books**: Drag and drop EPUB files onto the library page
+- **View Details**: Click on a book card to see full metadata and reading history
+- **Download**: Download the original EPUB file from the book detail page
+- **Delete**: Remove books from your library (with confirmation)
+
+### Search & Filter
+
+- Use the search bar to find books by title or author
+- Filter by status: All, Reading, Finished, Not Started
+- Sort by: Recent, Title, Author, Progress
+
+### Reading Sessions
+
+Each book's detail page shows a history of reading sessions:
+- Date and time of the session
+- Duration (e.g., "45 min")
+- Progress change (e.g., "32% → 45%")
+- Client used (Moon+ Reader, KOReader, etc.)
+
+## Admin Commands
+
+```bash
+# Create a new admin user
+php artisan bookshelf:create-admin
+
+# Clear application cache
+php artisan optimize:clear
+
+# Rebuild cache
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+## Configuration Options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BOOKSHELF_MAX_SESSION_HOURS` | 4 | Maximum duration for a single reading session |
+| `BOOKSHELF_SESSION_GAP_MINUTES` | 10 | Maximum gap between syncs to stay in the same session |
+| `BOOKSHELF_FINISHED_THRESHOLD` | 95 | Progress percentage to mark a book as finished |
+| `BOOKSHELF_MAX_UPLOAD_SIZE_MB` | 50 | Maximum EPUB file size for upload |
+
+## Tech Stack
+
+- **Framework**: Laravel 12
+- **Frontend**: Blade + Livewire + Alpine.js + Tailwind CSS
+- **Database**: MySQL/MariaDB
+- **WebDAV**: sabre/dav
+- **EPUB Parsing**: kiwilan/php-ebook
+- **Authentication**: Laravel Breeze
+
+## API Authentication
+
+| Protocol | Auth Method | Used By |
+|----------|-------------|---------|
+| Web UI | Session (cookie) | Browser |
+| OPDS | HTTP Basic Auth | Moon+ Reader, etc. |
+| WebDAV | HTTP Basic Auth | Moon+ Reader |
+
+## Roadmap
+
+### Phase 2 (Planned)
+- KOReader support via kosync API
+- PDF support
+- Metadata editing from UI
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
