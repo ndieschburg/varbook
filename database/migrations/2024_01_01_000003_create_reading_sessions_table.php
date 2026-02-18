@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('reading_sessions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('book_id')->constrained()->cascadeOnDelete();
-            $table->timestamp('started_at');
-            $table->timestamp('ended_at');
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('ended_at')->nullable();
             $table->unsignedInteger('duration_seconds')->default(0);
             $table->decimal('progress_before', 5, 2)->default(0);
             $table->decimal('progress_after', 5, 2)->default(0);
