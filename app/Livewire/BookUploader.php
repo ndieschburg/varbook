@@ -12,7 +12,7 @@ class BookUploader extends Component
 {
     use WithFileUploads;
 
-    #[Validate(['files.*' => 'required|file|mimes:epub|max:51200'])]
+    #[Validate(['files.*' => 'required|file|extensions:epub|max:51200'])]
     public array $files = [];
 
     public array $uploadProgress = [];

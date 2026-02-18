@@ -118,6 +118,6 @@ class OpdsController extends Controller
     protected function opdsResponse($content): Response
     {
         return response($content)
-            ->header('Content-Type', 'application/atom+xml; charset=utf-8');
+            ->header('Content-Type', 'application/atom+xml; charset=UTF-8');
     }
 }
