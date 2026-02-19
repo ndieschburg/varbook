@@ -33,7 +33,7 @@
 @if ($book->isbn)
 <dcterms:identifier>urn:isbn:{{ $book->isbn }}</dcterms:identifier>
 @endif
-<link type="application/epub+zip" rel="http://opds-spec.org/acquisition" href="{{ $authUrl(route('opds.download', $book)) }}"/>
+<link type="application/epub+zip" rel="http://opds-spec.org/acquisition" href="{{ route('opds.download.token', ['book' => $book, 'token' => $downloadToken]) }}"/>
 @if ($book->cover_url)
 <link type="image/jpeg" rel="http://opds-spec.org/image" href="{{ $book->cover_url }}"/>
 <link type="image/jpeg" rel="http://opds-spec.org/image/thumbnail" href="{{ $book->cover_url }}"/>

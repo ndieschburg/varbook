@@ -40,6 +40,9 @@ Route::middleware(['basic.auth'])->prefix('opds')->name('opds.')->group(function
     Route::get('/book/{book}/download', [OpdsController::class, 'download'])->name('download');
 });
 
+// OPDS token-based download (no auth middleware - token validated in controller)
+Route::get('/opds/download/{book}/{token}', [OpdsController::class, 'downloadWithToken'])->name('opds.download.token');
+
 // WebDAV routes (include all WebDAV methods, exclude session middleware)
 Route::match(
     ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PROPFIND', 'PROPPATCH', 'MKCOL', 'COPY', 'MOVE', 'LOCK', 'UNLOCK'],

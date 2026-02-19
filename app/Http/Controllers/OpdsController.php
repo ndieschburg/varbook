@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\DownloadToken;
 use App\Services\EpubService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,28 +16,14 @@ class OpdsController extends Controller
     ) {}
 
     /**
-     * Get a URL with Basic Auth credentials embedded.
-     * Moon+ Reader needs credentials in download URLs.
+     * Get the current user's download token.
      */
-    protected function authenticatedUrl(string $url): string
+    protected function getDownloadToken(): string
     {
-        $request = request();
-        $user = $request->getUser();
-        $password = $request->getPassword();
+        $user = Auth::user();
+        $token = DownloadToken::getOrCreateForUser($user);
 
-        if ($user && $password) {
-            $parsed = parse_url($url);
-            $auth = urlencode($user) . ':' . urlencode($password) . '@';
-            $host = $parsed['host'] ?? '';
-            $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
-            $path = $parsed['path'] ?? '';
-            $query = isset($parsed['query']) ? '?' . $parsed['query'] : '';
-            $scheme = $parsed['scheme'] ?? 'https';
-
-            return "{$scheme}://{$auth}{$host}{$port}{$path}{$query}";
-        }
-
-        return $url;
+        return $token->token;
     }
 
     public function root(): Response
@@ -62,7 +49,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.all'),
             'nextUrl' => $books->hasMorePages() ? route('opds.all', ['page' => $page + 1]) : null,
-            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
+            'downloadToken' => $this->getDownloadToken(),
         ]));
     }
 
@@ -97,7 +84,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.by-author', ['author' => $author]),
             'nextUrl' => null,
-            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
+            'downloadToken' => $this->getDownloadToken(),
         ]));
     }
 
@@ -121,7 +108,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.search', ['q' => $query]),
             'nextUrl' => null,
-            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
+            'downloadToken' => $this->getDownloadToken(),
         ]));
     }
 
@@ -129,6 +116,30 @@ class OpdsController extends Controller
     {
         // Ensure the book belongs to the authenticated user
         if ($book->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $path = $this->epubService->getEpubPath($book);
+
+        if (!file_exists($path)) {
+            abort(404, 'Book file not found.');
+        }
+
+        return response()->download($path, $book->filename, [
+            'Content-Type' => 'application/epub+zip',
+        ]);
+    }
+
+    public function downloadWithToken(Book $book, string $token)
+    {
+        $downloadToken = DownloadToken::findValidToken($token);
+
+        if (!$downloadToken) {
+            abort(401, 'Invalid or expired token.');
+        }
+
+        // Ensure the book belongs to the token's user
+        if ($book->user_id !== $downloadToken->user_id) {
             abort(403);
         }
 
