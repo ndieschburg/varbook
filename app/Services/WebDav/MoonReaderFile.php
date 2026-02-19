@@ -52,20 +52,14 @@ class MoonReaderFile extends File
                 ->orderBy('last_sync_at', 'desc')
                 ->first();
 
-            if ($syncIdentifier && $syncIdentifier->last_progress > 0) {
-                // Reconstruct Moon+ Reader format: timestamp*flags@offset#total:percentage%
-                // Format: 1771436798155*5@0#4903:2.5%
-                $timestamp = $syncIdentifier->last_sync_at
-                    ? $syncIdentifier->last_sync_at->getTimestampMs()
-                    : now()->getTimestampMs();
-                $progress = number_format($syncIdentifier->last_progress, 1, '.', '');
-
-                Log::channel('webdav')->debug('GET returning position', [
+            if ($syncIdentifier && $syncIdentifier->raw_position) {
+                // Return the raw position data stored from Moon+ Reader
+                Log::channel('webdav')->debug('GET returning raw position', [
                     'book_id' => $book->id,
-                    'progress' => $progress,
+                    'raw_position' => $syncIdentifier->raw_position,
                 ]);
 
-                return "{$timestamp}*0@0#0:{$progress}%";
+                return $syncIdentifier->raw_position;
             }
         }
 
@@ -138,12 +132,14 @@ class MoonReaderFile extends File
             'moon',
             $this->fullPath,
             $syncData['progress'] ?? 0,
-            ['raw' => $data]
+            ['raw' => $data],
+            $data  // Pass raw position data for Moon+ Reader sync
         );
 
         Log::channel('webdav')->debug('PUT - Ended reading session', [
             'book_id' => $book->id,
             'progress' => $syncData['progress'] ?? 0,
+            'raw_position' => $data,
         ]);
 
         return null;

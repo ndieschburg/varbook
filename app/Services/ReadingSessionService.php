@@ -25,7 +25,8 @@ class ReadingSessionService
         string $client,
         string $externalIdentifier,
         float $progress,
-        ?array $rawPayload = null
+        ?array $rawPayload = null,
+        ?string $rawPosition = null
     ): ReadingSession {
         $now = Carbon::now();
 
@@ -45,8 +46,13 @@ class ReadingSessionService
         // Determine if this is same session or new session
         $session = $this->getOrCreateSession($book, $syncIdentifier, $client, $progress, $now, $rawPayload);
 
-        // Update sync identifier
-        $syncIdentifier->updateSync($progress);
+        // Update sync identifier with raw position data
+        $syncIdentifier->last_sync_at = $now;
+        $syncIdentifier->last_progress = $progress;
+        if ($rawPosition) {
+            $syncIdentifier->raw_position = $rawPosition;
+        }
+        $syncIdentifier->save();
 
         // Update book progress
         $book->updateProgress($progress);

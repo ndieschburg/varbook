@@ -16,6 +16,7 @@ class BookSyncIdentifier extends Model
         'external_identifier',
         'last_sync_at',
         'last_progress',
+        'raw_position',
     ];
 
     protected function casts(): array
