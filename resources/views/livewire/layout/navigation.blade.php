@@ -32,7 +32,7 @@ new class extends Component
                     <input type="text"
                            x-model="search"
                            @keydown.enter="if(search) window.location.href = '{{ route('library') }}?search=' + encodeURIComponent(search)"
-                           placeholder="Search books..."
+                           placeholder="{{ __('Search books...') }}"
                            class="w-full bg-slate-700 border-slate-600 rounded-lg text-slate-100 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500 text-sm py-2 pl-10 pr-4">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,9 +47,30 @@ new class extends Component
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.users') }}" wire:navigate
                        class="text-slate-400 hover:text-slate-100 px-3 py-2 text-sm font-medium transition-colors {{ request()->routeIs('admin.*') ? 'text-indigo-400' : '' }}">
-                        Admin
+                        {{ __('Admin') }}
                     </a>
                 @endif
+
+                <!-- Language Selector -->
+                <x-dropdown align="right" width="32">
+                    <x-slot name="trigger">
+                        <button class="flex items-center space-x-1 text-slate-400 hover:text-slate-100 transition-colors px-2 py-1">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                            </svg>
+                            <span class="text-xs font-medium uppercase">{{ app()->getLocale() }}</span>
+                        </button>
+                    </x-slot>
+
+                    <x-slot name="content">
+                        <x-dropdown-link :href="route('locale.switch', 'en')" class="{{ app()->getLocale() === 'en' ? 'bg-slate-700' : '' }}">
+                            {{ __('English') }}
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('locale.switch', 'fr')" class="{{ app()->getLocale() === 'fr' ? 'bg-slate-700' : '' }}">
+                            {{ __('French') }}
+                        </x-dropdown-link>
+                    </x-slot>
+                </x-dropdown>
 
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
@@ -98,7 +119,7 @@ new class extends Component
                 <input type="text"
                        x-model="search"
                        @keydown.enter="if(search) window.location.href = '{{ route('library') }}?search=' + encodeURIComponent(search)"
-                       placeholder="Search books..."
+                       placeholder="{{ __('Search books...') }}"
                        class="w-full bg-slate-700 border-slate-600 rounded-lg text-slate-100 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500 text-sm py-2 pl-10 pr-4">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,6 +157,18 @@ new class extends Component
                         {{ __('Log Out') }}
                     </x-responsive-nav-link>
                 </button>
+            </div>
+
+            <!-- Mobile Language Selector -->
+            <div class="mt-3 pt-3 border-t border-slate-700">
+                <div class="px-4 flex items-center space-x-2">
+                    <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                    <a href="{{ route('locale.switch', 'en') }}" class="px-2 py-1 text-sm {{ app()->getLocale() === 'en' ? 'text-indigo-400 font-medium' : 'text-slate-400' }}">EN</a>
+                    <span class="text-slate-600">|</span>
+                    <a href="{{ route('locale.switch', 'fr') }}" class="px-2 py-1 text-sm {{ app()->getLocale() === 'fr' ? 'text-indigo-400 font-medium' : 'text-slate-400' }}">FR</a>
+                </div>
             </div>
         </div>
     </div>

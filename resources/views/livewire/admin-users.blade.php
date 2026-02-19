@@ -1,13 +1,13 @@
 <div>
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold text-slate-100">Users Management</h2>
+        <h2 class="text-xl font-semibold text-slate-100">{{ __('Users Management') }}</h2>
         <button wire:click="openCreateModal"
                 class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
             <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            Create User
+            {{ __('Create User') }}
         </button>
     </div>
 
@@ -23,11 +23,11 @@
         <table class="w-full">
             <thead>
                 <tr class="border-b border-slate-700">
-                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">User</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Books</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Role</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Created</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ __('User') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ __('Books') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ __('Role') }}</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">{{ __('Created') }}</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-400 uppercase tracking-wider">{{ __('Actions') }}</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-700">
@@ -50,11 +50,11 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if ($user->is_admin)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-600 text-white">
-                                    Admin
+                                    {{ __('Admin') }}
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-600 text-slate-300">
-                                    User
+                                    {{ __('User') }}
                                 </span>
                             @endif
                         </td>
@@ -64,12 +64,12 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                             <button wire:click="openEditModal({{ $user->id }})"
                                     class="text-indigo-400 hover:text-indigo-300 mr-3">
-                                Edit
+                                {{ __('Edit') }}
                             </button>
                             @if ($user->id !== auth()->id())
                                 <button wire:click="openDeleteModal({{ $user->id }})"
                                         class="text-red-400 hover:text-red-300">
-                                    Delete
+                                    {{ __('Delete') }}
                                 </button>
                             @endif
                         </td>
@@ -92,20 +92,20 @@
 
                 <div class="relative z-10 w-full max-w-md p-6 mx-auto bg-slate-800 rounded-xl border border-slate-700 shadow-xl">
                     <h3 class="text-lg font-medium text-slate-100 mb-4">
-                        {{ $showCreateModal ? 'Create User' : 'Edit User' }}
+                        {{ $showCreateModal ? __('Create User') : __('Edit User') }}
                     </h3>
 
                     <form wire:submit="{{ $showCreateModal ? 'createUser' : 'updateUser' }}">
                         <div class="space-y-4">
                             <div>
-                                <label for="name" class="block text-sm font-medium text-slate-300">Name</label>
+                                <label for="name" class="block text-sm font-medium text-slate-300">{{ __('Name') }}</label>
                                 <input type="text" id="name" wire:model="name"
                                        class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg text-slate-100 focus:ring-indigo-500 focus:border-indigo-500">
                                 @error('name') <span class="text-sm text-red-400">{{ $message }}</span> @enderror
                             </div>
 
                             <div>
-                                <label for="email" class="block text-sm font-medium text-slate-300">Email</label>
+                                <label for="email" class="block text-sm font-medium text-slate-300">{{ __('Email') }}</label>
                                 <input type="email" id="email" wire:model="email"
                                        class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg text-slate-100 focus:ring-indigo-500 focus:border-indigo-500">
                                 @error('email') <span class="text-sm text-red-400">{{ $message }}</span> @enderror
@@ -113,7 +113,7 @@
 
                             <div>
                                 <label for="password" class="block text-sm font-medium text-slate-300">
-                                    Password {{ $showEditModal ? '(leave blank to keep current)' : '' }}
+                                    {{ __('Password') }} {{ $showEditModal ? __('(leave blank to keep current)') : '' }}
                                 </label>
                                 <input type="password" id="password" wire:model="password"
                                        class="mt-1 block w-full bg-slate-700 border-slate-600 rounded-lg text-slate-100 focus:ring-indigo-500 focus:border-indigo-500">
@@ -123,18 +123,18 @@
                             <div class="flex items-center">
                                 <input type="checkbox" id="is_admin" wire:model="is_admin"
                                        class="h-4 w-4 rounded border-slate-600 bg-slate-700 text-indigo-600 focus:ring-indigo-500">
-                                <label for="is_admin" class="ml-2 text-sm text-slate-300">Administrator</label>
+                                <label for="is_admin" class="ml-2 text-sm text-slate-300">{{ __('Administrator') }}</label>
                             </div>
                         </div>
 
                         <div class="mt-6 flex justify-end space-x-3">
                             <button type="button" wire:click="closeModals"
                                     class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors">
-                                Cancel
+                                {{ __('Cancel') }}
                             </button>
                             <button type="submit"
                                     class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
-                                {{ $showCreateModal ? 'Create' : 'Update' }}
+                                {{ $showCreateModal ? __('Create') : __('Update') }}
                             </button>
                         </div>
                     </form>
@@ -156,20 +156,20 @@
                         </svg>
                     </div>
 
-                    <h3 class="text-lg font-medium text-slate-100 text-center">Delete User</h3>
+                    <h3 class="text-lg font-medium text-slate-100 text-center">{{ __('Delete User') }}</h3>
                     <p class="mt-2 text-sm text-slate-400 text-center">
-                        Are you sure you want to delete this user? This action cannot be undone.
-                        All books and reading data will be permanently deleted.
+                        {{ __('Are you sure you want to delete this user?') }}
+                        {{ __('This action cannot be undone. All books and reading data will be permanently deleted.') }}
                     </p>
 
                     <div class="mt-6 flex justify-center space-x-3">
                         <button type="button" wire:click="closeModals"
                                 class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors">
-                            Cancel
+                            {{ __('Cancel') }}
                         </button>
                         <button type="button" wire:click="deleteUser"
                                 class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
-                            Delete User
+                            {{ __('Delete User') }}
                         </button>
                     </div>
                 </div>

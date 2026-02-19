@@ -24,8 +24,8 @@
             </div>
 
             <div>
-                <p class="text-slate-300 font-medium">Drag & drop EPUB files here</p>
-                <p class="text-slate-500 text-sm mt-1">or click to browse</p>
+                <p class="text-slate-300 font-medium">{{ __('Drag & drop EPUB files here') }}</p>
+                <p class="text-slate-500 text-sm mt-1">{{ __('or click to browse') }}</p>
             </div>
 
             <label class="cursor-pointer">
@@ -35,7 +35,7 @@
                        multiple
                        class="hidden">
                 <span class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
-                    Select Files
+                    {{ __('Select Files') }}
                 </span>
             </label>
         </div>
@@ -47,7 +47,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span>Uploading...</span>
+                <span>{{ __('Uploading...') }}</span>
             </div>
         </div>
     </div>
@@ -57,7 +57,7 @@
         <div class="mt-4 p-4 bg-emerald-900/50 border border-emerald-700 rounded-lg">
             <div class="flex items-start justify-between">
                 <div>
-                    <h4 class="text-emerald-400 font-medium">Upload Successful</h4>
+                    <h4 class="text-emerald-400 font-medium">{{ __('Upload Successful') }}</h4>
                     <ul class="mt-2 text-sm text-emerald-300 space-y-1">
                         @foreach ($uploadSuccess as $success)
                             <li>{{ $success['title'] }}</li>
@@ -78,7 +78,7 @@
         <div class="mt-4 p-4 bg-red-900/50 border border-red-700 rounded-lg">
             <div class="flex items-start justify-between">
                 <div>
-                    <h4 class="text-red-400 font-medium">Upload Failed</h4>
+                    <h4 class="text-red-400 font-medium">{{ __('Upload Failed') }}</h4>
                     <ul class="mt-2 text-sm text-red-300 space-y-1">
                         @foreach ($uploadErrors as $error)
                             <li>{{ $error['filename'] }}: {{ $error['error'] }}</li>

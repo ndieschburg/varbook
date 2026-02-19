@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Route;
 // Redirect root to library
 Route::redirect('/', '/library');
 
+// Language switch
+Route::get('locale/{locale}', function (string $locale) {
+    if (in_array($locale, ['en', 'fr'])) {
+        session(['locale' => $locale]);
+    }
+
+    return redirect()->back();
+})->name('locale.switch');
+
 // Authenticated routes
 Route::middleware(['auth'])->group(function () {
     // Library

@@ -5,7 +5,7 @@
         <div class="relative flex-1 max-w-md">
             <input type="text"
                    wire:model.live.debounce.300ms="search"
-                   placeholder="Search by title or author..."
+                   placeholder="{{ __('Search by title or author...') }}"
                    class="w-full bg-slate-800 border-slate-700 rounded-lg text-slate-100 placeholder-slate-400 focus:ring-indigo-500 focus:border-indigo-500 text-sm py-2 pl-10 pr-4">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,19 +19,19 @@
             <!-- Status Filter -->
             <select wire:model.live="filterStatus"
                     class="bg-slate-800 border-slate-700 rounded-lg text-slate-100 text-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">All Status</option>
-                <option value="not_started">Not Started</option>
-                <option value="reading">Reading</option>
-                <option value="finished">Finished</option>
+                <option value="">{{ __('All Status') }}</option>
+                <option value="not_started">{{ __('Not Started') }}</option>
+                <option value="reading">{{ __('Reading') }}</option>
+                <option value="finished">{{ __('Finished') }}</option>
             </select>
 
             <!-- Sort -->
             <select wire:model.live="sortBy"
                     class="bg-slate-800 border-slate-700 rounded-lg text-slate-100 text-sm py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="created_at">Recent</option>
-                <option value="title">Title</option>
-                <option value="author">Author</option>
-                <option value="progress">Progress</option>
+                <option value="created_at">{{ __('Recent') }}</option>
+                <option value="title">{{ __('Title') }}</option>
+                <option value="author">{{ __('Author') }}</option>
+                <option value="progress">{{ __('Progress') }}</option>
             </select>
 
             <!-- Sort Direction -->
@@ -75,7 +75,7 @@
                         <div class="absolute top-2 right-2">
                             @if ($book->is_finished)
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-600 text-white">
-                                    Finished
+                                    {{ __('Finished') }}
                                 </span>
                             @elseif ($book->progress > 0)
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-600 text-white">
@@ -91,7 +91,7 @@
                             {{ $book->title }}
                         </h3>
                         <p class="text-slate-400 text-xs mt-1 line-clamp-1">
-                            {{ $book->author ?? 'Unknown Author' }}
+                            {{ $book->author ?? __('Unknown Author') }}
                         </p>
 
                         <!-- Progress Bar -->
@@ -124,8 +124,8 @@
             <svg class="mx-auto h-16 w-16 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            <h3 class="mt-4 text-lg font-medium text-slate-300">No books yet</h3>
-            <p class="mt-2 text-slate-500">Upload your first EPUB to get started.</p>
+            <h3 class="mt-4 text-lg font-medium text-slate-300">{{ __('No books yet') }}</h3>
+            <p class="mt-2 text-slate-500">{{ __('Upload your first EPUB to get started.') }}</p>
         </div>
     @endif
 </div>

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'basic.auth' => \App\Http\Middleware\BasicAuthMiddleware::class,
         ]);
 
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocale::class,
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'webdav/*',
             'opds/*',
