@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -16,6 +17,7 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
+        'timezone',
     ];
 
     protected $hidden = [
@@ -58,5 +60,31 @@ class User extends Authenticatable
         }
 
         return "{$minutes}m";
+    }
+
+    /**
+     * Convert a datetime to the user's timezone.
+     */
+    public function toUserTimezone(Carbon|string|null $date): ?Carbon
+    {
+        if ($date === null) {
+            return null;
+        }
+
+        if (is_string($date)) {
+            $date = Carbon::parse($date);
+        }
+
+        return $date->timezone($this->timezone ?? 'Europe/Brussels');
+    }
+
+    /**
+     * Format a datetime in the user's timezone.
+     */
+    public function formatDate(Carbon|string|null $date, string $format = 'd/m/Y H:i'): ?string
+    {
+        $converted = $this->toUserTimezone($date);
+
+        return $converted?->format($format);
     }
 }
