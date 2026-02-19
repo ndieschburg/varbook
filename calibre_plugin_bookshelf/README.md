@@ -1,13 +1,13 @@
-# Bookshelf Device Plugin for Calibre
+# Bookshelf Plugin for Calibre
 
-A Calibre device driver plugin that enables sending books to your Bookshelf server via WebDAV.
+A Calibre plugin that enables sending books to your Bookshelf server via WebDAV.
 
 ## Features
 
-- **Send books to Bookshelf**: Use Calibre's "Send to device" functionality to upload EPUBs
-- **Browse library**: View books already on your Bookshelf server via OPDS
-- **Automatic import**: Books are automatically imported with metadata extraction on the server
-- **Secure**: Uses HTTP Basic Authentication over HTTPS
+- **Toolbar button**: Quick access to send selected books
+- **Batch upload**: Send multiple books at once
+- **Progress tracking**: Visual progress during upload
+- **Auto-import**: Books are automatically imported with metadata on the server
 
 ## Requirements
 
@@ -19,85 +19,116 @@ A Calibre device driver plugin that enables sending books to your Bookshelf serv
 
 ### From ZIP file
 
-1. Download the latest `bookshelf_plugin.zip` from releases
+1. Download `bookshelf_plugin.zip`
 2. Open Calibre
 3. Go to **Preferences** → **Plugins**
 4. Click **Load plugin from file**
 5. Select the downloaded ZIP file
 6. Restart Calibre
+7. **Add the button to toolbar** (see below)
+
+### Adding the button to toolbar
+
+After installation, the button doesn't appear automatically. You need to add it manually:
+
+1. Go to **Preferences** → **Toolbars & menus**
+2. In the dropdown at the top, select **The main toolbar**
+3. In the left list "Available actions", find **Bookshelf**
+4. Select it and click **→** to add it to the right list
+5. Click **Apply** then **OK**
+
+The Bookshelf button will now appear in your toolbar.
 
 ### From source (development)
 
 ```bash
-# Navigate to plugin directory
 cd calibre_plugin_bookshelf
-
-# Install directly from source
-calibre-customize -b .
-
-# Or build ZIP first
 ./build.sh
-calibre-customize -a bookshelf_plugin.zip
+# Then install via Calibre UI or:
+calibre-debug -c "from calibre.customize.ui import add_plugin; add_plugin('bookshelf_plugin.zip')"
 ```
 
 ## Configuration
 
 1. Open Calibre
 2. Go to **Preferences** → **Plugins**
-3. Find "Bookshelf Device" under "Device Interface Plugins"
+3. Find "Bookshelf" under "User Interface Action Plugins"
 4. Click **Customize plugin**
 5. Enter your Bookshelf server details:
    - **Server URL**: Your Bookshelf URL (e.g., `https://bookshelf.example.com`)
    - **Email**: Your login email
    - **Password**: Your password
 6. Click **Test Connection** to verify
-7. Optionally enable **Auto-connect on Calibre startup**
+7. Click **OK** to save
 
 ## Usage
 
 ### Sending books
 
-1. Connect to Bookshelf:
-   - If auto-connect is enabled, Calibre will detect the device automatically
-   - Otherwise, go to **Connect/Share** → **Connect to Bookshelf**
-2. Select books in your Calibre library
-3. Right-click → **Send to device** → **Send to main memory**
-4. Books will be uploaded and automatically imported into Bookshelf
+1. Select one or more books in your Calibre library
+2. Click the **Bookshelf** button in the toolbar
+3. Books will be uploaded with a progress dialog
 
-### Browsing books
+Books must have an EPUB format available. The plugin will:
+- Upload the EPUB to your Bookshelf server via WebDAV
+- The server automatically extracts metadata and cover
+- Books appear in your Bookshelf library immediately
 
-Once connected, you can see books on your Bookshelf server in the device view panel.
+### Menu options
+
+Click the dropdown arrow on the Bookshelf button for:
+- **Send selected books** - Upload selected books
+- **Configure...** - Open plugin settings
+- **Test connection** - Verify server connectivity
 
 ## Technical Details
 
 ### Communication
 
 - **Upload**: WebDAV PUT to `/webdav/Apps/Books/{filename}.epub`
-- **List books**: OPDS feed from `/opds/all`
 - **Authentication**: HTTP Basic Auth (same credentials as web login)
 
-### Supported formats
+### File naming
 
-- EPUB (primary format)
+Books are uploaded with the filename format: `Author - Title.epub`
 
 ## Troubleshooting
 
-### "Authentication failed"
+### Button not appearing in toolbar
 
-- Verify your email and password are correct
-- Make sure you're using the same credentials as the Bookshelf web interface
+After installation or reinstallation, you must add the button manually:
+1. **Preferences** → **Toolbars & menus**
+2. Select **The main toolbar** in the dropdown
+3. Find **Bookshelf** in the left list and add it with **→**
+4. Click **Apply**
+
+### Nothing happens when clicking the button
+
+Run Calibre in debug mode to see errors:
+```bash
+calibre-debug -g
+```
+Then click the button and check the terminal for `[Bookshelf]` messages.
+
+### "No EPUB format available"
+
+The plugin only sends EPUB files. Convert your books to EPUB first:
+1. Select the book
+2. Right-click → **Convert books** → **Convert individually**
+3. Choose EPUB as output format
 
 ### "Connection failed"
 
-- Check that the server URL is correct and accessible
-- Ensure HTTPS is working (or enable "Ignore SSL errors" for self-signed certs)
-- Verify the Bookshelf server is running
+- Check that the server URL is correct (include `https://`)
+- Verify your email and password
+- Enable "Ignore SSL errors" for self-signed certificates
 
-### Books not appearing after upload
+### "Not Configured"
 
-- Check the Bookshelf server logs for import errors
-- Ensure the EPUB file is valid
-- Try refreshing the Bookshelf library page
+You need to configure the plugin first:
+1. **Preferences** → **Plugins**
+2. Find "Bookshelf" → **Customize plugin**
+3. Enter server URL, email, and password
 
 ## Development
 
@@ -105,27 +136,18 @@ Once connected, you can see books on your Bookshelf server in the device view pa
 
 ```
 calibre_plugin_bookshelf/
-├── __init__.py                          # Main plugin class
-├── driver.py                            # WebDAV/OPDS driver
-├── config.py                            # Configuration UI
-├── plugin-import-name-bookshelf_plugin.txt
+├── __init__.py          # Plugin entry point (InterfaceActionBase)
+├── ui.py                # Toolbar action UI (InterfaceAction)
+├── driver.py            # WebDAV/OPDS communication
+├── config.py            # Configuration storage and UI
 ├── images/
-│   └── icon.png                         # Plugin icon
-├── build.sh                             # Build script
+│   └── icon.png         # Toolbar icon
+├── plugin-import-name-bookshelf_plugin.txt
+├── build.sh             # Build script
 └── README.md
 ```
 
-### Testing changes
-
-```bash
-# Install from source
-calibre-customize -b /path/to/calibre_plugin_bookshelf
-
-# Run Calibre in debug mode
-calibre-debug -g
-```
-
-### Building a release
+### Building
 
 ```bash
 cd calibre_plugin_bookshelf
@@ -133,18 +155,28 @@ cd calibre_plugin_bookshelf
 # Output: bookshelf_plugin.zip
 ```
 
+### Testing changes
+
+```bash
+# Rebuild
+./build.sh
+
+# Reinstall (remove old version first in Calibre UI)
+# Then load the new ZIP via Preferences → Plugins → Load plugin from file
+
+# Run Calibre in debug mode to see plugin output
+calibre-debug -g 2>&1 | tee ~/calibre_debug.log
+```
+
+### Debug output
+
+The plugin prints debug messages prefixed with `[Bookshelf]` to stderr.
+These are visible when running `calibre-debug -g`.
+
 ## License
 
-MIT License - See LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `calibre-debug -g`
-5. Submit a pull request
+MIT License
 
 ## Credits
 
-Developed for use with [Bookshelf](https://github.com/your/bookshelf) - A personal e-book library manager.
+Developed for use with Bookshelf - A personal e-book library manager with Moon+ Reader sync support.

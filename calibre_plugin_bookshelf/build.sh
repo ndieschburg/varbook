@@ -24,6 +24,7 @@ zip -r "$OUTPUT_FILE" \
     __init__.py \
     driver.py \
     config.py \
+    ui.py \
     plugin-import-name-bookshelf_plugin.txt \
     images/ \
     -x "*.pyc" \
