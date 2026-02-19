@@ -171,4 +171,49 @@ class ReadingSessionService
             'last_progress' => $book->progress,
         ]);
     }
+
+    /**
+     * Start a reading session when the book is opened.
+     * Called on GET (when Moon+ Reader opens a book).
+     */
+    public function startSession(Book $book, string $client, string $externalIdentifier): ReadingSession
+    {
+        $now = Carbon::now();
+
+        // Get or create sync identifier
+        BookSyncIdentifier::firstOrCreate(
+            [
+                'book_id' => $book->id,
+                'client' => $client,
+                'external_identifier' => $externalIdentifier,
+            ],
+            [
+                'last_sync_at' => $now,
+                'last_progress' => $book->progress,
+            ]
+        );
+
+        // Check if there's already an active session (started recently)
+        $recentSession = ReadingSession::where('book_id', $book->id)
+            ->where('client', $client)
+            ->where('started_at', '>=', $now->copy()->subMinutes($this->sessionGapMinutes))
+            ->orderBy('started_at', 'desc')
+            ->first();
+
+        if ($recentSession) {
+            return $recentSession;
+        }
+
+        // Create new session
+        return ReadingSession::create([
+            'book_id' => $book->id,
+            'started_at' => $now,
+            'ended_at' => $now,
+            'duration_seconds' => 0,
+            'progress_before' => $book->progress,
+            'progress_after' => $book->progress,
+            'client' => $client,
+            'raw_payload' => null,
+        ]);
+    }
 }

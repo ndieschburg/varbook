@@ -37,6 +37,15 @@ class MoonReaderFile extends File
         $book = $this->findBook();
 
         if ($book) {
+            // Start a reading session (book is being opened)
+            $readingService = app(ReadingSessionService::class);
+            $readingService->startSession($book, 'moon', $this->fullPath);
+
+            Log::channel('webdav')->debug('GET - Started reading session', [
+                'book_id' => $book->id,
+                'title' => $book->title,
+            ]);
+
             // Get the most recent sync for this book
             $syncIdentifier = BookSyncIdentifier::where('book_id', $book->id)
                 ->where('client', 'moon')
@@ -122,15 +131,20 @@ class MoonReaderFile extends File
             return null;
         }
 
-        // Process the sync event
+        // Process the sync event (end the session started on GET)
         $readingService = app(ReadingSessionService::class);
         $readingService->processSyncEvent(
             $book,
             'moon',
-            $this->name,
+            $this->fullPath,
             $syncData['progress'] ?? 0,
             ['raw' => $data]
         );
+
+        Log::channel('webdav')->debug('PUT - Ended reading session', [
+            'book_id' => $book->id,
+            'progress' => $syncData['progress'] ?? 0,
+        ]);
 
         return null;
     }
