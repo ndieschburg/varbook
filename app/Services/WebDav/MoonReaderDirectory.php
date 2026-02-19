@@ -22,17 +22,28 @@ class MoonReaderDirectory extends Collection implements ICollection
 
     public function getChildren(): array
     {
-        // Return Apps directory as the main entry point for Moon+ Reader
+        // Return Apps directory for Moon+ Reader sync and Books directory for book downloads
         return [
             new VirtualDirectory($this->user, 'Apps', 'Apps'),
+            new BooksDirectory($this->user),
         ];
     }
 
-    public function getChild($name): VirtualDirectory|MoonReaderFile
+    public function getChild($name): VirtualDirectory|MoonReaderFile|MoonReaderDataFile|BooksDirectory
     {
-        // If it looks like a file, return a file
-        if (preg_match('/\.(po|pos|json|sync)$/i', $name)) {
+        // If requesting Books directory, return the books listing
+        if ($name === 'Books') {
+            return new BooksDirectory($this->user);
+        }
+
+        // Position sync files (.po, .pos) - handled by MoonReaderFile
+        if (preg_match('/\.(po|pos)$/i', $name)) {
             return new MoonReaderFile($name, null, $this->user, $name);
+        }
+
+        // All other data files - stored as binary data
+        if (preg_match('/\.(sync|id|sorts|json|png|jpg|jpeg|gif|epub)$/i', $name)) {
+            return new MoonReaderDataFile($name, $this->user, $name);
         }
 
         // Otherwise return a virtual directory
@@ -47,7 +58,14 @@ class MoonReaderDirectory extends Collection implements ICollection
 
     public function createFile($name, $data = null): ?string
     {
-        $file = new MoonReaderFile($name, null, $this->user, $name);
+        // Position sync files (.po, .pos) - handled by MoonReaderFile
+        if (preg_match('/\.(po|pos)$/i', $name)) {
+            $file = new MoonReaderFile($name, null, $this->user, $name);
+        } else {
+            // All other files - stored as binary data
+            $file = new MoonReaderDataFile($name, $this->user, $name);
+        }
+
         $file->put($data);
         return null;
     }

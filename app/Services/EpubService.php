@@ -152,4 +152,67 @@ class EpubService
     {
         return Storage::path($book->storage_path);
     }
+
+    /**
+     * Import an epub from a file path (used for WebDAV uploads).
+     */
+    public function importFromPath(string $filePath, string $originalFilename, User $user): ?Book
+    {
+        if (!file_exists($filePath)) {
+            return null;
+        }
+
+        $fileHash = md5_file($filePath);
+        $fileSize = filesize($filePath);
+
+        // Check if book already exists for this user
+        $existingBook = Book::where('user_id', $user->id)
+            ->where('file_hash', $fileHash)
+            ->first();
+
+        if ($existingBook) {
+            // Book already exists, no need to import again
+            return $existingBook;
+        }
+
+        // Parse EPUB metadata
+        $ebook = Ebook::read($filePath);
+        $metadata = $this->extractMetadata($ebook);
+
+        // Store the EPUB file
+        $storagePath = $this->storeEpubFromPath($filePath, $user->id, $fileHash);
+
+        // Extract and store cover
+        $coverPath = $this->extractCover($ebook, $user->id, $fileHash);
+
+        // Create book record
+        return Book::create([
+            'user_id' => $user->id,
+            'title' => $metadata['title'] ?? pathinfo($originalFilename, PATHINFO_FILENAME),
+            'author' => $metadata['author'],
+            'description' => $metadata['description'],
+            'language' => $metadata['language'],
+            'publisher' => $metadata['publisher'],
+            'isbn' => $metadata['isbn'],
+            'filename' => $originalFilename,
+            'storage_path' => $storagePath,
+            'cover_path' => $coverPath,
+            'file_hash' => $fileHash,
+            'file_size' => $fileSize,
+            'progress' => 0,
+            'total_reading_seconds' => 0,
+            'is_finished' => false,
+        ]);
+    }
+
+    protected function storeEpubFromPath(string $filePath, int $userId, string $fileHash): string
+    {
+        $path = config('bookshelf.books_path') . "/{$userId}";
+        $filename = "{$fileHash}.epub";
+        $fullPath = "{$path}/{$filename}";
+
+        Storage::put($fullPath, file_get_contents($filePath));
+
+        return $fullPath;
+    }
 }
