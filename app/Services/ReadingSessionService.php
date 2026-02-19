@@ -193,11 +193,11 @@ class ReadingSessionService
             ]
         );
 
-        // Check if there's already an active session (started recently)
+        // Check if there's already an active session (last activity within gap)
         $recentSession = ReadingSession::where('book_id', $book->id)
             ->where('client', $client)
-            ->where('started_at', '>=', $now->copy()->subMinutes($this->sessionGapMinutes))
-            ->orderBy('started_at', 'desc')
+            ->where('ended_at', '>=', $now->copy()->subMinutes($this->sessionGapMinutes))
+            ->orderBy('ended_at', 'desc')
             ->first();
 
         if ($recentSession) {
