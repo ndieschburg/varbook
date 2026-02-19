@@ -44,6 +44,14 @@ new class extends Component
 
             <!-- Right: User Menu -->
             <div class="hidden sm:flex sm:items-center sm:space-x-4">
+                <a href="{{ route('stats') }}" wire:navigate
+                   class="text-slate-400 hover:text-slate-100 px-3 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 {{ request()->routeIs('stats') ? 'text-indigo-400' : '' }}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    {{ __('Stats') }}
+                </a>
+
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.users') }}" wire:navigate
                        class="text-slate-400 hover:text-slate-100 px-3 py-2 text-sm font-medium transition-colors {{ request()->routeIs('admin.*') ? 'text-indigo-400' : '' }}">
@@ -135,6 +143,10 @@ new class extends Component
         <div class="pt-2 pb-3 space-y-1 border-t border-slate-700">
             <x-responsive-nav-link :href="route('library')" :active="request()->routeIs('library')" wire:navigate>
                 {{ __('Library') }}
+            </x-responsive-nav-link>
+
+            <x-responsive-nav-link :href="route('stats')" :active="request()->routeIs('stats')" wire:navigate>
+                {{ __('Stats') }}
             </x-responsive-nav-link>
 
             @if(auth()->user()->isAdmin())

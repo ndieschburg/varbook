@@ -22,6 +22,9 @@ Route::middleware(['auth'])->group(function () {
     // Library
     Route::view('library', 'library')->name('library');
 
+    // Reading Stats Dashboard
+    Route::view('stats', 'stats')->name('stats');
+
     // Dashboard redirect to library
     Route::redirect('dashboard', '/library')->name('dashboard');
 
