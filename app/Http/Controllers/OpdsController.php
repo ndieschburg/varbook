@@ -14,6 +14,31 @@ class OpdsController extends Controller
         protected EpubService $epubService
     ) {}
 
+    /**
+     * Get a URL with Basic Auth credentials embedded.
+     * Moon+ Reader needs credentials in download URLs.
+     */
+    protected function authenticatedUrl(string $url): string
+    {
+        $request = request();
+        $user = $request->getUser();
+        $password = $request->getPassword();
+
+        if ($user && $password) {
+            $parsed = parse_url($url);
+            $auth = urlencode($user) . ':' . urlencode($password) . '@';
+            $host = $parsed['host'] ?? '';
+            $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+            $path = $parsed['path'] ?? '';
+            $query = isset($parsed['query']) ? '?' . $parsed['query'] : '';
+            $scheme = $parsed['scheme'] ?? 'https';
+
+            return "{$scheme}://{$auth}{$host}{$port}{$path}{$query}";
+        }
+
+        return $url;
+    }
+
     public function root(): Response
     {
         return $this->opdsResponse(view('opds.root', [
@@ -37,6 +62,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.all'),
             'nextUrl' => $books->hasMorePages() ? route('opds.all', ['page' => $page + 1]) : null,
+            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
         ]));
     }
 
@@ -71,6 +97,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.by-author', ['author' => $author]),
             'nextUrl' => null,
+            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
         ]));
     }
 
@@ -94,6 +121,7 @@ class OpdsController extends Controller
             'books' => $books,
             'selfUrl' => route('opds.search', ['q' => $query]),
             'nextUrl' => null,
+            'authUrl' => fn(string $url) => $this->authenticatedUrl($url),
         ]));
     }
 
