@@ -12,7 +12,7 @@ class SetLocale
     /**
      * Supported locales.
      */
-    protected array $supportedLocales = ['en', 'fr'];
+    protected array $supportedLocales = ['en', 'fr', 'es'];
 
     /**
      * Handle an incoming request.

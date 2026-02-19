@@ -10,7 +10,7 @@ Route::redirect('/', '/library');
 
 // Language switch
 Route::get('locale/{locale}', function (string $locale) {
-    if (in_array($locale, ['en', 'fr'])) {
+    if (in_array($locale, ['en', 'fr', 'es'])) {
         session(['locale' => $locale]);
     }
 

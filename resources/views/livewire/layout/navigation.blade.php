@@ -69,6 +69,9 @@ new class extends Component
                         <x-dropdown-link :href="route('locale.switch', 'fr')" class="{{ app()->getLocale() === 'fr' ? 'bg-slate-700' : '' }}">
                             {{ __('French') }}
                         </x-dropdown-link>
+                        <x-dropdown-link :href="route('locale.switch', 'es')" class="{{ app()->getLocale() === 'es' ? 'bg-slate-700' : '' }}">
+                            {{ __('Spanish') }}
+                        </x-dropdown-link>
                     </x-slot>
                 </x-dropdown>
 
@@ -168,6 +171,8 @@ new class extends Component
                     <a href="{{ route('locale.switch', 'en') }}" class="px-2 py-1 text-sm {{ app()->getLocale() === 'en' ? 'text-indigo-400 font-medium' : 'text-slate-400' }}">EN</a>
                     <span class="text-slate-600">|</span>
                     <a href="{{ route('locale.switch', 'fr') }}" class="px-2 py-1 text-sm {{ app()->getLocale() === 'fr' ? 'text-indigo-400 font-medium' : 'text-slate-400' }}">FR</a>
+                    <span class="text-slate-600">|</span>
+                    <a href="{{ route('locale.switch', 'es') }}" class="px-2 py-1 text-sm {{ app()->getLocale() === 'es' ? 'text-indigo-400 font-medium' : 'text-slate-400' }}">ES</a>
                 </div>
             </div>
         </div>
