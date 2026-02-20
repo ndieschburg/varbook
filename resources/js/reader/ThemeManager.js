@@ -2,6 +2,8 @@ class ThemeManager {
     constructor(reader) {
         this.reader = reader;
         this.currentTheme = localStorage.getItem('reader-theme') || 'dark';
+        this.fontSize = parseInt(localStorage.getItem('reader-font-size')) || 100;
+        this.fontFamily = localStorage.getItem('reader-font-family') || 'default';
 
         this.themes = {
             light: {
@@ -13,6 +15,13 @@ class ThemeManager {
             sepia: {
                 body: { background: '#f4ecd8', color: '#5c4b37' },
             },
+        };
+
+        this.fonts = {
+            default: 'inherit',
+            serif: 'Georgia, "Times New Roman", serif',
+            sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+            mono: 'ui-monospace, "Cascadia Code", "Source Code Pro", monospace',
         };
     }
 
@@ -53,12 +62,79 @@ class ThemeManager {
         });
     }
 
+    setFontSize(size) {
+        this.fontSize = Math.max(50, Math.min(200, size));
+        localStorage.setItem('reader-font-size', this.fontSize);
+
+        if (this.reader.rendition) {
+            this.reader.rendition.themes.fontSize(`${this.fontSize}%`);
+        }
+
+        this.updateFontSizeUI();
+    }
+
+    increaseFontSize() {
+        this.setFontSize(this.fontSize + 10);
+    }
+
+    decreaseFontSize() {
+        this.setFontSize(this.fontSize - 10);
+    }
+
+    setFontFamily(fontKey) {
+        this.fontFamily = fontKey;
+        localStorage.setItem('reader-font-family', fontKey);
+
+        if (this.reader.rendition) {
+            const fontValue = this.fonts[fontKey] || 'inherit';
+            this.reader.rendition.themes.font(fontValue);
+        }
+
+        this.updateFontFamilyUI();
+    }
+
+    applyTypography() {
+        if (this.reader.rendition) {
+            this.reader.rendition.themes.fontSize(`${this.fontSize}%`);
+            const fontValue = this.fonts[this.fontFamily] || 'inherit';
+            this.reader.rendition.themes.font(fontValue);
+        }
+        this.updateFontSizeUI();
+        this.updateFontFamilyUI();
+    }
+
+    updateFontSizeUI() {
+        const sizeDisplay = document.querySelector('#font-size-display');
+        if (sizeDisplay) {
+            sizeDisplay.textContent = `${this.fontSize}%`;
+        }
+    }
+
+    updateFontFamilyUI() {
+        document.querySelectorAll('.font-btn').forEach(btn => {
+            btn.classList.remove('border-indigo-500', 'bg-indigo-600/20');
+            btn.classList.add('border-slate-600');
+            if (btn.dataset.font === this.fontFamily) {
+                btn.classList.remove('border-slate-600');
+                btn.classList.add('border-indigo-500', 'bg-indigo-600/20');
+            }
+        });
+    }
+
     getAvailableThemes() {
         return Object.keys(this.themes);
     }
 
     getCurrentTheme() {
         return this.currentTheme;
+    }
+
+    getFontSize() {
+        return this.fontSize;
+    }
+
+    getFontFamily() {
+        return this.fontFamily;
     }
 }
 

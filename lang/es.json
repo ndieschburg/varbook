@@ -81,5 +81,8 @@
     "Light": "Claro",
     "Dark": "Oscuro",
     "Sepia": "Sepia",
-    "Position saved": "Posición guardada"
+    "Position saved": "Posición guardada",
+    "Font Size": "Tamaño de fuente",
+    "Font": "Fuente",
+    "Default": "Por defecto"
 }

@@ -50,8 +50,9 @@ class EpubReader {
                 return this.book.locations.generate(1024);
             });
 
-            // Apply saved theme
+            // Apply saved theme and typography
             this.themeManager.applyTheme();
+            this.themeManager.applyTypography();
 
             // Load saved position or start from beginning
             const savedPosition = await this.positionSync.load();

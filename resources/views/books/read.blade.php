@@ -113,13 +113,31 @@
             </div>
         </aside>
 
-        {{-- Theme Panel (hidden by default) --}}
-        <div id="theme-panel" class="fixed bottom-20 right-4 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 hidden z-50">
+        {{-- Settings Panel (hidden by default) --}}
+        <div id="theme-panel" class="fixed bottom-20 right-4 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 hidden z-50 w-64">
+            {{-- Theme --}}
             <h3 class="text-sm font-medium text-slate-400 mb-3">{{ __('Theme') }}</h3>
-            <div class="flex gap-2">
+            <div class="flex gap-2 mb-4">
                 <button data-theme="light" class="theme-btn w-10 h-10 rounded-lg bg-white border-2 border-slate-600 hover:border-indigo-500" title="{{ __('Light') }}"></button>
                 <button data-theme="dark" class="theme-btn w-10 h-10 rounded-lg bg-slate-800 border-2 border-slate-600 hover:border-indigo-500" title="{{ __('Dark') }}"></button>
                 <button data-theme="sepia" class="theme-btn w-10 h-10 rounded-lg bg-[#f4ecd8] border-2 border-slate-600 hover:border-indigo-500" title="{{ __('Sepia') }}"></button>
+            </div>
+
+            {{-- Font Size --}}
+            <h3 class="text-sm font-medium text-slate-400 mb-3">{{ __('Font Size') }}</h3>
+            <div class="flex items-center gap-3 mb-4">
+                <button id="font-size-decrease" class="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xl font-bold transition-colors">−</button>
+                <span id="font-size-display" class="flex-1 text-center text-slate-300 font-medium">100%</span>
+                <button id="font-size-increase" class="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xl font-bold transition-colors">+</button>
+            </div>
+
+            {{-- Font Family --}}
+            <h3 class="text-sm font-medium text-slate-400 mb-3">{{ __('Font') }}</h3>
+            <div class="grid grid-cols-2 gap-2">
+                <button data-font="default" class="font-btn px-3 py-2 rounded-lg border-2 border-slate-600 hover:border-indigo-500 text-slate-300 text-sm transition-colors">{{ __('Default') }}</button>
+                <button data-font="serif" class="font-btn px-3 py-2 rounded-lg border-2 border-slate-600 hover:border-indigo-500 text-slate-300 text-sm transition-colors" style="font-family: Georgia, serif;">Serif</button>
+                <button data-font="sans" class="font-btn px-3 py-2 rounded-lg border-2 border-slate-600 hover:border-indigo-500 text-slate-300 text-sm transition-colors" style="font-family: system-ui, sans-serif;">Sans</button>
+                <button data-font="mono" class="font-btn px-3 py-2 rounded-lg border-2 border-slate-600 hover:border-indigo-500 text-slate-300 text-sm transition-colors" style="font-family: monospace;">Mono</button>
             </div>
         </div>
 
@@ -192,7 +210,21 @@
             document.querySelectorAll('.theme-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     reader.themeManager.applyTheme(btn.dataset.theme);
-                    themePanel.classList.add('hidden');
+                });
+            });
+
+            // Font size controls
+            document.getElementById('font-size-decrease')?.addEventListener('click', () => {
+                reader.themeManager.decreaseFontSize();
+            });
+            document.getElementById('font-size-increase')?.addEventListener('click', () => {
+                reader.themeManager.increaseFontSize();
+            });
+
+            // Font family controls
+            document.querySelectorAll('.font-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    reader.themeManager.setFontFamily(btn.dataset.font);
                 });
             });
 

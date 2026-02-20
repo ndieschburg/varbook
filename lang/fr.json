@@ -81,5 +81,8 @@
     "Light": "Clair",
     "Dark": "Sombre",
     "Sepia": "Sépia",
-    "Position saved": "Position enregistrée"
+    "Position saved": "Position enregistrée",
+    "Font Size": "Taille de police",
+    "Font": "Police",
+    "Default": "Par défaut"
 }
