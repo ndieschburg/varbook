@@ -23,3 +23,17 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 CLAUDE.md
+
+# Personal dotfiles (symlinked from dotfiles repo)
+.bash_profile
+.bashrc
+.gitconfig
+.gitmodules
+.mcp.json
+.profile
+.ripgreprc
+.zprofile
+.zshrc
+
+# Claude Code
+.claude/

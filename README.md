@@ -1,18 +1,22 @@
 # BookShelf
 
-A self-hosted Laravel application for managing personal EPUB libraries with multi-device reading position sync. Serves books via OPDS and synchronizes reading progress via WebDAV for Moon+ Reader.
+A self-hosted Laravel + React application for managing personal EPUB libraries with multi-device reading position sync. Features an integrated EPUB reader with offline PWA support, OPDS catalog, WebDAV sync for Moon+ Reader, and kosync API for KOReader.
 
 ## Features
 
 - **EPUB Library Management**: Upload, organize, and manage your EPUB collection
+- **Integrated EPUB Reader**: Read books directly in the browser with epub.js
+- **PWA Support**: Install as a standalone app, read offline with cached books
 - **Automatic Metadata Extraction**: Title, author, description, cover image extracted from EPUB files
 - **Reading Progress Tracking**: Track reading progress and total reading time per book
 - **Reading Sessions**: Detailed history of reading sessions with duration and progress
+- **Multi-Device Sync**: Sync reading positions across devices
 - **OPDS Catalog**: Browse and download books from any OPDS-compatible reader
 - **WebDAV Sync**: Sync reading positions with Moon+ Reader Pro
+- **KOReader Support**: Sync reading positions with KOReader via kosync API
 - **Multi-user Support**: Each user has an isolated library
 - **Admin Dashboard**: Manage users and view statistics
-- **Dark Theme UI**: Modern, responsive interface inspired by streaming platforms
+- **Dark Theme UI**: Modern, responsive interface with Tailwind CSS
 
 ## Requirements
 
@@ -61,6 +65,9 @@ DB_USERNAME=your_db_user
 DB_PASSWORD=your_db_password
 
 SESSION_DRIVER=database
+
+# Sanctum SPA domains (for cookie auth)
+SANCTUM_STATEFUL_DOMAINS=your-domain.com
 
 # BookShelf Configuration
 BOOKSHELF_MAX_SESSION_HOURS=4
@@ -126,6 +133,42 @@ server {
 }
 ```
 
+## Usage
+
+### Web Interface
+
+Access the application at your configured URL. The React SPA provides:
+
+- **Library**: Browse, search, filter, and upload books
+- **Book Detail**: View metadata, reading sessions, download or delete
+- **Reader**: Integrated EPUB reader with progress sync
+- **Stats**: Reading statistics, charts, and session history
+- **Profile**: Update name, email, and password
+- **Admin**: User management (admin only)
+
+### PWA Installation
+
+BookShelf can be installed as a Progressive Web App:
+
+1. Open the site in Chrome/Edge/Safari
+2. Click "Install" in the address bar or browser menu
+3. The app will be available as a standalone application
+4. Books can be downloaded for offline reading
+
+### Search & Filter
+
+- Use the search bar to find books by title or author
+- Filter by status: All, Reading, Finished, Not Started
+- Sort by: Recent, Title, Author, Progress
+
+### Reading Sessions
+
+Each book's detail page shows a history of reading sessions:
+- Date and time of the session
+- Duration (e.g., "45 min")
+- Progress change (e.g., "32% → 45%")
+- Client used (Web Reader, Moon+ Reader, KOReader, etc.)
+
 ## Moon+ Reader Configuration
 
 Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV (for syncing reading positions).
@@ -142,8 +185,6 @@ Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV 
    - **Password**: Your BookShelf password
 5. Tap **OK** to save
 
-You can now browse your library, search books, and download them directly to Moon+ Reader.
-
 #### OPDS Endpoints
 
 | Endpoint | Description |
@@ -156,8 +197,6 @@ You can now browse your library, search books, and download them directly to Moo
 
 ### WebDAV Setup (Sync Reading Positions)
 
-WebDAV sync allows Moon+ Reader to save and restore your reading position across devices.
-
 1. Open Moon+ Reader Pro
 2. Go to **Menu** → **Miscellaneous** → **Sync reading positions**
 3. Select **WebDAV** as the sync method
@@ -168,43 +207,71 @@ WebDAV sync allows Moon+ Reader to save and restore your reading position across
 5. Tap **Test** to verify the connection
 6. Enable **Auto sync** for automatic position syncing
 
-#### How WebDAV Sync Works
+## KOReader Configuration
 
-- Moon+ Reader automatically syncs your reading position on every page turn
-- BookShelf groups these syncs into reading sessions (configurable gap: 10 minutes default)
-- Reading time is calculated and tracked per book
-- Progress percentage is updated in real-time
-- When progress reaches 95% (configurable), the book is marked as finished
+KOReader syncs reading positions using the kosync protocol.
 
-#### Troubleshooting WebDAV
+### kosync Setup
 
-- Ensure your server supports HTTPS (required for Moon+ Reader)
-- Check that HTTP Basic Auth is working: `curl -u email:password https://your-domain.com/webdav`
-- Verify the WebDAV URL ends with `/webdav` (no trailing slash)
-- If using a reverse proxy, ensure it passes `Authorization` headers
+1. Open KOReader
+2. Go to **Tools** → **Progress sync**
+3. Select **Custom sync server**
+4. Enter the following:
+   - **Server URL**: `https://your-domain.com/api/kosync`
+   - **Username**: Your BookShelf email
+   - **Password**: Your BookShelf password
+5. Tap **Login** to authenticate
 
-## Usage
+### How kosync Works
 
-### Library Management
+- KOReader syncs position on book open/close and periodically
+- BookShelf tracks these as reading sessions
+- Progress is calculated from the position data
+- Same session grouping logic as WebDAV (10-minute gap)
 
-- **Upload Books**: Drag and drop EPUB files onto the library page
-- **View Details**: Click on a book card to see full metadata and reading history
-- **Download**: Download the original EPUB file from the book detail page
-- **Delete**: Remove books from your library (with confirmation)
+## API Reference
 
-### Search & Filter
+### Authentication
 
-- Use the search bar to find books by title or author
-- Filter by status: All, Reading, Finished, Not Started
-- Sort by: Recent, Title, Author, Progress
+| Protocol | Auth Method | Used By |
+|----------|-------------|---------|
+| Web SPA | Sanctum (cookie) | Browser |
+| OPDS | HTTP Basic Auth | Moon+ Reader, etc. |
+| WebDAV | HTTP Basic Auth | Moon+ Reader |
+| kosync | Header auth (`x-auth-user`, `x-auth-key`) | KOReader |
 
-### Reading Sessions
+### JSON API Endpoints
 
-Each book's detail page shows a history of reading sessions:
-- Date and time of the session
-- Duration (e.g., "45 min")
-- Progress change (e.g., "32% → 45%")
-- Client used (Moon+ Reader, KOReader, etc.)
+All endpoints require Sanctum authentication (cookie-based for SPA).
+
+```
+POST   /api/login                    # Login, returns user
+POST   /api/logout                   # Logout
+GET    /api/user                     # Current user
+PUT    /api/user/locale              # Update locale preference
+PUT    /api/user/profile-information # Update name/email
+PUT    /api/user/password            # Change password
+
+GET    /api/stats                    # Reading statistics
+
+GET    /api/books                    # List books (with filters)
+POST   /api/books                    # Upload new book (multipart)
+GET    /api/books/{id}               # Get book details
+DELETE /api/books/{id}               # Delete book
+GET    /api/books/{id}/download      # Download EPUB
+GET    /api/books/{id}/cover         # Get cover image
+GET    /api/books/{id}/sessions      # Reading sessions
+GET    /api/books/{id}/progress      # Get progress
+PUT    /api/books/{id}/progress      # Update progress
+POST   /api/books/{id}/progress/batch# Batch sync (PWA offline)
+
+# Admin only
+GET    /api/admin/users              # List users
+POST   /api/admin/users              # Create user
+PUT    /api/admin/users/{id}         # Update user
+DELETE /api/admin/users/{id}         # Delete user
+GET    /api/admin/stats              # Global statistics
+```
 
 ## Admin Commands
 
@@ -232,27 +299,35 @@ php artisan view:cache
 
 ## Tech Stack
 
-- **Framework**: Laravel 12
-- **Frontend**: Blade + Livewire + Alpine.js + Tailwind CSS
+### Backend
+- **Framework**: Laravel 12 (PHP 8.2+)
 - **Database**: MySQL/MariaDB
+- **Auth**: Laravel Sanctum (SPA), HTTP Basic (OPDS/WebDAV)
 - **WebDAV**: sabre/dav
 - **EPUB Parsing**: kiwilan/php-ebook
-- **Authentication**: Laravel Breeze
 
-## API Authentication
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Routing**: React Router 7
+- **Data Fetching**: TanStack Query
+- **Styling**: Tailwind CSS 4
+- **Build Tool**: Vite 7
+- **i18n**: react-i18next
+- **EPUB Reader**: epub.js
+- **Offline Storage**: Dexie (IndexedDB)
+- **PWA**: vite-plugin-pwa + Workbox
 
-| Protocol | Auth Method | Used By |
-|----------|-------------|---------|
-| Web UI | Session (cookie) | Browser |
-| OPDS | HTTP Basic Auth | Moon+ Reader, etc. |
-| WebDAV | HTTP Basic Auth | Moon+ Reader |
+## Calibre Plugin
 
-## Roadmap
+A Calibre plugin is available for uploading books directly from Calibre desktop.
 
-### Phase 2 (Planned)
-- KOReader support via kosync API
-- PDF support
-- Metadata editing from UI
+Location: `calibre_plugin_bookshelf/`
+
+Build with:
+```bash
+cd calibre_plugin_bookshelf
+./build.sh
+```
 
 ## License
 
