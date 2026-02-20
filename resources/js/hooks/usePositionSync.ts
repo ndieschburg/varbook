@@ -1,4 +1,5 @@
 import { useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '@/api/client';
 
 interface PositionSyncOptions {
@@ -7,6 +8,7 @@ interface PositionSyncOptions {
 }
 
 export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptions) {
+    const queryClient = useQueryClient();
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedCfiRef = useRef<string | null>(null);
 
@@ -60,10 +62,12 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
                 client: 'web',
             });
             lastSavedCfiRef.current = cfi;
+            // Invalidate books list cache so "Continue Reading" updates
+            queryClient.invalidateQueries({ queryKey: ['books'] });
         } catch (error) {
             console.error('Failed to save position:', error);
         }
-    }, [bookId]);
+    }, [bookId, queryClient]);
 
     return {
         loadPosition,
