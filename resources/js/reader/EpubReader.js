@@ -19,35 +19,52 @@ class EpubReader {
     }
 
     async init() {
-        // Create book instance
-        this.book = ePub(this.epubUrl);
+        try {
+            // Fetch EPUB as ArrayBuffer to avoid relative URL issues
+            const response = await fetch(this.epubUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to load EPUB: ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
 
-        // Render to container
-        this.rendition = this.book.renderTo(this.container, {
-            width: '100%',
-            height: '100%',
-            spread: 'none',
-            flow: 'paginated',
-        });
+            // Create book instance from ArrayBuffer
+            this.book = ePub(arrayBuffer);
 
-        // Generate locations for progress tracking
-        this.book.ready.then(() => {
-            return this.book.locations.generate(1024);
-        });
+            // Render to container
+            this.rendition = this.book.renderTo(this.container, {
+                width: '100%',
+                height: '100%',
+                spread: 'none',
+                flow: 'paginated',
+            });
 
-        // Apply saved theme
-        this.themeManager.applyTheme();
+            // Generate locations for progress tracking
+            this.book.ready.then(() => {
+                return this.book.locations.generate(1024);
+            });
 
-        // Load saved position or start from beginning
-        const savedPosition = await this.positionSync.load();
-        if (savedPosition?.cfi) {
-            this.rendition.display(savedPosition.cfi);
-        } else {
-            this.rendition.display();
+            // Apply saved theme
+            this.themeManager.applyTheme();
+
+            // Load saved position or start from beginning
+            const savedPosition = await this.positionSync.load();
+            if (savedPosition?.cfi) {
+                this.rendition.display(savedPosition.cfi);
+            } else {
+                this.rendition.display();
+            }
+
+            // Setup event listeners
+            this.setupEventListeners();
+        } catch (error) {
+            console.error('Failed to initialize EPUB reader:', error);
+            document.querySelector('#reader-loading').innerHTML = `
+                <div class="text-center text-red-400">
+                    <p>Failed to load book</p>
+                    <p class="text-sm mt-2">${error.message}</p>
+                </div>
+            `;
         }
-
-        // Setup event listeners
-        this.setupEventListeners();
     }
 
     setupEventListeners() {
