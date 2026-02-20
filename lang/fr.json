@@ -104,5 +104,20 @@
     "Unauthorized": "Non autorisé",
     "Registration disabled. Please register via the web interface.": "Inscription désactivée. Veuillez vous inscrire via l'interface web.",
     "Document not found": "Document non trouvé",
-    "Document parameter required": "Paramètre document requis"
+    "Document parameter required": "Paramètre document requis",
+    "Login successful": "Connexion réussie",
+    "Logout successful": "Déconnexion réussie",
+    "Locale updated": "Langue mise à jour",
+    "Book uploaded successfully": "Livre téléversé avec succès",
+    "Access denied": "Accès refusé",
+    "Book deleted successfully": "Livre supprimé avec succès",
+    "Book file not found": "Fichier du livre non trouvé",
+    "Cover not found": "Couverture non trouvée",
+    "Progress updated": "Progression mise à jour",
+    "User created successfully": "Utilisateur créé avec succès",
+    "User updated successfully": "Utilisateur mis à jour avec succès",
+    "Cannot delete your own account": "Impossible de supprimer votre propre compte",
+    "User deleted successfully": "Utilisateur supprimé avec succès",
+    "Please select an EPUB file to upload": "Veuillez sélectionner un fichier EPUB à téléverser",
+    "Only EPUB files are allowed": "Seuls les fichiers EPUB sont autorisés"
 }

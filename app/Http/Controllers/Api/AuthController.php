@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\UpdateLocaleRequest;
+use App\Http\Resources\UserResource;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class AuthController extends Controller
+{
+    /**
+     * POST /api/login
+     * Authenticate user and return user data (SPA mode uses cookies)
+     */
+    public function login(LoginRequest $request): JsonResponse
+    {
+        $request->authenticate();
+
+        // Regenerate session for stateful SPA requests
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        return response()->json([
+            'message' => __('Login successful'),
+            'user' => new UserResource(Auth::user()),
+        ]);
+    }
+
+    /**
+     * POST /api/logout
+     * Invalidate session
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        Auth::guard('web')->logout();
+
+        // Invalidate session for stateful SPA requests
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        return response()->json([
+            'message' => __('Logout successful'),
+        ]);
+    }
+
+    /**
+     * GET /api/user
+     * Get current authenticated user
+     */
+    public function user(Request $request): UserResource
+    {
+        return new UserResource($request->user());
+    }
+
+    /**
+     * PUT /api/user/locale
+     * Update user's locale preference
+     */
+    public function updateLocale(UpdateLocaleRequest $request): JsonResponse
+    {
+        $locale = $request->validated('locale');
+
+        if ($request->hasSession()) {
+            session(['locale' => $locale]);
+        }
+
+        return response()->json([
+            'message' => __('Locale updated'),
+            'locale' => $locale,
+        ]);
+    }
+}

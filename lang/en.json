@@ -91,5 +91,20 @@
     "Unauthorized": "Unauthorized",
     "Registration disabled. Please register via the web interface.": "Registration disabled. Please register via the web interface.",
     "Document not found": "Document not found",
-    "Document parameter required": "Document parameter required"
+    "Document parameter required": "Document parameter required",
+    "Login successful": "Login successful",
+    "Logout successful": "Logout successful",
+    "Locale updated": "Locale updated",
+    "Book uploaded successfully": "Book uploaded successfully",
+    "Access denied": "Access denied",
+    "Book deleted successfully": "Book deleted successfully",
+    "Book file not found": "Book file not found",
+    "Cover not found": "Cover not found",
+    "Progress updated": "Progress updated",
+    "User created successfully": "User created successfully",
+    "User updated successfully": "User updated successfully",
+    "Cannot delete your own account": "Cannot delete your own account",
+    "User deleted successfully": "User deleted successfully",
+    "Please select an EPUB file to upload": "Please select an EPUB file to upload",
+    "Only EPUB files are allowed": "Only EPUB files are allowed"
 }
