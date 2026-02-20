@@ -20,6 +20,12 @@ class EpubReader {
 
     async init() {
         try {
+            // Get container element
+            const containerEl = document.querySelector(this.container);
+            if (!containerEl) {
+                throw new Error(`Container element not found: ${this.container}`);
+            }
+
             // Fetch EPUB as ArrayBuffer to avoid relative URL issues
             const response = await fetch(this.epubUrl);
             if (!response.ok) {
@@ -30,8 +36,8 @@ class EpubReader {
             // Create book instance from ArrayBuffer
             this.book = ePub(arrayBuffer);
 
-            // Render to container
-            this.rendition = this.book.renderTo(this.container, {
+            // Render to container element
+            this.rendition = this.book.renderTo(containerEl, {
                 width: '100%',
                 height: '100%',
                 spread: 'none',
