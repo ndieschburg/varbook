@@ -54,7 +54,10 @@
         </header>
 
         {{-- Reader Container --}}
-        <main id="reader-container" class="flex-1 bg-slate-800 relative overflow-hidden">
+        <main class="flex-1 bg-slate-800 relative overflow-hidden">
+            {{-- EPUB Render Target --}}
+            <div id="reader-container" class="absolute inset-0"></div>
+
             {{-- Loading Overlay --}}
             <div id="reader-loading" class="absolute inset-0 flex items-center justify-center bg-slate-800 z-10">
                 <div class="text-center">
@@ -191,11 +194,6 @@
                     reader.themeManager.applyTheme(btn.dataset.theme);
                     themePanel.classList.add('hidden');
                 });
-            });
-
-            // Hide loading overlay when book is ready
-            reader.book.ready.then(() => {
-                document.getElementById('reader-loading')?.classList.add('hidden');
             });
 
             // Save position before leaving

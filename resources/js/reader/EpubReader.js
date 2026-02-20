@@ -56,6 +56,9 @@ class EpubReader {
 
             // Setup event listeners
             this.setupEventListeners();
+
+            // Hide loading overlay
+            document.querySelector('#reader-loading')?.classList.add('hidden');
         } catch (error) {
             console.error('Failed to initialize EPUB reader:', error);
             document.querySelector('#reader-loading').innerHTML = `
