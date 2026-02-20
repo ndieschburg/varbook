@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { useBook, useBookSessions, useDeleteBook } from '@/api/hooks';
+import { useBook, useBookSessions, useDeleteBook, useResetBookStats } from '@/api/hooks';
 import { LoadingSpinner, ConfirmModal } from '@/components/ui';
-import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon } from '@/components/icons';
+import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon, RefreshIcon } from '@/components/icons';
 import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
 function formatFileSize(bytes: number): string {
@@ -29,6 +29,7 @@ export function BookDetailPage() {
     const { data: book, isLoading: bookLoading } = useBook(bookId);
     const { data: sessionsData, isLoading: sessionsLoading } = useBookSessions(bookId);
     const deleteMutation = useDeleteBook();
+    const resetMutation = useResetBookStats();
 
     const { isOffline, downloadState, downloadForOffline, removeFromOffline } =
         useBookOfflineStatus({
@@ -39,6 +40,7 @@ export function BookDetailPage() {
         });
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showResetModal, setShowResetModal] = useState(false);
 
     const handleDelete = async () => {
         try {
@@ -47,6 +49,16 @@ export function BookDetailPage() {
             navigate('/library');
         } catch {
             toast.error(t('Delete') + ' failed');
+        }
+    };
+
+    const handleReset = async () => {
+        try {
+            await resetMutation.mutateAsync(bookId);
+            toast.success(t('Reading stats reset successfully'));
+            setShowResetModal(false);
+        } catch {
+            toast.error(t('Reset Stats') + ' failed');
         }
     };
 
@@ -228,6 +240,16 @@ export function BookDetailPage() {
                                 {t('Download EPUB')}
                             </a>
 
+                            {navigator.onLine && (
+                                <button
+                                    onClick={() => setShowResetModal(true)}
+                                    className="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    <RefreshIcon className="h-5 w-5 mr-2" />
+                                    {t('Reset Stats')}
+                                </button>
+                            )}
+
                             <button
                                 onClick={() => setShowDeleteModal(true)}
                                 className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -321,6 +343,26 @@ export function BookDetailPage() {
                 confirmText={t('Delete')}
                 cancelText={t('Cancel')}
                 isLoading={deleteMutation.isPending}
+                variant="danger"
+            />
+
+            {/* Reset Stats Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showResetModal}
+                onClose={() => setShowResetModal(false)}
+                onConfirm={handleReset}
+                title={t('Reset Reading Stats')}
+                message={
+                    <>
+                        <p>{t('Are you sure you want to reset all reading stats for this book?')}</p>
+                        <p className="mt-2 text-sm text-slate-400">
+                            {t('This will delete all reading sessions and reset progress to 0%.')}
+                        </p>
+                    </>
+                }
+                confirmText={t('Reset Stats')}
+                cancelText={t('Cancel')}
+                isLoading={resetMutation.isPending}
                 variant="danger"
             />
         </div>

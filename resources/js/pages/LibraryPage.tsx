@@ -118,8 +118,8 @@ export function LibraryPage() {
                         </div>
                     </div>
 
-                    {/* Horizontal Scroll */}
-                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                    {/* Grid Layout */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {currentlyReading.map(book => (
                             <BookCard key={book.id} book={book} variant="reading" />
                         ))}

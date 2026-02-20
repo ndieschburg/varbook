@@ -297,6 +297,33 @@ class BookController extends Controller
     }
 
     /**
+     * DELETE /api/books/{book}/stats
+     * Reset all reading stats for a book
+     */
+    public function resetStats(Book $book): JsonResponse
+    {
+        if (! $this->authorizeBook($book)) {
+            return response()->json(['message' => __('Access denied')], 403);
+        }
+
+        // Delete all reading sessions
+        $book->readingSessions()->delete();
+
+        // Delete all sync identifiers
+        $book->syncIdentifiers()->delete();
+
+        // Reset book progress
+        $book->update([
+            'progress' => 0,
+            'is_finished' => false,
+        ]);
+
+        return response()->json([
+            'message' => __('Reading stats reset successfully'),
+        ]);
+    }
+
+    /**
      * Authorize that the book belongs to the authenticated user
      */
     protected function authorizeBook(Book $book): bool

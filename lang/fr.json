@@ -129,5 +129,10 @@
     "Install the app for offline reading and quick access.": "Installez l'application pour la lecture hors ligne et un accès rapide.",
     "Install": "Installer",
     "Not now": "Plus tard",
-    "Dismiss": "Fermer"
+    "Dismiss": "Fermer",
+    "Reset Stats": "Réinitialiser les stats",
+    "Reset Reading Stats": "Réinitialiser les statistiques",
+    "Are you sure you want to reset all reading stats for this book?": "Êtes-vous sûr de vouloir réinitialiser toutes les statistiques de lecture pour ce livre ?",
+    "This will delete all reading sessions and reset progress to 0%.": "Cela supprimera toutes les sessions de lecture et remettra la progression à 0%.",
+    "Reading stats reset successfully": "Statistiques de lecture réinitialisées"
 }

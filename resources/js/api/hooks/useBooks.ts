@@ -120,3 +120,19 @@ export function useUploadBook() {
         },
     });
 }
+
+export function useResetBookStats() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (bookId: number): Promise<void> => {
+            await api.delete(`/books/${bookId}/stats`);
+        },
+        onSuccess: (_, bookId) => {
+            queryClient.invalidateQueries({ queryKey: ['books'] });
+            queryClient.invalidateQueries({ queryKey: ['books', bookId] });
+            queryClient.invalidateQueries({ queryKey: ['books', bookId, 'sessions'] });
+            queryClient.invalidateQueries({ queryKey: ['books', bookId, 'progress'] });
+        },
+    });
+}

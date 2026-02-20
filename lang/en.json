@@ -116,5 +116,10 @@
     "Install the app for offline reading and quick access.": "Install the app for offline reading and quick access.",
     "Install": "Install",
     "Not now": "Not now",
-    "Dismiss": "Dismiss"
+    "Dismiss": "Dismiss",
+    "Reset Stats": "Reset Stats",
+    "Reset Reading Stats": "Reset Reading Stats",
+    "Are you sure you want to reset all reading stats for this book?": "Are you sure you want to reset all reading stats for this book?",
+    "This will delete all reading sessions and reset progress to 0%.": "This will delete all reading sessions and reset progress to 0%.",
+    "Reading stats reset successfully": "Reading stats reset successfully"
 }
