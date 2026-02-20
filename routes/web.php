@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\KosyncController;
 use App\Http\Controllers\OpdsController;
 use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\WebDavController;
@@ -78,5 +79,24 @@ Route::match(
     ])
     ->middleware(['basic.auth'])
     ->name('webdav');
+
+// kosync routes (KOReader sync)
+Route::prefix('api/kosync')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->group(function () {
+        // Public endpoints (no auth required)
+        Route::post('users/create', [KosyncController::class, 'createUser']);
+        Route::post('users/auth', [KosyncController::class, 'authUser']);
+
+        // Protected endpoints (require kosync auth)
+        Route::middleware(['kosync.auth'])->group(function () {
+            Route::put('syncs/progress', [KosyncController::class, 'updateProgress']);
+            Route::get('syncs/progress', [KosyncController::class, 'getProgress']);
+        });
+    });
 
 require __DIR__.'/auth.php';

@@ -87,5 +87,9 @@
     "Previous page": "Previous page",
     "Toggle fullscreen": "Toggle fullscreen",
     "Table of contents": "Table of contents",
-    "Close this": "Close this"
+    "Close this": "Close this",
+    "Unauthorized": "Unauthorized",
+    "Registration disabled. Please register via the web interface.": "Registration disabled. Please register via the web interface.",
+    "Document not found": "Document not found",
+    "Document parameter required": "Document parameter required"
 }

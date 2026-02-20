@@ -100,5 +100,9 @@
     "Previous page": "Page précédente",
     "Toggle fullscreen": "Plein écran",
     "Table of contents": "Table des matières",
-    "Close this": "Fermer"
+    "Close this": "Fermer",
+    "Unauthorized": "Non autorisé",
+    "Registration disabled. Please register via the web interface.": "Inscription désactivée. Veuillez vous inscrire via l'interface web.",
+    "Document not found": "Document non trouvé",
+    "Document parameter required": "Paramètre document requis"
 }

@@ -100,5 +100,9 @@
     "Previous page": "Página anterior",
     "Toggle fullscreen": "Pantalla completa",
     "Table of contents": "Índice",
-    "Close this": "Cerrar"
+    "Close this": "Cerrar",
+    "Unauthorized": "No autorizado",
+    "Registration disabled. Please register via the web interface.": "Registro deshabilitado. Por favor regístrese a través de la interfaz web.",
+    "Document not found": "Documento no encontrado",
+    "Document parameter required": "Parámetro documento requerido"
 }

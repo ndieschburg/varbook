@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'basic.auth' => \App\Http\Middleware\BasicAuthMiddleware::class,
+            'kosync.auth' => \App\Http\Middleware\KosyncAuthMiddleware::class,
         ]);
 
         $middleware->web(append: [
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webdav/*',
             'opds/*',
+            'api/kosync/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
