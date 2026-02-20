@@ -1,20 +1,339 @@
-import { useParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useBook } from '@/api/hooks';
+import { useEpubReader } from '@/hooks';
+import { LoadingSpinner } from '@/components/ui';
+import type { Theme, FontFamily, Margins } from '@/hooks/useReaderSettings';
+
+function ArrowLeftIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+    );
+}
+
+function MenuIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    );
+}
+
+function SettingsIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    );
+}
+
+function ChevronLeftIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+        </svg>
+    );
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
+    );
+}
 
 export function ReaderPage() {
     const { t } = useTranslation();
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const bookId = Number(id);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const { data: bookData, isLoading: bookDataLoading } = useBook(bookId);
+    const epubUrl = `/api/books/${bookId}/download`;
+
+    const {
+        isLoading,
+        error,
+        progress,
+        toc,
+        settings,
+        setTheme,
+        setFontSize,
+        setFontFamily,
+        setLineHeight,
+        setMargins,
+        setFlowMode,
+        nextPage,
+        prevPage,
+        goTo,
+    } = useEpubReader({
+        bookId,
+        epubUrl,
+        containerRef,
+    });
+
+    const [showToc, setShowToc] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showControls, setShowControls] = useState(true);
+
+    const themeColors: Record<Theme, string> = {
+        light: 'bg-white',
+        dark: 'bg-slate-800',
+        sepia: 'bg-[#f4ecd8]',
+    };
+
+    if (bookDataLoading) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
+    if (!bookData) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-gray-400">{t('Book file not found')}</p>
+                    <Link to="/library" className="text-indigo-400 hover:text-indigo-300 mt-4 inline-block">
+                        {t('Back to Library')}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-            <div className="text-center">
-                <h1 className="text-2xl font-bold text-white mb-4">
-                    {t('Loading book...')}
-                </h1>
-                <p className="text-gray-400">
-                    Reader page placeholder (Book #{id}). Will be implemented in Step 5.
-                </p>
+        <div className="h-screen flex flex-col bg-gray-900">
+            {/* Top bar */}
+            {showControls && (
+                <div className="flex-shrink-0 h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 z-20">
+                    <div className="flex items-center gap-4">
+                        <Link
+                            to={`/book/${bookId}`}
+                            className="text-gray-400 hover:text-white transition-colors"
+                        >
+                            <ArrowLeftIcon className="h-5 w-5" />
+                        </Link>
+                        <h1 className="text-white font-medium truncate max-w-xs">
+                            {bookData.title}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowToc(!showToc)}
+                            className="p-2 text-gray-400 hover:text-white transition-colors"
+                            title={t('Table of Contents')}
+                        >
+                            <MenuIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                            onClick={() => setShowSettings(!showSettings)}
+                            className="p-2 text-gray-400 hover:text-white transition-colors"
+                            title={t('Settings')}
+                        >
+                            <SettingsIcon className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Main content */}
+            <div className="flex-1 relative overflow-hidden">
+                {/* Reader container */}
+                <div
+                    ref={containerRef}
+                    className={`absolute inset-0 ${themeColors[settings.theme]}`}
+                    onClick={() => setShowControls(!showControls)}
+                />
+
+                {/* Loading overlay */}
+                {isLoading && (
+                    <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
+                        <div className="text-center">
+                            <LoadingSpinner size="lg" />
+                            <p className="text-gray-400 mt-4">{t('Loading book...')}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Error overlay */}
+                {error && (
+                    <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
+                        <div className="text-center text-red-400">
+                            <p>Failed to load book</p>
+                            <p className="text-sm mt-2">{error}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Navigation buttons */}
+                {!isLoading && !error && (
+                    <>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); prevPage(); }}
+                            className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10"
+                        >
+                            <ChevronLeftIcon className="h-8 w-8" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); nextPage(); }}
+                            className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10"
+                        >
+                            <ChevronRightIcon className="h-8 w-8" />
+                        </button>
+                    </>
+                )}
+
+                {/* TOC sidebar */}
+                {showToc && (
+                    <div className="absolute left-0 top-0 bottom-0 w-80 bg-gray-800 border-r border-gray-700 overflow-y-auto z-20">
+                        <div className="p-4 border-b border-gray-700">
+                            <h2 className="text-lg font-semibold text-white">{t('Table of Contents')}</h2>
+                        </div>
+                        <div className="p-2">
+                            {toc.map((item, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => { goTo(item.href); setShowToc(false); }}
+                                    className="w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition-colors"
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Settings sidebar */}
+                {showSettings && (
+                    <div className="absolute right-0 top-0 bottom-0 w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto z-20">
+                        <div className="p-4 border-b border-gray-700">
+                            <h2 className="text-lg font-semibold text-white">{t('Settings')}</h2>
+                        </div>
+                        <div className="p-4 space-y-6">
+                            {/* Theme */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Theme')}</label>
+                                <div className="flex gap-2">
+                                    {(['light', 'dark', 'sepia'] as Theme[]).map(theme => (
+                                        <button
+                                            key={theme}
+                                            onClick={() => setTheme(theme)}
+                                            className={`flex-1 py-2 rounded border ${
+                                                settings.theme === theme
+                                                    ? 'border-indigo-500 bg-indigo-600/20'
+                                                    : 'border-gray-600 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            <span className="text-gray-300 text-sm capitalize">{t(theme.charAt(0).toUpperCase() + theme.slice(1))}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Font Size */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Font Size')}</label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setFontSize(settings.fontSize - 10)}
+                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    >
+                                        -
+                                    </button>
+                                    <span className="flex-1 text-center text-gray-300">{settings.fontSize}%</span>
+                                    <button
+                                        onClick={() => setFontSize(settings.fontSize + 10)}
+                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Font Family */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Font')}</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {(['default', 'serif', 'sans', 'mono'] as FontFamily[]).map(font => (
+                                        <button
+                                            key={font}
+                                            onClick={() => setFontFamily(font)}
+                                            className={`py-2 px-3 rounded border text-sm ${
+                                                settings.fontFamily === font
+                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
+                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            {font === 'default' ? t('Default') : font}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Line Height */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Line Height')}</label>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => setLineHeight(settings.lineHeight - 0.1)}
+                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    >
+                                        -
+                                    </button>
+                                    <span className="flex-1 text-center text-gray-300">{settings.lineHeight.toFixed(1)}</span>
+                                    <button
+                                        onClick={() => setLineHeight(settings.lineHeight + 0.1)}
+                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Margins */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Margins')}</label>
+                                <div className="flex gap-2">
+                                    {(['compact', 'normal', 'wide'] as Margins[]).map(margin => (
+                                        <button
+                                            key={margin}
+                                            onClick={() => setMargins(margin)}
+                                            className={`flex-1 py-2 rounded border text-sm ${
+                                                settings.margins === margin
+                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
+                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            {t(margin.charAt(0).toUpperCase() + margin.slice(1))}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Bottom bar with progress */}
+            {showControls && (
+                <div className="flex-shrink-0 h-12 bg-gray-800 border-t border-gray-700 flex items-center px-4 z-20">
+                    <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-indigo-500 transition-all"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                    <span className="ml-4 text-sm text-gray-400">{progress.toFixed(1)}%</span>
+                </div>
+            )}
         </div>
     );
 }
