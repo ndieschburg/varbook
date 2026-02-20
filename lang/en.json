@@ -71,5 +71,21 @@
     "Position saved": "Position saved",
     "Font Size": "Font Size",
     "Font": "Font",
-    "Default": "Default"
+    "Default": "Default",
+    "Settings": "Settings",
+    "Line Height": "Line Height",
+    "Margins": "Margins",
+    "Compact": "Compact",
+    "Normal": "Normal",
+    "Wide": "Wide",
+    "Reading Mode": "Reading Mode",
+    "Paginated": "Paginated",
+    "Scrolling": "Scrolling",
+    "Fullscreen": "Fullscreen",
+    "Keyboard Shortcuts": "Keyboard Shortcuts",
+    "Next page": "Next page",
+    "Previous page": "Previous page",
+    "Toggle fullscreen": "Toggle fullscreen",
+    "Table of contents": "Table of contents",
+    "Close this": "Close this"
 }

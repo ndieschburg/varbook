@@ -84,5 +84,21 @@
     "Position saved": "Posición guardada",
     "Font Size": "Tamaño de fuente",
     "Font": "Fuente",
-    "Default": "Por defecto"
+    "Default": "Por defecto",
+    "Settings": "Configuración",
+    "Line Height": "Interlineado",
+    "Margins": "Márgenes",
+    "Compact": "Compacto",
+    "Normal": "Normal",
+    "Wide": "Amplio",
+    "Reading Mode": "Modo de lectura",
+    "Paginated": "Paginado",
+    "Scrolling": "Desplazamiento",
+    "Fullscreen": "Pantalla completa",
+    "Keyboard Shortcuts": "Atajos de teclado",
+    "Next page": "Página siguiente",
+    "Previous page": "Página anterior",
+    "Toggle fullscreen": "Pantalla completa",
+    "Table of contents": "Índice",
+    "Close this": "Cerrar"
 }
