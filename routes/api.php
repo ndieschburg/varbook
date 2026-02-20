@@ -33,7 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stats', [StatsController::class, 'index'])->name('api.stats');
 
     // Books
-    Route::apiResource('books', BookController::class)->except(['update']);
+    Route::apiResource('books', BookController::class)->except(['update'])->names('api.books');
     Route::get('/books/{book}/download', [BookController::class, 'download'])->name('api.books.download');
     Route::get('/books/{book}/cover', [BookController::class, 'cover'])->name('api.books.cover');
     Route::get('/books/{book}/sessions', [BookController::class, 'sessions'])->name('api.books.sessions');
