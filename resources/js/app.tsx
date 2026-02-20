@@ -13,6 +13,8 @@ import {
     LibraryPage,
     BookDetailPage,
     ReaderPage,
+    StatsPage,
+    ProfilePage,
     UsersPage,
 } from '@/pages';
 
@@ -44,8 +46,8 @@ function App() {
                         >
                             <Route path="/library" element={<LibraryPage />} />
                             <Route path="/books/:id" element={<BookDetailPage />} />
-                            <Route path="/stats" element={<LibraryPage />} />
-                            <Route path="/profile" element={<LibraryPage />} />
+                            <Route path="/stats" element={<StatsPage />} />
+                            <Route path="/profile" element={<ProfilePage />} />
                             <Route
                                 path="/admin/users"
                                 element={

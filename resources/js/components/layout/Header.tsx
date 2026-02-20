@@ -48,6 +48,16 @@ export function Header() {
                             >
                                 {t('Library')}
                             </Link>
+                            <Link
+                                to="/stats"
+                                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    isActive('/stats')
+                                        ? 'bg-gray-900 text-white'
+                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                }`}
+                            >
+                                {t('Stats')}
+                            </Link>
                             {user?.is_admin && (
                                 <Link
                                     to="/admin/users"
@@ -80,7 +90,16 @@ export function Header() {
 
                         {/* User menu */}
                         <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-300">{user?.name}</span>
+                            <Link
+                                to="/profile"
+                                className={`text-sm transition-colors ${
+                                    isActive('/profile')
+                                        ? 'text-white'
+                                        : 'text-gray-300 hover:text-white'
+                                }`}
+                            >
+                                {user?.name}
+                            </Link>
                             <Button
                                 variant="ghost"
                                 size="sm"

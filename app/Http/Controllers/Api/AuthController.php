@@ -9,6 +9,8 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -74,6 +76,45 @@ class AuthController extends Controller
         return response()->json([
             'message' => __('Locale updated'),
             'locale' => $locale,
+        ]);
+    }
+
+    /**
+     * PUT /api/user/profile-information
+     * Update user's profile information
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
+        ]);
+
+        $request->user()->update($validated);
+
+        return response()->json([
+            'message' => __('Profile updated'),
+            'user' => new UserResource($request->user()),
+        ]);
+    }
+
+    /**
+     * PUT /api/user/password
+     * Update user's password
+     */
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ]);
+
+        $request->user()->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        return response()->json([
+            'message' => __('Password updated'),
         ]);
     }
 }

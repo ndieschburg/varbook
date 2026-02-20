@@ -29,3 +29,43 @@ export interface ListBooksParams {
     sort?: 'recent' | 'title' | 'author' | 'progress';
     page?: number;
 }
+
+export interface MonthlyReading {
+    month: string;
+    hours: number;
+    sessions: number;
+}
+
+export interface ClientReading {
+    client: string;
+    label: string;
+    hours: number;
+    sessions: number;
+}
+
+export interface RecentSession {
+    id: number;
+    book: {
+        id: number;
+        title: string;
+        author: string;
+        cover_url: string | null;
+    };
+    started_at: string;
+    duration_seconds: number;
+    formatted_duration: string;
+    client: string;
+}
+
+export interface UserStats {
+    total_books: number;
+    books_finished: number;
+    books_reading: number;
+    books_not_started: number;
+    total_reading_seconds: number;
+    total_reading_time: string;
+    total_sessions: number;
+    reading_by_month: MonthlyReading[];
+    reading_by_client: ClientReading[];
+    recent_sessions: RecentSession[];
+}
