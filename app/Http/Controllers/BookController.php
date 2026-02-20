@@ -46,6 +46,34 @@ class BookController extends Controller
         ]);
     }
 
+    public function read(Book $book)
+    {
+        if ($book->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        return view('books.read', compact('book'));
+    }
+
+    public function streamEpub(Book $book)
+    {
+        if ($book->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $path = $this->epubService->getEpubPath($book);
+
+        if (!file_exists($path)) {
+            abort(404, 'Book file not found.');
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'application/epub+zip',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
     public function destroy(Book $book)
     {
         // Ensure the book belongs to the authenticated user

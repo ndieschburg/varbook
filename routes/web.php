@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\OpdsController;
+use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\WebDavController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('books/{book}', [BookController::class, 'show'])->name('books.show');
     Route::get('books/{book}/download', [BookController::class, 'download'])->name('books.download');
     Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy');
+
+    // EPUB Reader
+    Route::get('books/{book}/read', [BookController::class, 'read'])->name('books.read');
+    Route::get('books/{book}/epub', [BookController::class, 'streamEpub'])->name('books.epub');
+
+    // Reader Position API
+    Route::get('api/books/{book}/position', [ReaderController::class, 'getPosition'])->name('api.books.position.get');
+    Route::post('api/books/{book}/position', [ReaderController::class, 'savePosition'])->name('api.books.position.save');
 
     // Profile
     Route::view('profile', 'profile')->name('profile');
