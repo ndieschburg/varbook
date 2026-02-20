@@ -42,6 +42,7 @@ class EpubReader {
                 height: '100%',
                 spread: 'none',
                 flow: 'paginated',
+                allowScriptedContent: true,
             });
 
             // Generate locations for progress tracking
