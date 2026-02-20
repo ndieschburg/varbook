@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Reading Progress Sync
     Route::get('/books/{book}/progress', [BookController::class, 'getProgress'])->name('api.books.progress.get');
     Route::put('/books/{book}/progress', [BookController::class, 'updateProgress'])->name('api.books.progress.update');
+    Route::post('/books/{book}/progress/batch', [BookController::class, 'batchProgress'])->name('api.books.progress.batch');
 
     // Admin Routes
     Route::middleware('admin')->prefix('admin')->name('api.admin.')->group(function () {

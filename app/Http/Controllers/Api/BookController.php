@@ -244,6 +244,46 @@ class BookController extends Controller
     }
 
     /**
+     * POST /api/books/{book}/progress/batch
+     * Batch update reading positions (for offline sync)
+     */
+    public function batchProgress(Request $request, Book $book): JsonResponse
+    {
+        if (! $this->authorizeBook($book)) {
+            return response()->json(['message' => __('Access denied')], 403);
+        }
+
+        $updates = $request->validate([
+            'updates' => 'required|array|min:1',
+            'updates.*.cfi' => 'required|string',
+            'updates.*.progress' => 'required|numeric|min:0|max:100',
+            'updates.*.timestamp' => 'required|date',
+        ])['updates'];
+
+        // Sort by timestamp to process in order
+        usort($updates, fn ($a, $b) => strtotime($a['timestamp']) <=> strtotime($b['timestamp']));
+
+        foreach ($updates as $update) {
+            $this->readingSessionService->processSyncEvent(
+                book: $book,
+                client: 'web',
+                externalIdentifier: $book->file_hash,
+                progress: $update['progress'],
+                rawPayload: ['source' => 'offline_sync', 'timestamp' => $update['timestamp']],
+                rawPosition: $update['cfi']
+            );
+        }
+
+        return response()->json([
+            'message' => __('Progress updated'),
+            'data' => [
+                'progress' => (float) $book->fresh()->progress,
+                'synced_count' => count($updates),
+            ],
+        ]);
+    }
+
+    /**
      * Authorize that the book belongs to the authenticated user
      */
     protected function authorizeBook(Book $book): bool
