@@ -118,9 +118,9 @@ class BookController extends Controller
 
     /**
      * GET /api/books/{book}/download
-     * Download EPUB file
+     * Download EPUB file (with caching support)
      */
-    public function download(Book $book): BinaryFileResponse|JsonResponse
+    public function download(Request $request, Book $book): BinaryFileResponse|JsonResponse
     {
         if (! $this->authorizeBook($book)) {
             return response()->json(['message' => __('Access denied')], 403);
@@ -132,8 +132,21 @@ class BookController extends Controller
             return response()->json(['message' => __('Book file not found')], 404);
         }
 
-        return response()->download($path, $book->filename, [
+        // Use file_hash as ETag (EPUBs are content-addressed)
+        $etag = '"' . $book->file_hash . '"';
+        $lastModified = filemtime($path);
+
+        // Check If-None-Match header for 304 response
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304);
+        }
+
+        return response()->file($path, [
             'Content-Type' => 'application/epub+zip',
+            'Content-Disposition' => 'inline; filename="' . $book->filename . '"',
+            'ETag' => $etag,
+            'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified) . ' GMT',
+            'Cache-Control' => 'private, max-age=31536000, immutable', // 1 year, immutable (hash-based)
         ]);
     }
 

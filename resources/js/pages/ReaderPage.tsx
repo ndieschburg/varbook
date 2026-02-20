@@ -36,6 +36,11 @@ export function ReaderPage() {
         bookId,
         epubUrl,
         containerRef,
+        bookMeta: bookData ? {
+            title: bookData.title,
+            author: bookData.author,
+            coverUrl: bookData.cover_url,
+        } : undefined,
     });
 
     const [showToc, setShowToc] = useState(false);

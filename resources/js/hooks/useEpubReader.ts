@@ -2,12 +2,18 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
 import { usePositionSync } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
-import { getOfflineBook } from '@/services/offlineDb';
+import { getOfflineBook, saveBookOffline } from '@/services/offlineDb';
 
 interface UseEpubReaderOptions {
     bookId: number;
     epubUrl: string;
     containerRef: React.RefObject<HTMLDivElement>;
+    /** Book metadata for auto-caching */
+    bookMeta?: {
+        title: string;
+        author: string;
+        coverUrl: string | null;
+    };
 }
 
 interface EpubReaderState {
@@ -17,7 +23,7 @@ interface EpubReaderState {
     toc: NavItem[];
 }
 
-export function useEpubReader({ bookId, epubUrl, containerRef }: UseEpubReaderOptions) {
+export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEpubReaderOptions) {
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
     const [state, setState] = useState<EpubReaderState>({
@@ -70,6 +76,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef }: UseEpubReaderOp
                         throw new Error(`Failed to load EPUB: ${response.status}`);
                     }
                     arrayBuffer = await response.arrayBuffer();
+
+                    // Auto-cache to IndexedDB for faster subsequent loads
+                    if (bookMeta) {
+                        console.log('[Reader] Auto-caching book to offline storage');
+                        saveBookOffline(
+                            bookId,
+                            bookMeta.title,
+                            bookMeta.author,
+                            bookMeta.coverUrl,
+                            arrayBuffer
+                        ).catch(err => console.warn('[Reader] Failed to auto-cache:', err));
+                    }
                 }
 
                 // Create book

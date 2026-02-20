@@ -23,6 +23,21 @@ export default defineConfig({
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
                 runtimeCaching: [
                     {
+                        // EPUB downloads - cache first, long TTL (immutable content)
+                        urlPattern: /\/api\/books\/\d+\/download/i,
+                        handler: 'CacheFirst',
+                        options: {
+                            cacheName: 'epub-cache',
+                            expiration: {
+                                maxEntries: 50,
+                                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200],
+                            },
+                        },
+                    },
+                    {
                         urlPattern: /^\/api\/.*/i,
                         handler: 'StaleWhileRevalidate',
                         options: {
