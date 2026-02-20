@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <rect x="0" y="0" width="512" height="512" rx="80" ry="80" fill="#6366f1" />
+    <rect x="0" y="0" width="512" height="512" rx="80" ry="80" fill="#4f46e5" opacity="0.5" />
+
+    <!-- Book body -->
+    <g transform="translate(256, 280)">
+        <!-- Left page -->
+        <path d="M-14,-130 L-14,110 Q-14,125 -30,125 L-205,125 Q-222,125 -222,110 L-222,-95 Q-222,-112 -205,-118 L-30,-130 Q-14,-132 -14,-130 Z" fill="#f8fafc" opacity="0.95"/>
+        <!-- Right page -->
+        <path d="M14,-130 L14,110 Q14,125 30,125 L205,125 Q222,125 222,110 L222,-95 Q222,-112 205,-118 L30,-130 Q14,-132 14,-130 Z" fill="#e2e8f0" opacity="0.95"/>
+        <!-- Spine -->
+        <path d="M-14,-130 L-14,125 L14,125 L14,-130 Z" fill="#c7d2fe" opacity="0.4"/>
+
+        <!-- Text lines left -->
+        <line x1="-195" y1="-85" x2="-45" y2="-85" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="-195" y1="-55" x2="-63" y2="-55" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
+        <line x1="-195" y1="-25" x2="-45" y2="-25" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+        <line x1="-195" y1="5" x2="-63" y2="5" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+        <line x1="-195" y1="35" x2="-45" y2="35" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+
+        <!-- Text lines right -->
+        <line x1="45" y1="-85" x2="195" y2="-85" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="45" y1="-55" x2="177" y2="-55" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.45"/>
+        <line x1="45" y1="-25" x2="195" y2="-25" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+        <line x1="45" y1="5" x2="177" y2="5" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+        <line x1="45" y1="35" x2="195" y2="35" stroke="#a5b4fc" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+
+        <!-- Smile -->
+        <path d="M-60,82 Q0,115 60,82" fill="none" stroke="#1e293b" stroke-width="5.5" stroke-linecap="round" opacity="0.7"/>
+
+        <!-- Rosy cheeks -->
+        <circle cx="-72" cy="72" r="12" fill="#fda4af" opacity="0.4"/>
+        <circle cx="72" cy="72" r="12" fill="#fda4af" opacity="0.4"/>
+    </g>
+
+    <!-- Glasses -->
+    <g transform="translate(256, 165)">
+        <!-- Glow behind glasses -->
+        <circle cx="-65" cy="0" r="44" fill="#fbbf24" opacity="0.15" />
+        <circle cx="65" cy="0" r="44" fill="#fbbf24" opacity="0.15" />
+
+        <!-- Left lens -->
+        <circle cx="-65" cy="0" r="40" fill="none" stroke="#fbbf24" stroke-width="10" />
+        <circle cx="-65" cy="0" r="40" fill="#fbbf24" opacity="0.08" />
+        <!-- Right lens -->
+        <circle cx="65" cy="0" r="40" fill="none" stroke="#fbbf24" stroke-width="10" />
+        <circle cx="65" cy="0" r="40" fill="#fbbf24" opacity="0.08" />
+        <!-- Bridge -->
+        <path d="M-25,0 Q0,-18 25,0" fill="none" stroke="#fbbf24" stroke-width="9" stroke-linecap="round"/>
+        <!-- Left arm -->
+        <line x1="-105" y1="-2" x2="-140" y2="-20" stroke="#fbbf24" stroke-width="9" stroke-linecap="round"/>
+        <!-- Right arm -->
+        <line x1="105" y1="-2" x2="140" y2="-20" stroke="#fbbf24" stroke-width="9" stroke-linecap="round"/>
+
+        <!-- Left eye -->
+        <circle cx="-70" cy="-3" r="10" fill="#1e293b"/>
+        <circle cx="-67" cy="-7" r="4" fill="#f8fafc"/>
+        <!-- Right eye - winking -->
+        <path d="M52,-3 Q65,-16 78,-3" fill="none" stroke="#1e293b" stroke-width="5.5" stroke-linecap="round"/>
+    </g>
+
+    <!-- Bookmark ribbon -->
+    <path d="M370,155 L370,95 L392,118 L414,95 L414,155" fill="#f43f5e" opacity="0.9"/>
+
+    <!-- Coffee steam + cup -->
+    <g transform="translate(410, 340)" opacity="0.55">
+        <path d="M0,0 Q-5,-15 3,-25 Q8,-35 2,-48" fill="none" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+        <path d="M12,5 Q8,-10 15,-22 Q20,-30 14,-42" fill="none" stroke="#f8fafc" stroke-width="3" stroke-linecap="round"/>
+        <rect x="-5" y="2" width="28" height="18" rx="3" fill="#f8fafc" opacity="0.4"/>
+        <path d="M23,6 Q32,6 32,12 Q32,18 23,18" fill="none" stroke="#f8fafc" stroke-width="2.5" opacity="0.4"/>
+    </g>
+</svg>
