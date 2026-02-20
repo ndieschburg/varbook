@@ -118,7 +118,7 @@ export function BookDetailPage() {
                                     <CheckCircleIcon className="h-4 w-4 mr-1" />
                                     {t('Finished')}
                                 </span>
-                            ) : book.progress > 0 ? (
+                            ) : (book.progress ?? 0) > 0 ? (
                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-600 text-white">
                                     {t('Reading')}
                                 </span>
@@ -134,13 +134,13 @@ export function BookDetailPage() {
                             <div className="flex items-center justify-between text-sm mb-2">
                                 <span className="text-slate-400">{t('Progress')}</span>
                                 <span className="text-slate-100 font-medium">
-                                    {book.progress.toFixed(1)}%
+                                    {(book.progress ?? 0).toFixed(1)}%
                                 </span>
                             </div>
                             <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-indigo-500 rounded-full transition-all"
-                                    style={{ width: `${book.progress}%` }}
+                                    style={{ width: `${book.progress ?? 0}%` }}
                                 />
                             </div>
                         </div>
@@ -279,7 +279,7 @@ export function BookDetailPage() {
                                             {session.formatted_duration}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
-                                            {session.start_progress.toFixed(1)}% → {session.end_progress.toFixed(1)}%
+                                            {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-600 text-slate-300">

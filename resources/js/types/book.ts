@@ -27,8 +27,8 @@ export interface ReadingSession {
     ended_at: string;
     duration_seconds: number;
     formatted_duration: string;
-    start_progress: number;
-    end_progress: number;
+    progress_before: number;
+    progress_after: number;
 }
 
 export interface BookProgress {
