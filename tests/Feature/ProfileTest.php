@@ -19,9 +19,7 @@ class ProfileTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSeeVolt('profile.update-profile-information-form')
-            ->assertSeeVolt('profile.update-password-form')
-            ->assertSeeVolt('profile.delete-user-form');
+            ->assertSee('<div id="app"></div>', false); // SPA container
     }
 
     public function test_profile_information_can_be_updated(): void

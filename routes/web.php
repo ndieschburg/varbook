@@ -19,37 +19,26 @@ Route::get('locale/{locale}', function (string $locale) {
     return redirect()->back();
 })->name('locale.switch');
 
-// Authenticated routes
+// SPA routes (React app) - serve SPA view for all authenticated routes
 Route::middleware(['auth'])->group(function () {
-    // Library
-    Route::view('library', 'library')->name('library');
-
-    // Reading Stats Dashboard
-    Route::view('stats', 'stats')->name('stats');
-
     // Dashboard redirect to library
     Route::redirect('dashboard', '/library')->name('dashboard');
 
-    // Books
-    Route::get('books/{book}', [BookController::class, 'show'])->name('books.show');
-    Route::get('books/{book}/download', [BookController::class, 'download'])->name('books.download');
-    Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy');
+    // SPA routes - all these are handled by React Router
+    Route::view('library', 'spa')->name('library');
+    Route::view('stats', 'spa')->name('stats');
+    Route::view('books/{book}', 'spa')->name('books.show');
+    Route::view('books/{book}/read', 'spa')->name('books.read');
+    Route::view('profile', 'spa')->name('profile');
+    Route::view('admin/users', 'spa')->name('admin.users');
 
-    // EPUB Reader
-    Route::get('books/{book}/read', [BookController::class, 'read'])->name('books.read');
+    // API routes that still need server-side handling
+    Route::get('books/{book}/download', [BookController::class, 'download'])->name('books.download');
     Route::get('books/{book}/epub', [BookController::class, 'streamEpub'])->name('books.epub');
 
-    // Reader Position API
+    // Legacy position API (kept for backward compatibility)
     Route::get('api/books/{book}/position', [ReaderController::class, 'getPosition'])->name('api.books.position.get');
     Route::post('api/books/{book}/position', [ReaderController::class, 'savePosition'])->name('api.books.position.save');
-
-    // Profile
-    Route::view('profile', 'profile')->name('profile');
-
-    // Admin routes
-    Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
-        Route::view('users', 'admin.users')->name('users');
-    });
 });
 
 // OPDS routes (Basic Auth)
@@ -98,10 +87,5 @@ Route::prefix('api/kosync')
             Route::get('syncs/progress', [KosyncController::class, 'getProgress']);
         });
     });
-
-// SPA routes (React app)
-Route::get('/spa/{any?}', fn () => view('spa'))
-    ->where('any', '^(?!api|opds|webdav|kosync).*$')
-    ->name('spa');
 
 require __DIR__.'/auth.php';

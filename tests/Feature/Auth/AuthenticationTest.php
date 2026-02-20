@@ -64,7 +64,7 @@ class AuthenticationTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSeeVolt('layout.navigation');
+            ->assertSee('<div id="app"></div>', false); // SPA container
     }
 
     public function test_users_can_logout(): void
