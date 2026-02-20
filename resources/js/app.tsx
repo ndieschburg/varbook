@@ -28,7 +28,7 @@ const queryClient = new QueryClient({
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <BrowserRouter basename="/spa">
+            <BrowserRouter>
                 <AuthProvider>
                     <Routes>
                         {/* Public routes */}
@@ -43,7 +43,9 @@ function App() {
                             }
                         >
                             <Route path="/library" element={<LibraryPage />} />
-                            <Route path="/book/:id" element={<BookDetailPage />} />
+                            <Route path="/books/:id" element={<BookDetailPage />} />
+                            <Route path="/stats" element={<LibraryPage />} />
+                            <Route path="/profile" element={<LibraryPage />} />
                             <Route
                                 path="/admin/users"
                                 element={
@@ -56,7 +58,7 @@ function App() {
 
                         {/* Reader route (full screen, no layout) */}
                         <Route
-                            path="/read/:id"
+                            path="/books/:id/read"
                             element={
                                 <ProtectedRoute>
                                     <ReaderPage />
