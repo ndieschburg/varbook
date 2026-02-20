@@ -119,5 +119,10 @@
     "Cannot delete your own account": "Impossible de supprimer votre propre compte",
     "User deleted successfully": "Utilisateur supprimé avec succès",
     "Please select an EPUB file to upload": "Veuillez sélectionner un fichier EPUB à téléverser",
-    "Only EPUB files are allowed": "Seuls les fichiers EPUB sont autorisés"
+    "Only EPUB files are allowed": "Seuls les fichiers EPUB sont autorisés",
+    "Continue Reading": "Reprendre la lecture",
+    "Pick up where you left off": "Reprendre là où vous vous êtes arrêté",
+    "Your complete collection": "Votre collection complète",
+    "Upload": "Téléverser",
+    "No users yet": "Aucun utilisateur"
 }

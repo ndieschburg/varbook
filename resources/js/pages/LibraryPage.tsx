@@ -1,15 +1,186 @@
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useBooks } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
+import { BookCard, LibraryFilters, BookUploader } from '@/components/library';
+import type { Book, ListBooksParams } from '@/types';
+
+function BookIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+    );
+}
+
+function LibraryIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+    );
+}
 
 export function LibraryPage() {
     const { t } = useTranslation();
 
+    // Filter state
+    const [search, setSearch] = useState('');
+    const [status, setStatus] = useState('');
+    const [sort, setSort] = useState('recent');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [showUploader, setShowUploader] = useState(false);
+
+    // Build query params
+    const params: ListBooksParams = useMemo(() => ({
+        search: search || undefined,
+        status: status as ListBooksParams['status'] || undefined,
+        sort: sort as ListBooksParams['sort'] || 'recent',
+    }), [search, status, sort]);
+
+    const { data, isLoading, refetch } = useBooks(params);
+
+    // Split books into currently reading and library
+    const { currentlyReading, libraryBooks } = useMemo(() => {
+        if (!data?.data) {
+            return { currentlyReading: [], libraryBooks: [] };
+        }
+
+        // Only show currently reading when no status filter
+        if (status) {
+            return { currentlyReading: [], libraryBooks: data.data };
+        }
+
+        const reading = data.data.filter(book =>
+            book.progress > 0 && !book.is_finished
+        );
+        const library = data.data.filter(book =>
+            book.progress === 0 || book.is_finished
+        );
+
+        return { currentlyReading: reading, libraryBooks: library };
+    }, [data?.data, status]);
+
+    const showCurrentlyReading = !status && currentlyReading.length > 0;
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
     return (
         <div>
-            <h1 className="text-2xl font-bold text-white mb-6">{t('Library')}</h1>
-            <p className="text-gray-400">
-                Library page placeholder. Will be implemented in Step 4.
-            </p>
+            {/* Uploader Toggle */}
+            <div className="mb-6 flex justify-end">
+                <button
+                    onClick={() => setShowUploader(!showUploader)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                >
+                    {showUploader ? t('Cancel') : t('Upload')}
+                </button>
+            </div>
+
+            {/* Uploader */}
+            {showUploader && (
+                <div className="mb-8">
+                    <BookUploader onUploadComplete={() => {
+                        setShowUploader(false);
+                        refetch();
+                    }} />
+                </div>
+            )}
+
+            {/* Filters */}
+            <LibraryFilters
+                search={search}
+                onSearchChange={setSearch}
+                status={status}
+                onStatusChange={setStatus}
+                sort={sort}
+                onSortChange={setSort}
+                sortDirection={sortDirection}
+                onSortDirectionToggle={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}
+            />
+
+            {/* Currently Reading Section */}
+            {showCurrentlyReading && (
+                <div className="mb-10">
+                    {/* Section Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
+                            <BookIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-100">{t('Continue Reading')}</h2>
+                            <p className="text-xs text-slate-400">{t('Pick up where you left off')}</p>
+                        </div>
+                    </div>
+
+                    {/* Horizontal Scroll */}
+                    <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                        {currentlyReading.map(book => (
+                            <BookCard key={book.id} book={book} variant="reading" />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Library Section */}
+            <div>
+                {/* Section Header */}
+                {showCurrentlyReading && (
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+                            <LibraryIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-100">{t('Library')}</h2>
+                            <p className="text-xs text-slate-400">{t('Your complete collection')}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Books Grid */}
+                {libraryBooks.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                        {libraryBooks.map(book => (
+                            <BookCard key={book.id} book={book} />
+                        ))}
+                    </div>
+                ) : (
+                    /* Empty State */
+                    <div className="text-center py-16">
+                        <BookIcon className="mx-auto h-16 w-16 text-slate-600" />
+                        <h3 className="mt-4 text-lg font-medium text-slate-300">
+                            {t('No books yet')}
+                        </h3>
+                        <p className="mt-2 text-slate-500">
+                            {t('Upload your first EPUB to get started.')}
+                        </p>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {data && data.meta.last_page > 1 && (
+                    <div className="mt-8 flex justify-center gap-2">
+                        {Array.from({ length: data.meta.last_page }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                className={`px-3 py-1 rounded ${
+                                    page === data.meta.current_page
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
