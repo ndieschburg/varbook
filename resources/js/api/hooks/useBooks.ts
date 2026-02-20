@@ -9,6 +9,8 @@ export function useBooks(params: ListBooksParams = {}) {
             const { data } = await api.get('/books', { params });
             return data;
         },
+        staleTime: 0, // Always consider data stale
+        refetchOnMount: 'always', // Refetch when component mounts (e.g., returning from reader)
     });
 }
 

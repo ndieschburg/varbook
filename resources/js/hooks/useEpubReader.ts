@@ -26,6 +26,7 @@ interface EpubReaderState {
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEpubReaderOptions) {
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
+    const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -132,6 +133,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     } else {
                         progress = location.start.percentage * 100;
                     }
+                    progressRef.current = progress; // Update ref for cleanup
                     setState(prev => ({ ...prev, progress }));
                     savePosition(location.start.cfi, progress);
                 });
@@ -152,7 +154,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         return () => {
             const location = renditionRef.current?.currentLocation();
             if (location?.start?.cfi) {
-                flushSync(location.start.cfi, state.progress);
+                // Use ref to get current progress (avoids stale closure)
+                flushSync(location.start.cfi, progressRef.current);
             }
             bookRef.current?.destroy();
         };
