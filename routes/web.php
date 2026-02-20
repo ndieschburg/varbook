@@ -99,4 +99,9 @@ Route::prefix('api/kosync')
         });
     });
 
+// SPA routes (React app)
+Route::get('/spa/{any?}', fn () => view('spa'))
+    ->where('any', '^(?!api|opds|webdav|kosync).*$')
+    ->name('spa');
+
 require __DIR__.'/auth.php';
