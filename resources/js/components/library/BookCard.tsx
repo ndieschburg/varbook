@@ -2,10 +2,27 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Book } from '@/types';
 import { ProgressBar, Badge } from '@/components/ui';
+import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
 interface BookCardProps {
     book: Book;
     variant?: 'grid' | 'reading';
+}
+
+function CloudDownloadIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+        </svg>
+    );
+}
+
+function CloudOfflineIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17l4.59-4.59L16 11l-6 6z"/>
+        </svg>
+    );
 }
 
 function BookIcon({ className }: { className?: string }) {
@@ -34,6 +51,23 @@ function CheckIcon({ className }: { className?: string }) {
 
 export function BookCard({ book, variant = 'grid' }: BookCardProps) {
     const { t } = useTranslation();
+    const { isOffline, isChecking, downloadState, downloadForOffline, removeFromOffline } =
+        useBookOfflineStatus({
+            bookId: book.id,
+            title: book.title,
+            author: book.author,
+            coverUrl: book.cover_url,
+        });
+
+    const handleOfflineToggle = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isOffline) {
+            removeFromOffline();
+        } else {
+            downloadForOffline();
+        }
+    };
 
     if (variant === 'reading') {
         return (
@@ -118,7 +152,7 @@ export function BookCard({ book, variant = 'grid' }: BookCardProps) {
                 )}
 
                 {/* Status Badge */}
-                <div className="absolute top-2 right-2">
+                <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                     {book.is_finished ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-600 text-white shadow-lg">
                             <CheckIcon className="w-3 h-3 mr-1" />
@@ -129,7 +163,32 @@ export function BookCard({ book, variant = 'grid' }: BookCardProps) {
                             {Math.round(book.progress)}%
                         </span>
                     ) : null}
+                    {isOffline && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-sky-600 text-white shadow-lg">
+                            <CloudOfflineIcon className="w-3 h-3" />
+                        </span>
+                    )}
                 </div>
+
+                {/* Offline Download Button */}
+                <button
+                    onClick={handleOfflineToggle}
+                    disabled={downloadState.isDownloading || isChecking}
+                    className={`absolute bottom-2 right-2 p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 ${
+                        isOffline
+                            ? 'bg-sky-600 hover:bg-sky-700 text-white'
+                            : 'bg-slate-800/90 hover:bg-slate-700 text-slate-300'
+                    } ${downloadState.isDownloading ? 'animate-pulse' : ''}`}
+                    title={isOffline ? t('Remove from offline') : t('Download for offline')}
+                >
+                    {downloadState.isDownloading ? (
+                        <span className="w-4 h-4 block text-xs font-bold">{downloadState.progress}%</span>
+                    ) : isOffline ? (
+                        <CloudOfflineIcon className="w-4 h-4" />
+                    ) : (
+                        <CloudDownloadIcon className="w-4 h-4" />
+                    )}
+                </button>
             </div>
 
             {/* Info */}

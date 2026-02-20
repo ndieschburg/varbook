@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
 import { usePositionSync } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
+import { getOfflineBook } from '@/services/offlineDb';
 
 interface UseEpubReaderOptions {
     bookId: number;
@@ -54,12 +55,22 @@ export function useEpubReader({ bookId, epubUrl, containerRef }: UseEpubReaderOp
             try {
                 setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-                // Fetch EPUB as ArrayBuffer
-                const response = await fetch(epubUrl);
-                if (!response.ok) {
-                    throw new Error(`Failed to load EPUB: ${response.status}`);
+                let arrayBuffer: ArrayBuffer;
+
+                // Try to load from IndexedDB first (offline mode)
+                const offlineBook = await getOfflineBook(bookId);
+                if (offlineBook) {
+                    console.log('[Reader] Loading book from offline storage');
+                    arrayBuffer = offlineBook.epubData;
+                } else {
+                    // Fetch EPUB from network
+                    console.log('[Reader] Loading book from network');
+                    const response = await fetch(epubUrl);
+                    if (!response.ok) {
+                        throw new Error(`Failed to load EPUB: ${response.status}`);
+                    }
+                    arrayBuffer = await response.arrayBuffer();
                 }
-                const arrayBuffer = await response.arrayBuffer();
 
                 // Create book
                 const book = ePub(arrayBuffer);

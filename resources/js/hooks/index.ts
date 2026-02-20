@@ -3,3 +3,4 @@ export { usePositionSync } from './usePositionSync';
 export { useEpubReader } from './useEpubReader';
 export { useOfflineSync } from './useOfflineSync';
 export { useOfflineBook } from './useOfflineBook';
+export { useBookOfflineStatus } from './useBookOfflineStatus';

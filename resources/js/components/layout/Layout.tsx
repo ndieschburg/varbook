@@ -1,7 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 export function Layout() {
+    // Initialize offline sync - listens for online events and syncs pending positions
+    useOfflineSync();
+
     return (
         <div className="min-h-screen bg-gray-900">
             <Header />

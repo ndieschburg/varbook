@@ -1,5 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import api from '@/api/client';
 import {
     getUnsyncedPositions,
@@ -15,6 +17,7 @@ interface BatchUpdate {
 }
 
 export function useOfflineSync() {
+    const { t } = useTranslation();
     const queryClient = useQueryClient();
     const syncingRef = useRef(false);
 
@@ -74,12 +77,16 @@ export function useOfflineSync() {
 
             // Invalidate progress queries
             queryClient.invalidateQueries({ queryKey: ['books'] });
+
+            // Show success toast
+            toast.success(t('Reading progress synced'));
         } catch (error) {
             console.error('Failed to sync positions:', error);
+            toast.error(t('Failed to sync reading progress'));
         } finally {
             syncingRef.current = false;
         }
-    }, [queryClient, syncMutation]);
+    }, [queryClient, syncMutation, t]);
 
     // Listen for online event
     useEffect(() => {

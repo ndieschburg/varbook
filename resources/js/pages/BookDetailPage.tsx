@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useBook, useBookSessions, useDeleteBook } from '@/api/hooks';
 import { LoadingSpinner, ConfirmModal } from '@/components/ui';
+import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
 function BookIcon({ className }: { className?: string }) {
     return (
@@ -53,6 +54,22 @@ function ClockIcon({ className }: { className?: string }) {
     );
 }
 
+function CloudDownloadIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+        </svg>
+    );
+}
+
+function CloudOfflineIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17l4.59-4.59L16 11l-6 6z"/>
+        </svg>
+    );
+}
+
 function formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -75,6 +92,14 @@ export function BookDetailPage() {
     const { data: book, isLoading: bookLoading } = useBook(bookId);
     const { data: sessionsData, isLoading: sessionsLoading } = useBookSessions(bookId);
     const deleteMutation = useDeleteBook();
+
+    const { isOffline, downloadState, downloadForOffline, removeFromOffline } =
+        useBookOfflineStatus({
+            bookId,
+            title: book?.title,
+            author: book?.author,
+            coverUrl: book?.cover_url,
+        });
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -230,12 +255,33 @@ export function BookDetailPage() {
                         {/* Actions */}
                         <div className="mt-6 flex flex-wrap gap-3">
                             <Link
-                                to={`/read/${book.id}`}
+                                to={`/books/${book.id}/read`}
                                 className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
                             >
                                 <BookIcon className="h-5 w-5 mr-2" />
                                 {t('Read')}
                             </Link>
+
+                            {isOffline ? (
+                                <button
+                                    onClick={removeFromOffline}
+                                    className="inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    <CloudOfflineIcon className="h-5 w-5 mr-2" />
+                                    {t('Available offline')}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={downloadForOffline}
+                                    disabled={downloadState.isDownloading}
+                                    className="inline-flex items-center px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                    <CloudDownloadIcon className="h-5 w-5 mr-2" />
+                                    {downloadState.isDownloading
+                                        ? `${t('Downloading')}... ${downloadState.progress}%`
+                                        : t('Save for offline')}
+                                </button>
+                            )}
 
                             <a
                                 href={`/api/books/${book.id}/download`}
