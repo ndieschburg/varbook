@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBooks } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
@@ -6,24 +6,37 @@ import { BookCard, LibraryFilters, BookUploader } from '@/components/library';
 import { BookIcon, LibraryIcon } from '@/components/icons';
 import type { Book, ListBooksParams } from '@/types';
 
+// Debounce hook to delay API calls while typing
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedValue(value), delay);
+        return () => clearTimeout(timer);
+    }, [value, delay]);
+
+    return debouncedValue;
+}
+
 export function LibraryPage() {
     const { t } = useTranslation();
 
-    // Filter state
-    const [search, setSearch] = useState('');
+    // Filter state - searchInput updates immediately, debouncedSearch triggers API
+    const [searchInput, setSearchInput] = useState('');
+    const debouncedSearch = useDebounce(searchInput, 300);
     const [status, setStatus] = useState('');
     const [sort, setSort] = useState('recent');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [showUploader, setShowUploader] = useState(false);
 
-    // Build query params
+    // Build query params with debounced search
     const params: ListBooksParams = useMemo(() => ({
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: status as ListBooksParams['status'] || undefined,
         sort: sort as ListBooksParams['sort'] || 'recent',
-    }), [search, status, sort]);
+    }), [debouncedSearch, status, sort]);
 
-    const { data, isLoading, refetch } = useBooks(params);
+    const { data, isLoading, isFetching, refetch } = useBooks(params);
 
     // Split books into currently reading and library
     const { currentlyReading, libraryBooks } = useMemo(() => {
@@ -48,7 +61,8 @@ export function LibraryPage() {
 
     const showCurrentlyReading = !status && currentlyReading.length > 0;
 
-    if (isLoading) {
+    // Only show full loading spinner on initial load (no data yet)
+    if (isLoading && !data) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
                 <LoadingSpinner size="lg" />
@@ -80,8 +94,8 @@ export function LibraryPage() {
 
             {/* Filters */}
             <LibraryFilters
-                search={search}
-                onSearchChange={setSearch}
+                search={searchInput}
+                onSearchChange={setSearchInput}
                 status={status}
                 onStatusChange={setStatus}
                 sort={sort}
