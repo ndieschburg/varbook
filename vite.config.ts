@@ -21,23 +21,23 @@ export default defineConfig({
             manifest: false, // Use our custom manifest.json
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-                // Include offline.html in precache
+                // Include offline.html in precache for fallback
                 additionalManifestEntries: [
                     { url: '/offline.html', revision: '1' },
                 ],
-                // Cache the SPA shell for offline navigation
-                navigateFallback: '/offline.html',
-                navigateFallbackDenylist: [
-                    /^\/api\//,
-                    /^\/opds\//,
-                    /^\/webdav\//,
-                    /^\/sanctum\//,
-                    /^\/storage\//,
-                ],
+                // Disable default NavigationRoute (index.html doesn't exist in Laravel)
+                navigateFallback: null,
                 runtimeCaching: [
                     {
                         // SPA navigation - cache the HTML shell for offline use
-                        urlPattern: ({ request }) => request.mode === 'navigate',
+                        // Falls back to offline.html if both network and cache fail
+                        urlPattern: ({ request, url }) =>
+                            request.mode === 'navigate' &&
+                            !url.pathname.startsWith('/api/') &&
+                            !url.pathname.startsWith('/opds/') &&
+                            !url.pathname.startsWith('/webdav/') &&
+                            !url.pathname.startsWith('/sanctum/') &&
+                            !url.pathname.startsWith('/storage/'),
                         handler: 'NetworkFirst',
                         options: {
                             cacheName: 'spa-html-cache',
@@ -46,6 +46,13 @@ export default defineConfig({
                                 maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
                             },
                             networkTimeoutSeconds: 3,
+                            plugins: [
+                                {
+                                    handlerDidError: async () => {
+                                        return caches.match('/offline.html');
+                                    },
+                                },
+                            ],
                         },
                     },
                     {
