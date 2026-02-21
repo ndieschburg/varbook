@@ -1,34 +1,94 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { useUser, useLogin, useLogout } from '@/api/hooks';
 import type { User, LoginCredentials } from '@/types';
+
+const CACHED_USER_KEY = 'bookshelf_cached_user';
 
 interface AuthContextType {
     user: User | null | undefined;
     isLoading: boolean;
     isAuthenticated: boolean;
+    isOffline: boolean;
     login: (credentials: LoginCredentials) => Promise<void>;
     logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function getCachedUser(): User | null {
+    try {
+        const cached = localStorage.getItem(CACHED_USER_KEY);
+        return cached ? JSON.parse(cached) : null;
+    } catch {
+        return null;
+    }
+}
+
+function setCachedUser(user: User | null) {
+    try {
+        if (user) {
+            localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+        } else {
+            localStorage.removeItem(CACHED_USER_KEY);
+        }
+    } catch {
+        // localStorage might be full or disabled
+    }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const { data: user, isLoading, isError } = useUser();
+    const { data: user, isLoading, isError, error } = useUser();
     const loginMutation = useLogin();
     const logoutMutation = useLogout();
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+    // Track online/offline status
+    useEffect(() => {
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Cache user when successfully fetched
+    useEffect(() => {
+        if (user) {
+            setCachedUser(user);
+        }
+    }, [user]);
 
     const login = async (credentials: LoginCredentials) => {
-        await loginMutation.mutateAsync(credentials);
+        const result = await loginMutation.mutateAsync(credentials);
+        if (result.user) {
+            setCachedUser(result.user);
+        }
     };
 
     const logout = async () => {
         await logoutMutation.mutateAsync();
+        setCachedUser(null);
     };
 
+    // Determine effective user: use cached user when offline and API fails
+    const isNetworkError = isError && (
+        !navigator.onLine ||
+        (error as Error)?.message?.includes('Network') ||
+        (error as Error)?.message?.includes('fetch')
+    );
+    const cachedUser = getCachedUser();
+    const effectiveUser = isNetworkError && cachedUser ? cachedUser : (isError ? null : user);
+
     const value: AuthContextType = {
-        user: isError ? null : user,
-        isLoading,
-        isAuthenticated: !!user && !isError,
+        user: effectiveUser,
+        isLoading: isLoading && !cachedUser,
+        isAuthenticated: !!effectiveUser,
+        isOffline,
         login,
         logout,
     };
