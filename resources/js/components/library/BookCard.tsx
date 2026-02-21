@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Book } from '@/types';
-import { ProgressBar, Badge } from '@/components/ui';
 import { CloudDownloadIcon, CloudOfflineIcon, BookIcon, ClockIcon, CheckIcon } from '@/components/icons';
 import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
@@ -33,7 +32,7 @@ export function BookCard({ book, variant = 'grid' }: BookCardProps) {
     if (variant === 'reading') {
         return (
             <Link
-                to={`/books/${book.id}`}
+                to={`/read/${book.id}`}
                 className="group flex-shrink-0 w-72 bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-2xl overflow-hidden border border-slate-700/50 hover:border-amber-500/30 transition-all hover:shadow-xl hover:shadow-amber-500/5 hover:scale-[1.02]"
             >
                 <div className="flex gap-4 p-4">

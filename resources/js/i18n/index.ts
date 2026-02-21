@@ -12,12 +12,26 @@ const resources = {
     es: { translation: es },
 };
 
-// Get initial locale from HTML lang attribute or default to 'en'
+const SUPPORTED_LANGUAGES = ['en', 'fr', 'es'];
+
+// Get initial locale: HTML lang > browser language > 'en'
 const getInitialLocale = (): string => {
+    // First check HTML lang attribute (set by backend for authenticated users)
     const htmlLang = document.documentElement.lang;
-    if (htmlLang && ['en', 'fr', 'es'].includes(htmlLang)) {
+    if (htmlLang && SUPPORTED_LANGUAGES.includes(htmlLang)) {
         return htmlLang;
     }
+
+    // Then check browser language preferences
+    const browserLanguages = navigator.languages || [navigator.language];
+    for (const lang of browserLanguages) {
+        // Extract base language code (e.g., 'fr-FR' -> 'fr')
+        const baseLang = lang.split('-')[0].toLowerCase();
+        if (SUPPORTED_LANGUAGES.includes(baseLang)) {
+            return baseLang;
+        }
+    }
+
     return 'en';
 };
 
