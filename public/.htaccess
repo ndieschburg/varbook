@@ -5,6 +5,13 @@
 
     RewriteEngine On
 
+    # Service Worker scope header
+    <IfModule mod_headers.c>
+        <FilesMatch "sw\.js$">
+            Header set Service-Worker-Allowed "/"
+        </FilesMatch>
+    </IfModule>
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
