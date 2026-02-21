@@ -144,13 +144,15 @@ export function ReaderPage() {
                     <>
                         <button
                             onClick={(e) => { e.stopPropagation(); prevPage(); }}
-                            className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10"
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="absolute left-0 top-0 bottom-0 w-20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10 select-none touch-manipulation"
                         >
                             <ChevronLeftIcon className="h-8 w-8" />
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); nextPage(); }}
-                            className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10"
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10 select-none touch-manipulation"
                         >
                             <ChevronRightIcon className="h-8 w-8" />
                         </button>
