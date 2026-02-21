@@ -30,14 +30,17 @@ class SettingsManager
      */
     public static function define(string $key, array $options): SettingDefinition
     {
+        // Note: 'options' and 'validation_rules' are cast to 'array' in the model,
+        // so we should NOT json_encode them here - Laravel handles that automatically.
+        // However, 'default_value' is NOT cast, so we DO json_encode it manually.
         $data = [
             'category' => $options['category'],
             'type' => $options['type'],
             'label' => $options['label_en'],
             'description' => $options['description_en'] ?? null,
             'default_value' => json_encode($options['default_value']),
-            'options' => isset($options['options']) ? json_encode(self::formatOptions($options['options'])) : null,
-            'validation_rules' => isset($options['validation_rules']) ? json_encode($options['validation_rules']) : null,
+            'options' => isset($options['options']) ? self::formatOptions($options['options']) : null,
+            'validation_rules' => $options['validation_rules'] ?? null,
             'is_user_overridable' => $options['is_user_overridable'] ?? true,
             'sort_order' => $options['sort_order'] ?? 0,
         ];
