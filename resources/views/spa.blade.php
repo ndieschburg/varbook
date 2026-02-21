@@ -27,6 +27,11 @@
     <!-- Scripts -->
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.tsx'])
+
+    <!-- PWA Service Worker Registration -->
+    @production
+    <script src="/build/registerSW.js"></script>
+    @endproduction
 </head>
 <body class="font-sans antialiased bg-gray-900 text-gray-100">
     <div id="app"></div>
