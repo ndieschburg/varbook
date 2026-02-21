@@ -85,14 +85,15 @@ export default defineConfig({
                         },
                     },
                     {
-                        // API responses - stale while revalidate for offline support
+                        // API responses - NetworkFirst for reliable offline support
                         urlPattern: /\/api\//i,
-                        handler: 'StaleWhileRevalidate',
+                        handler: 'NetworkFirst',
                         options: {
                             cacheName: 'api-cache',
+                            networkTimeoutSeconds: 3,
                             expiration: {
                                 maxEntries: 100,
-                                maxAgeSeconds: 60 * 60, // 1 hour
+                                maxAgeSeconds: 60 * 60 * 24, // 24 hours
                             },
                             cacheableResponse: {
                                 statuses: [0, 200],
@@ -113,6 +114,9 @@ export default defineConfig({
                             },
                             cacheableResponse: {
                                 statuses: [0, 200],
+                            },
+                            matchOptions: {
+                                ignoreVary: true,
                             },
                         },
                     },
