@@ -29,15 +29,19 @@ export default defineConfig({
                 navigateFallback: null,
                 runtimeCaching: [
                     {
-                        // SPA navigation - cache the HTML shell for offline use
-                        // Falls back to offline.html if both network and cache fail
-                        urlPattern: ({ request, url }) =>
-                            request.mode === 'navigate' &&
-                            !url.pathname.startsWith('/api/') &&
-                            !url.pathname.startsWith('/opds/') &&
-                            !url.pathname.startsWith('/webdav/') &&
-                            !url.pathname.startsWith('/sanctum/') &&
-                            !url.pathname.startsWith('/storage/'),
+                        // SPA HTML pages - cache for offline use
+                        // Matches SPA routes (not API, storage, etc.)
+                        urlPattern: ({ request, url }) => {
+                            if (request.mode !== 'navigate') return false;
+                            const path = url.pathname;
+                            if (path.startsWith('/api/')) return false;
+                            if (path.startsWith('/opds/')) return false;
+                            if (path.startsWith('/webdav/')) return false;
+                            if (path.startsWith('/sanctum/')) return false;
+                            if (path.startsWith('/storage/')) return false;
+                            if (path.startsWith('/build/')) return false;
+                            return true;
+                        },
                         handler: 'NetworkFirst',
                         options: {
                             cacheName: 'spa-html-cache',
