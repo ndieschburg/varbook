@@ -78,17 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Determine effective user: use cached user when offline or network error
     const cachedUser = getCachedUser();
 
-    // Check for network errors (Axios sets code to ERR_NETWORK, or response is undefined)
-    const axiosError = error as { code?: string; response?: unknown; message?: string } | null;
-    const isNetworkError = isError && (
-        !navigator.onLine ||
-        axiosError?.code === 'ERR_NETWORK' ||
-        axiosError?.code === 'ECONNABORTED' ||
-        (!axiosError?.response && axiosError?.message?.includes('Network'))
+    // Check if we're truly offline (use navigator.onLine directly for accuracy)
+    const browserOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    // Check for network errors (no response means network failed, not HTTP error like 401)
+    const axiosError = error as { response?: { status?: number }; code?: string } | null;
+    const hasNoResponse = isError && !axiosError?.response;
+    const isHttpUnauthorized = axiosError?.response?.status === 401;
+
+    // Use cached user if:
+    // 1. Browser reports offline AND we have cached user
+    // 2. Network error (no response) AND we have cached user AND it's not a real 401
+    const shouldUseCachedUser = cachedUser && (
+        browserOffline ||
+        (hasNoResponse && !isHttpUnauthorized)
     );
 
-    // Use cached user if offline/network error, otherwise use API result
-    const effectiveUser = (isOffline || isNetworkError) && cachedUser
+    const effectiveUser = shouldUseCachedUser
         ? cachedUser
         : (isError ? null : user);
 
