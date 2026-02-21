@@ -75,14 +75,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCachedUser(null);
     };
 
-    // Determine effective user: use cached user when offline and API fails
+    // Determine effective user: use cached user when offline or network error
+    const cachedUser = getCachedUser();
+
+    // Check for network errors (Axios sets code to ERR_NETWORK, or response is undefined)
+    const axiosError = error as { code?: string; response?: unknown; message?: string } | null;
     const isNetworkError = isError && (
         !navigator.onLine ||
-        (error as Error)?.message?.includes('Network') ||
-        (error as Error)?.message?.includes('fetch')
+        axiosError?.code === 'ERR_NETWORK' ||
+        axiosError?.code === 'ECONNABORTED' ||
+        (!axiosError?.response && axiosError?.message?.includes('Network'))
     );
-    const cachedUser = getCachedUser();
-    const effectiveUser = isNetworkError && cachedUser ? cachedUser : (isError ? null : user);
+
+    // Use cached user if offline/network error, otherwise use API result
+    const effectiveUser = (isOffline || isNetworkError) && cachedUser
+        ? cachedUser
+        : (isError ? null : user);
 
     const value: AuthContextType = {
         user: effectiveUser,
