@@ -7,6 +7,15 @@ use App\Http\Controllers\ReaderController;
 use App\Http\Controllers\WebDavController;
 use Illuminate\Support\Facades\Route;
 
+// Service Worker with proper scope header
+Route::get('/build/sw.js', function () {
+    $path = public_path('build/sw.js');
+    return response()->file($path, [
+        'Content-Type' => 'application/javascript',
+        'Service-Worker-Allowed' => '/',
+    ]);
+});
+
 // Redirect root to library
 Route::redirect('/', '/library');
 

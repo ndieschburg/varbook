@@ -19,6 +19,10 @@ export default defineConfig({
             registerType: 'autoUpdate',
             includeAssets: ['icons/*.png', 'offline.html'],
             manifest: false, // Use our custom manifest.json
+            // Put SW at root for full scope
+            srcDir: 'public',
+            filename: 'sw.js',
+            scope: '/',
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
                 // Include offline.html in precache for fallback
