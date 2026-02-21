@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
 import { usePositionSync } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
+import { useWakeLock } from './useWakeLock';
 import { getOfflineBook, saveBookOffline } from '@/services/offlineDb';
 
 interface UseEpubReaderOptions {
@@ -36,6 +37,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode } = useReaderSettings();
     const { loadPosition, savePosition, flushSync } = usePositionSync({ bookId });
+
+    // Prevent screen from sleeping while reading
+    useWakeLock();
 
     // Apply theme to rendition
     const applyTheme = useCallback(() => {
