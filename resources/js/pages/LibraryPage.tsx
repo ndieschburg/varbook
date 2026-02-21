@@ -63,27 +63,48 @@ export function LibraryPage() {
 
     // Infinite scroll with Intersection Observer
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
 
     useEffect(() => {
+        // Don't observe if there's no next page
+        if (!hasNextPage) {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+            }
+            return;
+        }
+
         const element = loadMoreRef.current;
         if (!element) return;
 
-        const observer = new IntersectionObserver(
+        // Disconnect previous observer
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+        }
+
+        observerRef.current = new IntersectionObserver(
             (entries) => {
                 const [entry] = entries;
-                if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                if (entry.isIntersecting && !isFetchingNextPage) {
                     fetchNextPage();
                 }
             },
             {
                 root: null,
-                rootMargin: '100px',
+                rootMargin: '200px',
                 threshold: 0,
             }
         );
 
-        observer.observe(element);
-        return () => observer.disconnect();
+        observerRef.current.observe(element);
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+            }
+        };
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Only show full loading spinner on initial load (no data yet)
@@ -178,17 +199,18 @@ export function LibraryPage() {
                             ))}
                         </div>
 
-                        {/* Load More Trigger */}
-                        <div ref={loadMoreRef} className="mt-8 flex justify-center">
-                            {isFetchingNextPage && (
-                                <LoadingSpinner size="md" />
-                            )}
-                            {!hasNextPage && allBooks.length > 0 && (
+                        {/* Load More Trigger - only render when there are more pages */}
+                        {hasNextPage ? (
+                            <div ref={loadMoreRef} className="mt-8 flex justify-center">
+                                {isFetchingNextPage && <LoadingSpinner size="md" />}
+                            </div>
+                        ) : (
+                            <div className="mt-8 flex justify-center">
                                 <p className="text-slate-500 text-sm">
                                     {totalBooks} {t('Books').toLowerCase()}
                                 </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     /* Empty State */

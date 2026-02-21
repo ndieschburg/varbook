@@ -50,8 +50,9 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
             }
             return undefined;
         },
-        staleTime: 0,
-        refetchOnMount: 'always',
+        // Keep pages in cache to avoid refetching from page 1
+        staleTime: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
     });
 }
 
