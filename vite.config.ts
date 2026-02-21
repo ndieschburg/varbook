@@ -17,11 +17,37 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['icons/*.png'],
+            includeAssets: ['icons/*.png', 'offline.html'],
             manifest: false, // Use our custom manifest.json
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+                // Include offline.html in precache
+                additionalManifestEntries: [
+                    { url: '/offline.html', revision: '1' },
+                ],
+                // Cache the SPA shell for offline navigation
+                navigateFallback: '/offline.html',
+                navigateFallbackDenylist: [
+                    /^\/api\//,
+                    /^\/opds\//,
+                    /^\/webdav\//,
+                    /^\/sanctum\//,
+                    /^\/storage\//,
+                ],
                 runtimeCaching: [
+                    {
+                        // SPA navigation - cache the HTML shell for offline use
+                        urlPattern: ({ request }) => request.mode === 'navigate',
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'spa-html-cache',
+                            expiration: {
+                                maxEntries: 10,
+                                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                            },
+                            networkTimeoutSeconds: 3,
+                        },
+                    },
                     {
                         // EPUB downloads - cache first, long TTL (immutable content)
                         urlPattern: /\/api\/books\/\d+\/download/i,
@@ -38,7 +64,8 @@ export default defineConfig({
                         },
                     },
                     {
-                        urlPattern: /^\/api\/.*/i,
+                        // API responses - stale while revalidate for offline support
+                        urlPattern: /\/api\//i,
                         handler: 'StaleWhileRevalidate',
                         options: {
                             cacheName: 'api-cache',
