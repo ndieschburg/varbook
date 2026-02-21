@@ -36,4 +36,37 @@ return [
 
     // Base path for cover images (relative to storage/app/public)
     'covers_path' => 'covers',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Settings Categories
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for settings categories display in the UI.
+    | Labels are English fallbacks; translations use settings.category.{key}
+    |
+    */
+
+    'settings_categories' => [
+        'general' => [
+            'label' => 'General',
+            'icon' => 'settings',
+            'sort' => 1,
+        ],
+        'reader' => [
+            'label' => 'EPUB Reader',
+            'icon' => 'book-open',
+            'sort' => 2,
+        ],
+        'library' => [
+            'label' => 'Library',
+            'icon' => 'library',
+            'sort' => 3,
+        ],
+        'appearance' => [
+            'label' => 'Appearance',
+            'icon' => 'palette',
+            'sort' => 4,
+        ],
+    ],
 ];

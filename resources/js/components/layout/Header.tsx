@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogout, useUpdateLocale } from '@/api/hooks';
 import { Button } from '@/components/ui';
+import { CogIcon } from '@/components/icons';
 
 const languages = [
     { code: 'en', label: 'English' },
@@ -59,16 +60,28 @@ export function Header() {
                                 {t('Stats')}
                             </Link>
                             {user?.is_admin && (
-                                <Link
-                                    to="/admin/users"
-                                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                                        location.pathname.startsWith('/admin')
-                                            ? 'bg-gray-900 text-white'
-                                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                                    }`}
-                                >
-                                    {t('Admin')}
-                                </Link>
+                                <>
+                                    <Link
+                                        to="/admin/users"
+                                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            isActive('/admin/users')
+                                                ? 'bg-gray-900 text-white'
+                                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        }`}
+                                    >
+                                        {t('Users Management')}
+                                    </Link>
+                                    <Link
+                                        to="/admin/settings"
+                                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            isActive('/admin/settings')
+                                                ? 'bg-gray-900 text-white'
+                                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        }`}
+                                    >
+                                        {t('System Settings')}
+                                    </Link>
+                                </>
                             )}
                         </nav>
                     </div>
@@ -90,6 +103,17 @@ export function Header() {
 
                         {/* User menu */}
                         <div className="flex items-center gap-3">
+                            <Link
+                                to="/settings"
+                                className={`p-2 rounded-md transition-colors ${
+                                    isActive('/settings')
+                                        ? 'bg-gray-900 text-white'
+                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                }`}
+                                title={t('Settings')}
+                            >
+                                <CogIcon className="h-5 w-5" />
+                            </Link>
                             <Link
                                 to="/profile"
                                 className={`text-sm transition-colors ${

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Facades\Settings;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -139,7 +140,8 @@ class Book extends Model
     {
         $this->progress = min(100, max(0, $progress));
 
-        if ($this->progress >= config('bookshelf.finished_threshold', 95)) {
+        $finishedThreshold = Settings::get('general.finished_threshold') ?? config('bookshelf.finished_threshold', 95);
+        if ($this->progress >= $finishedThreshold) {
             $this->is_finished = true;
         }
 

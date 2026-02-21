@@ -15,7 +15,9 @@ import {
     ReaderPage,
     StatsPage,
     ProfilePage,
+    SettingsPage,
     UsersPage,
+    AdminSettingsPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -48,11 +50,20 @@ function App() {
                             <Route path="/books/:id" element={<BookDetailPage />} />
                             <Route path="/stats" element={<StatsPage />} />
                             <Route path="/profile" element={<ProfilePage />} />
+                            <Route path="/settings" element={<SettingsPage />} />
                             <Route
                                 path="/admin/users"
                                 element={
                                     <ProtectedRoute requireAdmin>
                                         <UsersPage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin/settings"
+                                element={
+                                    <ProtectedRoute requireAdmin>
+                                        <AdminSettingsPage />
                                     </ProtectedRoute>
                                 }
                             />

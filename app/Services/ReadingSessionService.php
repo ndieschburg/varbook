@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Facades\Settings;
 use App\Models\Book;
 use App\Models\BookSyncIdentifier;
 use App\Models\ReadingSession;
@@ -9,15 +10,19 @@ use Carbon\Carbon;
 
 class ReadingSessionService
 {
-    protected int $sessionGapMinutes;
-    protected int $maxSessionHours;
-    protected float $finishedThreshold;
-
-    public function __construct()
+    protected function getSessionGapMinutes(): int
     {
-        $this->sessionGapMinutes = config('bookshelf.session_gap_minutes', 10);
-        $this->maxSessionHours = config('bookshelf.max_session_hours', 4);
-        $this->finishedThreshold = config('bookshelf.finished_threshold', 95);
+        return (int) Settings::get('general.session_gap_minutes') ?? config('bookshelf.session_gap_minutes', 10);
+    }
+
+    protected function getMaxSessionHours(): int
+    {
+        return (int) Settings::get('general.max_session_hours') ?? config('bookshelf.max_session_hours', 4);
+    }
+
+    protected function getFinishedThreshold(): float
+    {
+        return (float) Settings::get('general.finished_threshold') ?? config('bookshelf.finished_threshold', 95);
     }
 
     public function processSyncEvent(
@@ -81,7 +86,7 @@ class ReadingSessionService
         $gapMinutes = $lastSyncAt->diffInMinutes($now);
 
         // Check if we should continue existing session
-        if ($gapMinutes <= $this->sessionGapMinutes) {
+        if ($gapMinutes <= $this->getSessionGapMinutes()) {
             return $this->continueSession($book, $client, $progress, $now, $rawPayload);
         }
 
@@ -128,7 +133,7 @@ class ReadingSessionService
         // Check if session duration would exceed max hours
         $sessionDurationHours = $session->started_at->diffInHours($now);
 
-        if ($sessionDurationHours >= $this->maxSessionHours) {
+        if ($sessionDurationHours >= $this->getMaxSessionHours()) {
             // Cap the current session and create a new one
             return $this->createNewSession($book, $client, $progress, $now, $rawPayload);
         }
@@ -202,7 +207,7 @@ class ReadingSessionService
         // Check if there's already an active session (last activity within gap)
         $recentSession = ReadingSession::where('book_id', $book->id)
             ->where('client', $client)
-            ->where('ended_at', '>=', $now->copy()->subMinutes($this->sessionGapMinutes))
+            ->where('ended_at', '>=', $now->copy()->subMinutes($this->getSessionGapMinutes()))
             ->orderBy('ended_at', 'desc')
             ->first();
 

@@ -4,4 +4,6 @@ export { BookDetailPage } from './BookDetailPage';
 export { ReaderPage } from './ReaderPage';
 export { StatsPage } from './StatsPage';
 export { ProfilePage } from './ProfilePage';
+export { SettingsPage } from './SettingsPage';
 export { UsersPage } from './admin/UsersPage';
+export { AdminSettingsPage } from './admin/SettingsPage';

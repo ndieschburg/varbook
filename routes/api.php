@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Api\Admin\StatsController as AdminStatsController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use Illuminate\Support\Facades\Route;
@@ -44,9 +46,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/books/{book}/progress/batch', [BookController::class, 'batchProgress'])->name('api.books.progress.batch');
     Route::delete('/books/{book}/stats', [BookController::class, 'resetStats'])->name('api.books.stats.reset');
 
+    // User Settings
+    Route::get('/settings', [SettingsController::class, 'index'])->name('api.settings.index');
+    Route::put('/settings/{key}', [SettingsController::class, 'update'])->name('api.settings.update');
+    Route::delete('/settings/{key}', [SettingsController::class, 'destroy'])->name('api.settings.destroy');
+
     // Admin Routes
     Route::middleware('admin')->prefix('admin')->name('api.admin.')->group(function () {
         Route::apiResource('users', AdminUserController::class);
         Route::get('/stats', [AdminStatsController::class, 'index'])->name('stats');
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
+        Route::put('/settings/{key}', [AdminSettingsController::class, 'update'])->name('settings.update');
     });
 });
