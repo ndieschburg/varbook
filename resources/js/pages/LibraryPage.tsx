@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBooks, useCurrentlyReading } from '@/api/hooks';
+import { useInfiniteBooks, useCurrentlyReading } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { BookCard, LibraryFilters, BookUploader } from '@/components/library';
 import { BookIcon, LibraryIcon } from '@/components/icons';
@@ -30,19 +30,60 @@ export function LibraryPage() {
     const [showUploader, setShowUploader] = useState(false);
 
     // Build query params with debounced search
-    const params: ListBooksParams = useMemo(() => ({
+    const params: Omit<ListBooksParams, 'page'> = useMemo(() => ({
         search: debouncedSearch || undefined,
         status: status as ListBooksParams['status'] || undefined,
         sort: sort as ListBooksParams['sort'] || 'recent',
     }), [debouncedSearch, status, sort]);
 
-    const { data, isLoading, isFetching, refetch } = useBooks(params);
+    // Use infinite query for pagination
+    const {
+        data,
+        isLoading,
+        isFetchingNextPage,
+        hasNextPage,
+        fetchNextPage,
+        refetch,
+    } = useInfiniteBooks(params);
 
     // Separate query for "Continue Reading" section - fetches all books in progress
     const { data: currentlyReading = [] } = useCurrentlyReading();
 
+    // Flatten pages into single array
+    const allBooks = useMemo(() => {
+        if (!data?.pages) return [];
+        return data.pages.flatMap(page => page.data);
+    }, [data?.pages]);
+
+    // Get total count from first page
+    const totalBooks = data?.pages[0]?.meta?.total ?? 0;
+
     // Show "Continue Reading" only when no filters are applied
     const showCurrentlyReading = !status && !debouncedSearch && currentlyReading.length > 0;
+
+    // Infinite scroll with Intersection Observer
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+        }
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    useEffect(() => {
+        const element = loadMoreRef.current;
+        if (!element) return;
+
+        const observer = new IntersectionObserver(handleObserver, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0,
+        });
+
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [handleObserver]);
 
     // Only show full loading spinner on initial load (no data yet)
     if (isLoading && !data) {
@@ -113,25 +154,41 @@ export function LibraryPage() {
             {/* Library Section */}
             <div>
                 {/* Section Header */}
-                {showCurrentlyReading && (
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
-                            <LibraryIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-semibold text-slate-100">{t('Library')}</h2>
-                            <p className="text-xs text-slate-400">{t('Your complete collection')}</p>
-                        </div>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/20">
+                        <LibraryIcon className="w-5 h-5 text-white" />
                     </div>
-                )}
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-100">{t('Library')}</h2>
+                        <p className="text-xs text-slate-400">
+                            {totalBooks > 0
+                                ? `${allBooks.length} / ${totalBooks} ${t('Books').toLowerCase()}`
+                                : t('Your complete collection')}
+                        </p>
+                    </div>
+                </div>
 
                 {/* Books Grid */}
-                {data?.data && data.data.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                        {data.data.map(book => (
-                            <BookCard key={book.id} book={book} />
-                        ))}
-                    </div>
+                {allBooks.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                            {allBooks.map(book => (
+                                <BookCard key={book.id} book={book} />
+                            ))}
+                        </div>
+
+                        {/* Load More Trigger */}
+                        <div ref={loadMoreRef} className="mt-8 flex justify-center">
+                            {isFetchingNextPage && (
+                                <LoadingSpinner size="md" />
+                            )}
+                            {!hasNextPage && allBooks.length > 0 && (
+                                <p className="text-slate-500 text-sm">
+                                    {totalBooks} {t('Books').toLowerCase()}
+                                </p>
+                            )}
+                        </div>
+                    </>
                 ) : (
                     /* Empty State */
                     <div className="text-center py-16">
@@ -142,24 +199,6 @@ export function LibraryPage() {
                         <p className="mt-2 text-slate-500">
                             {t('Upload your first EPUB to get started.')}
                         </p>
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {data && data.meta.last_page > 1 && (
-                    <div className="mt-8 flex justify-center gap-2">
-                        {Array.from({ length: data.meta.last_page }, (_, i) => i + 1).map(page => (
-                            <button
-                                key={page}
-                                className={`px-3 py-1 rounded ${
-                                    page === data.meta.current_page
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                                }`}
-                            >
-                                {page}
-                            </button>
-                        ))}
                     </div>
                 )}
             </div>
