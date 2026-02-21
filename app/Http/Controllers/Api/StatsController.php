@@ -74,7 +74,7 @@ class StatsController extends Controller
             ]);
 
         // Recent sessions
-        $recentSessions = ReadingSession::with('book:id,title,author,cover_url')
+        $recentSessions = ReadingSession::with('book:id,title,author,cover_path')
             ->whereHas('book', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
