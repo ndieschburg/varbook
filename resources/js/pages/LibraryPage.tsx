@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useBooks } from '@/api/hooks';
+import { useBooks, useCurrentlyReading } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { BookCard, LibraryFilters, BookUploader } from '@/components/library';
 import { BookIcon, LibraryIcon } from '@/components/icons';
-import type { Book, ListBooksParams } from '@/types';
+import type { ListBooksParams } from '@/types';
 
 // Debounce hook to delay API calls while typing
 function useDebounce<T>(value: T, delay: number): T {
@@ -38,28 +38,11 @@ export function LibraryPage() {
 
     const { data, isLoading, isFetching, refetch } = useBooks(params);
 
-    // Split books into currently reading and library
-    const { currentlyReading, libraryBooks } = useMemo(() => {
-        if (!data?.data) {
-            return { currentlyReading: [], libraryBooks: [] };
-        }
+    // Separate query for "Continue Reading" section - fetches all books in progress
+    const { data: currentlyReading = [] } = useCurrentlyReading();
 
-        // Only show currently reading when no status filter
-        if (status) {
-            return { currentlyReading: [], libraryBooks: data.data };
-        }
-
-        const reading = data.data.filter(book =>
-            book.progress > 0 && !book.is_finished
-        );
-        const library = data.data.filter(book =>
-            book.progress === 0 || book.is_finished
-        );
-
-        return { currentlyReading: reading, libraryBooks: library };
-    }, [data?.data, status]);
-
-    const showCurrentlyReading = !status && currentlyReading.length > 0;
+    // Show "Continue Reading" only when no filters are applied
+    const showCurrentlyReading = !status && !debouncedSearch && currentlyReading.length > 0;
 
     // Only show full loading spinner on initial load (no data yet)
     if (isLoading && !data) {
@@ -143,9 +126,9 @@ export function LibraryPage() {
                 )}
 
                 {/* Books Grid */}
-                {libraryBooks.length > 0 ? (
+                {data?.data && data.data.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                        {libraryBooks.map(book => (
+                        {data.data.map(book => (
                             <BookCard key={book.id} book={book} />
                         ))}
                     </div>

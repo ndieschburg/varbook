@@ -14,6 +14,20 @@ export function useBooks(params: ListBooksParams = {}) {
     });
 }
 
+export function useCurrentlyReading() {
+    return useQuery({
+        queryKey: ['books', 'currently-reading'],
+        queryFn: async (): Promise<Book[]> => {
+            const { data } = await api.get('/books', {
+                params: { status: 'reading', per_page: 50 }
+            });
+            return data.data;
+        },
+        staleTime: 0,
+        refetchOnMount: 'always',
+    });
+}
+
 export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
     return useInfiniteQuery({
         queryKey: ['books', 'infinite', params],
