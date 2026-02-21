@@ -32,6 +32,7 @@ export function ReaderPage() {
         nextPage,
         prevPage,
         goTo,
+        goToPercentage,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -290,13 +291,24 @@ export function ReaderPage() {
             {/* Bottom bar with progress */}
             {showControls && (
                 <div className="flex-shrink-0 h-12 bg-gray-800 border-t border-gray-700 flex items-center px-4 z-20">
-                    <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                        className="flex-1 h-3 bg-gray-700 rounded-full overflow-hidden cursor-pointer relative group"
+                        onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const percentage = ((e.clientX - rect.left) / rect.width) * 100;
+                            goToPercentage(percentage);
+                        }}
+                    >
                         <div
-                            className="h-full bg-indigo-500 transition-all"
+                            className="h-full bg-indigo-500 transition-all pointer-events-none"
                             style={{ width: `${progress}%` }}
                         />
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                            style={{ left: `calc(${progress}% - 8px)` }}
+                        />
                     </div>
-                    <span className="ml-4 text-sm text-gray-400">{progress.toFixed(1)}%</span>
+                    <span className="ml-4 text-sm text-gray-400 w-14 text-right">{progress.toFixed(1)}%</span>
                 </div>
             )}
         </div>

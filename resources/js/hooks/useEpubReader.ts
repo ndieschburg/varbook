@@ -188,6 +188,15 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         renditionRef.current?.display(href);
     }, []);
 
+    const goToPercentage = useCallback((percentage: number) => {
+        if (!bookRef.current || !renditionRef.current) return;
+        const clamped = Math.max(0, Math.min(100, percentage));
+        const cfi = bookRef.current.locations.cfiFromPercentage(clamped / 100);
+        if (cfi) {
+            renditionRef.current.display(cfi);
+        }
+    }, []);
+
     // Keyboard navigation
     useEffect(() => {
         const handleKeydown = (e: KeyboardEvent) => {
@@ -216,5 +225,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         nextPage,
         prevPage,
         goTo,
+        goToPercentage,
     };
 }
