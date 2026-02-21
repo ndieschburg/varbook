@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInfiniteBooks, useCurrentlyReading } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
@@ -64,26 +64,27 @@ export function LibraryPage() {
     // Infinite scroll with Intersection Observer
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
-        }
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
     useEffect(() => {
         const element = loadMoreRef.current;
         if (!element) return;
 
-        const observer = new IntersectionObserver(handleObserver, {
-            root: null,
-            rootMargin: '100px',
-            threshold: 0,
-        });
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+                if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            {
+                root: null,
+                rootMargin: '100px',
+                threshold: 0,
+            }
+        );
 
         observer.observe(element);
         return () => observer.disconnect();
-    }, [handleObserver]);
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Only show full loading spinner on initial load (no data yet)
     if (isLoading && !data) {
