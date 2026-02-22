@@ -17,11 +17,26 @@ interface UseEpubReaderOptions {
     };
 }
 
+interface SearchResult {
+    cfi: string;
+    excerpt: string;
+    chapter?: string;
+}
+
+interface LocationInfo {
+    currentPage: number;
+    totalPages: number;
+    currentChapter: string;
+}
+
 interface EpubReaderState {
     isLoading: boolean;
     error: string | null;
     progress: number;
     toc: NavItem[];
+    locationInfo: LocationInfo;
+    searchResults: SearchResult[];
+    isSearching: boolean;
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEpubReaderOptions) {
@@ -35,6 +50,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         error: null,
         progress: 0,
         toc: [],
+        locationInfo: {
+            currentPage: 0,
+            totalPages: 0,
+            currentChapter: '',
+        },
+        searchResults: [],
+        isSearching: false,
     });
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection } = useReaderSettings();
@@ -157,21 +179,58 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     }
                 });
 
+                // Helper to find current chapter from CFI
+                const findCurrentChapter = (cfi: string): string => {
+                    const toc = navigation.toc;
+                    let currentChapter = '';
+
+                    const searchToc = (items: NavItem[]): boolean => {
+                        for (const item of items) {
+                            // Check if this TOC item's href matches current location
+                            if (item.href && location.start.href?.includes(item.href.split('#')[0])) {
+                                currentChapter = item.label;
+                            }
+                            if (item.subitems && item.subitems.length > 0) {
+                                searchToc(item.subitems);
+                            }
+                        }
+                        return false;
+                    };
+
+                    searchToc(toc);
+                    return currentChapter.trim();
+                };
+
                 // Track location changes
                 rendition.on('relocated', (location: any) => {
                     let progress = 0;
+                    let currentPage = 0;
+                    let totalPages = 0;
+
                     if (book.locations.length() > 0) {
                         progress = book.locations.percentageFromCfi(location.start.cfi) * 100;
+                        currentPage = book.locations.locationFromCfi(location.start.cfi) || 0;
+                        totalPages = book.locations.length();
                     } else {
                         progress = location.start.percentage * 100;
                     }
+
+                    const currentChapter = findCurrentChapter(location.start.cfi);
 
                     // Don't save progress if locations aren't ready and progress would be lower than saved
                     // This prevents overwriting real progress with 0 or incorrect values
                     const shouldSave = locationsReadyRef.current || progress >= initialProgressRef.current;
 
                     progressRef.current = progress; // Update ref for cleanup
-                    setState(prev => ({ ...prev, progress }));
+                    setState(prev => ({
+                        ...prev,
+                        progress,
+                        locationInfo: {
+                            currentPage,
+                            totalPages,
+                            currentChapter,
+                        },
+                    }));
 
                     if (shouldSave) {
                         savePosition(location.start.cfi, progress);
@@ -236,6 +295,78 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         const cfi = bookRef.current.locations.cfiFromPercentage(clamped / 100);
         if (cfi) {
             renditionRef.current.display(cfi);
+        }
+    }, []);
+
+    // Search in book
+    const search = useCallback(async (query: string) => {
+        if (!bookRef.current || !query.trim()) {
+            setState(prev => ({ ...prev, searchResults: [], isSearching: false }));
+            return;
+        }
+
+        setState(prev => ({ ...prev, isSearching: true }));
+
+        try {
+            const book = bookRef.current;
+            const results: SearchResult[] = [];
+
+            // Search through each spine item (chapter)
+            await Promise.all(
+                book.spine.spineItems.map(async (item: any) => {
+                    const doc = await item.load(book.load.bind(book));
+                    const textContent = doc.body?.textContent || '';
+
+                    // Find all occurrences
+                    const lowerQuery = query.toLowerCase();
+                    const lowerText = textContent.toLowerCase();
+                    let pos = 0;
+
+                    while ((pos = lowerText.indexOf(lowerQuery, pos)) !== -1) {
+                        // Get excerpt around match
+                        const start = Math.max(0, pos - 30);
+                        const end = Math.min(textContent.length, pos + query.length + 30);
+                        let excerpt = textContent.slice(start, end);
+
+                        if (start > 0) excerpt = '...' + excerpt;
+                        if (end < textContent.length) excerpt = excerpt + '...';
+
+                        // Generate CFI for this position
+                        const cfi = item.cfiFromElement(doc.body);
+
+                        results.push({
+                            cfi: cfi || item.href,
+                            excerpt: excerpt.replace(/\s+/g, ' ').trim(),
+                            chapter: item.idref,
+                        });
+
+                        pos += query.length;
+
+                        // Limit results per chapter to avoid too many
+                        if (results.length >= 50) break;
+                    }
+
+                    item.unload();
+                })
+            );
+
+            setState(prev => ({ ...prev, searchResults: results.slice(0, 50), isSearching: false }));
+        } catch (error) {
+            console.error('Search error:', error);
+            setState(prev => ({ ...prev, searchResults: [], isSearching: false }));
+        }
+    }, []);
+
+    const clearSearch = useCallback(() => {
+        setState(prev => ({ ...prev, searchResults: [], isSearching: false }));
+    }, []);
+
+    const goToSearchResult = useCallback((result: SearchResult) => {
+        if (result.cfi.startsWith('epubcfi')) {
+            renditionRef.current?.display(result.cfi);
+        } else {
+            // Fallback to href if CFI not available
+            renditionRef.current?.display(result.cfi);
         }
     }, []);
 
@@ -314,5 +445,10 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         prevPage,
         goTo,
         goToPercentage,
+        search,
+        clearSearch,
+        goToSearchResult,
     };
 }
+
+export type { SearchResult };

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useBook } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
 import { LoadingSpinner } from '@/components/ui';
-import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
+import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
 import type { Theme, FontFamily, Margins, FlowMode } from '@/hooks/useReaderSettings';
 
 export function ReaderPage() {
@@ -22,6 +22,9 @@ export function ReaderPage() {
         error,
         progress,
         toc,
+        locationInfo,
+        searchResults,
+        isSearching,
         settings,
         setTheme,
         setFontSize,
@@ -34,6 +37,9 @@ export function ReaderPage() {
         prevPage,
         goTo,
         goToPercentage,
+        search,
+        clearSearch,
+        goToSearchResult,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -47,6 +53,8 @@ export function ReaderPage() {
 
     const [showToc, setShowToc] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [showControls, setShowControls] = useState(true);
 
     const themeColors: Record<Theme, string> = {
@@ -74,33 +82,49 @@ export function ReaderPage() {
         <div className="h-screen flex flex-col bg-gray-900">
             {/* Top bar */}
             {showControls && (
-                <div className="flex-shrink-0 h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 z-20">
-                    <div className="flex items-center gap-4">
-                        <Link
-                            to={`/books/${bookId}`}
-                            className="text-gray-400 hover:text-white transition-colors"
-                        >
-                            <ArrowLeftIcon className="h-5 w-5" />
-                        </Link>
-                        <h1 className="text-white font-medium truncate max-w-xs">
-                            {bookData?.title || t('Loading...')}
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setShowToc(!showToc)}
-                            className="p-2 text-gray-400 hover:text-white transition-colors"
-                            title={t('Table of Contents')}
-                        >
-                            <MenuIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                            onClick={() => setShowSettings(!showSettings)}
-                            className="p-2 text-gray-400 hover:text-white transition-colors"
-                            title={t('Settings')}
-                        >
-                            <CogIcon className="h-5 w-5" />
-                        </button>
+                <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 z-20">
+                    <div className="h-14 flex items-center justify-between px-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                            <Link
+                                to={`/books/${bookId}`}
+                                className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                            >
+                                <ArrowLeftIcon className="h-5 w-5" />
+                            </Link>
+                            <div className="min-w-0">
+                                <h1 className="text-white font-medium truncate text-sm">
+                                    {bookData?.title || t('Loading...')}
+                                </h1>
+                                {locationInfo.currentChapter && (
+                                    <p className="text-gray-400 text-xs truncate">
+                                        {locationInfo.currentChapter}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                onClick={() => { setShowSearch(!showSearch); setShowToc(false); setShowSettings(false); }}
+                                className={`p-2 transition-colors ${showSearch ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                title={t('Search')}
+                            >
+                                <SearchIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => { setShowToc(!showToc); setShowSearch(false); setShowSettings(false); }}
+                                className={`p-2 transition-colors ${showToc ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                title={t('Table of Contents')}
+                            >
+                                <MenuIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => { setShowSettings(!showSettings); setShowToc(false); setShowSearch(false); }}
+                                className={`p-2 transition-colors ${showSettings ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                title={t('Settings')}
+                            >
+                                <CogIcon className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -170,6 +194,76 @@ export function ReaderPage() {
                                     {item.label}
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Search sidebar */}
+                {showSearch && (
+                    <div className="absolute left-0 top-0 bottom-0 w-80 bg-gray-800 border-r border-gray-700 overflow-y-auto z-20">
+                        <div className="p-4 border-b border-gray-700">
+                            <h2 className="text-lg font-semibold text-white mb-3">{t('Search')}</h2>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && searchQuery.trim()) {
+                                            search(searchQuery);
+                                        }
+                                    }}
+                                    placeholder={t('Search in book...')}
+                                    className="flex-1 bg-gray-700 border-gray-600 rounded text-white placeholder-gray-400 text-sm px-3 py-2"
+                                    autoFocus
+                                />
+                                <button
+                                    onClick={() => searchQuery.trim() && search(searchQuery)}
+                                    disabled={isSearching || !searchQuery.trim()}
+                                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded text-sm"
+                                >
+                                    {isSearching ? '...' : t('Go')}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-2">
+                            {isSearching && (
+                                <div className="text-center py-8 text-gray-400">
+                                    <LoadingSpinner size="sm" />
+                                    <p className="mt-2 text-sm">{t('Searching...')}</p>
+                                </div>
+                            )}
+                            {!isSearching && searchResults.length === 0 && searchQuery && (
+                                <p className="text-center py-8 text-gray-400 text-sm">
+                                    {t('No results found')}
+                                </p>
+                            )}
+                            {!isSearching && searchResults.length > 0 && (
+                                <>
+                                    <p className="text-xs text-gray-400 px-3 py-2">
+                                        {searchResults.length} {t('results')}
+                                    </p>
+                                    {searchResults.map((result, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                goToSearchResult(result);
+                                                setShowSearch(false);
+                                            }}
+                                            className="w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition-colors text-sm"
+                                        >
+                                            <span
+                                                dangerouslySetInnerHTML={{
+                                                    __html: result.excerpt.replace(
+                                                        new RegExp(`(${searchQuery})`, 'gi'),
+                                                        '<mark class="bg-yellow-500/30 text-yellow-200">$1</mark>'
+                                                    ),
+                                                }}
+                                            />
+                                        </button>
+                                    ))}
+                                </>
+                            )}
                         </div>
                     </div>
                 )}
@@ -333,8 +427,15 @@ export function ReaderPage() {
             {/* Bottom bar with progress */}
             {showControls && (
                 <div className="flex-shrink-0 h-12 bg-gray-800 border-t border-gray-700 flex items-center px-4 z-20">
+                    {/* Page info */}
+                    {locationInfo.totalPages > 0 && (
+                        <span className="text-xs text-gray-400 w-20 flex-shrink-0">
+                            {locationInfo.currentPage} / {locationInfo.totalPages}
+                        </span>
+                    )}
+                    {/* Progress bar */}
                     <div
-                        className="flex-1 h-3 bg-gray-700 rounded-full overflow-hidden cursor-pointer relative group"
+                        className="flex-1 h-3 bg-gray-700 rounded-full overflow-hidden cursor-pointer relative group mx-3"
                         onClick={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
                             const percentage = ((e.clientX - rect.left) / rect.width) * 100;
@@ -350,7 +451,8 @@ export function ReaderPage() {
                             style={{ left: `calc(${progress}% - 8px)` }}
                         />
                     </div>
-                    <span className="ml-4 text-sm text-gray-400 w-14 text-right">{progress.toFixed(1)}%</span>
+                    {/* Percentage */}
+                    <span className="text-sm text-gray-400 w-14 text-right flex-shrink-0">{progress.toFixed(1)}%</span>
                 </div>
             )}
         </div>
