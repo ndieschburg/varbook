@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import api from '../client';
 import type { Book, BookProgress, ReadingSession, PaginatedResponse, ListBooksParams } from '@/types';
 
@@ -50,6 +50,8 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
             }
             return undefined;
         },
+        // Keep previous data while fetching new results (prevents input focus loss)
+        placeholderData: keepPreviousData,
         // Keep pages in cache to avoid refetching from page 1
         staleTime: 1000 * 60 * 5,
         refetchOnWindowFocus: false,
