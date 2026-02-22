@@ -76,7 +76,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 } else {
                     // Fetch EPUB from network
                     console.log('[Reader] Loading book from network');
-                    const response = await fetch(epubUrl);
+                    const response = await fetch(epubUrl, {
+                        credentials: 'include', // Include cookies for authentication
+                    });
                     if (!response.ok) {
                         throw new Error(`Failed to load EPUB: ${response.status}`);
                     }
@@ -124,7 +126,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Load saved position
                 const savedPosition = await loadPosition();
                 if (savedPosition?.cfi) {
+                    // Exact CFI position available
+                    console.log('[Reader] Restoring exact CFI position');
                     await rendition.display(savedPosition.cfi);
+                } else if (savedPosition?.progress && savedPosition.progress > 0) {
+                    // No CFI but progress available - use percentage fallback
+                    console.log('[Reader] No CFI, using percentage fallback:', savedPosition.progress + '%');
+                    await rendition.display();
+                    // Navigate to percentage after initial display
+                    const cfi = book.locations.cfiFromPercentage(savedPosition.progress / 100);
+                    if (cfi) {
+                        await rendition.display(cfi);
+                    }
                 } else {
                     await rendition.display();
                 }

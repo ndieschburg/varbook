@@ -212,17 +212,13 @@ class BookController extends Controller
             ->where('client', 'web')
             ->first();
 
-        if (! $syncIdentifier || ! $syncIdentifier->raw_position) {
-            return response()->json([
-                'data' => null,
-            ]);
-        }
-
+        // Always return progress, even if no CFI position is available
+        // This allows fallback to percentage-based navigation
         return response()->json([
             'data' => [
                 'progress' => (float) $book->progress,
-                'position' => $syncIdentifier->raw_position,
-                'last_sync_at' => $syncIdentifier->last_sync_at?->toIso8601String(),
+                'position' => $syncIdentifier?->raw_position, // May be null
+                'last_sync_at' => $syncIdentifier?->last_sync_at?->toIso8601String(),
             ],
         ]);
     }

@@ -12,12 +12,13 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedCfiRef = useRef<string | null>(null);
 
-    const loadPosition = useCallback(async (): Promise<{ cfi: string; progress: number } | null> => {
+    const loadPosition = useCallback(async (): Promise<{ cfi: string | null; progress: number } | null> => {
         try {
             const response = await api.get(`/books/${bookId}/progress`);
             const data = response.data.data;
-            if (data?.position) {
-                return { cfi: data.position, progress: data.progress };
+            if (data) {
+                // Return progress even if CFI is null (allows percentage fallback)
+                return { cfi: data.position || null, progress: data.progress || 0 };
             }
             return null;
         } catch (error) {

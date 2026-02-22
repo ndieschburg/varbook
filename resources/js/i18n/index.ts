@@ -13,10 +13,21 @@ const resources = {
 };
 
 const SUPPORTED_LANGUAGES = ['en', 'fr', 'es'];
+const STORAGE_KEY = 'bookshelf-locale';
 
-// Get initial locale: HTML lang > browser language > 'en'
+// Get initial locale: localStorage > HTML lang > browser language > 'en'
 const getInitialLocale = (): string => {
-    // First check HTML lang attribute (set by backend for authenticated users)
+    // First check localStorage (persisted user preference)
+    try {
+        const storedLang = localStorage.getItem(STORAGE_KEY);
+        if (storedLang && SUPPORTED_LANGUAGES.includes(storedLang)) {
+            return storedLang;
+        }
+    } catch {
+        // localStorage not available
+    }
+
+    // Then check HTML lang attribute (set by backend for authenticated users)
     const htmlLang = document.documentElement.lang;
     if (htmlLang && SUPPORTED_LANGUAGES.includes(htmlLang)) {
         return htmlLang;
@@ -45,5 +56,15 @@ i18n
             escapeValue: false,
         },
     });
+
+// Persist language changes to localStorage
+i18n.on('languageChanged', (lng) => {
+    try {
+        localStorage.setItem(STORAGE_KEY, lng);
+        document.documentElement.lang = lng;
+    } catch {
+        // localStorage not available
+    }
+});
 
 export default i18n;
