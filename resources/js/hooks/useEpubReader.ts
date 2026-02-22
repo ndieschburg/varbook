@@ -28,6 +28,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
+    const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
+    const initialProgressRef = useRef<number>(0); // Track loaded progress to avoid overwriting
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -129,8 +131,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Mark as loaded - user can start reading
                 setState(prev => ({ ...prev, isLoading: false }));
 
+                // Store initial progress to avoid overwriting with 0
+                if (savedPosition?.progress) {
+                    initialProgressRef.current = savedPosition.progress;
+                }
+
                 // Generate locations in background (non-blocking)
                 book.locations.generate(2048).then(() => {
+                    locationsReadyRef.current = true;
                     // If we had a percentage fallback, navigate now that locations are ready
                     if (!savedPosition?.cfi && savedPosition?.progress && savedPosition.progress > 0) {
                         const cfi = book.locations.cfiFromPercentage(savedPosition.progress / 100);
@@ -148,9 +156,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     } else {
                         progress = location.start.percentage * 100;
                     }
+
+                    // Don't save progress if locations aren't ready and progress would be lower than saved
+                    // This prevents overwriting real progress with 0 or incorrect values
+                    const shouldSave = locationsReadyRef.current || progress >= initialProgressRef.current;
+
                     progressRef.current = progress; // Update ref for cleanup
                     setState(prev => ({ ...prev, progress }));
-                    savePosition(location.start.cfi, progress);
+
+                    if (shouldSave) {
+                        savePosition(location.start.cfi, progress);
+                    }
                 });
             } catch (error) {
                 setState(prev => ({
@@ -171,6 +187,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 flushSync(location.start.cfi, progressRef.current);
             }
             bookRef.current?.destroy();
+            // Reset refs for next book
+            locationsReadyRef.current = false;
+            initialProgressRef.current = 0;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
