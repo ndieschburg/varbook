@@ -14,7 +14,7 @@ export function ReaderPage() {
     const bookId = Number(id);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const { data: bookData, isLoading: bookDataLoading } = useBook(bookId);
+    const { data: bookData, isLoading: bookDataLoading, error: bookError } = useBook(bookId);
     const epubUrl = `/api/books/${bookId}/download`;
 
     const {
@@ -54,15 +54,8 @@ export function ReaderPage() {
         sepia: 'bg-[#f4ecd8]',
     };
 
-    if (bookDataLoading) {
-        return (
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
-    }
-
-    if (!bookData) {
+    // Show error if book not found
+    if (bookError || (!bookDataLoading && !bookData)) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center">
                 <div className="text-center">
@@ -75,6 +68,7 @@ export function ReaderPage() {
         );
     }
 
+    // Always render the full layout so containerRef is available
     return (
         <div className="h-screen flex flex-col bg-gray-900">
             {/* Top bar */}
@@ -88,7 +82,7 @@ export function ReaderPage() {
                             <ArrowLeftIcon className="h-5 w-5" />
                         </Link>
                         <h1 className="text-white font-medium truncate max-w-xs">
-                            {bookData.title}
+                            {bookData?.title || t('Loading...')}
                         </h1>
                     </div>
                     <div className="flex items-center gap-2">
@@ -112,15 +106,15 @@ export function ReaderPage() {
 
             {/* Main content */}
             <div className="flex-1 relative overflow-hidden">
-                {/* Reader container */}
+                {/* Reader container - always rendered so ref is available */}
                 <div
                     ref={containerRef}
                     className={`absolute inset-0 ${themeColors[settings.theme]}`}
                     onClick={() => setShowControls(!showControls)}
                 />
 
-                {/* Loading overlay */}
-                {isLoading && (
+                {/* Loading overlay - shown during book data or epub loading */}
+                {(bookDataLoading || isLoading) && (
                     <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
                         <div className="text-center">
                             <LoadingSpinner size="lg" />
@@ -140,7 +134,7 @@ export function ReaderPage() {
                 )}
 
                 {/* Navigation buttons */}
-                {!isLoading && !error && (
+                {!isLoading && !error && !bookDataLoading && (
                     <>
                         <button
                             onClick={(e) => { e.stopPropagation(); prevPage(); }}

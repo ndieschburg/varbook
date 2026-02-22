@@ -71,11 +71,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Try to load from IndexedDB first (offline mode)
                 const offlineBook = await getOfflineBook(bookId);
                 if (offlineBook) {
-                    console.log('[Reader] Loading book from offline storage');
                     arrayBuffer = offlineBook.epubData;
                 } else {
                     // Fetch EPUB from network
-                    console.log('[Reader] Loading book from network');
                     const response = await fetch(epubUrl, {
                         credentials: 'include', // Include cookies for authentication
                     });
@@ -86,14 +84,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Auto-cache to IndexedDB for faster subsequent loads
                     if (bookMeta) {
-                        console.log('[Reader] Auto-caching book to offline storage');
                         saveBookOffline(
                             bookId,
                             bookMeta.title,
                             bookMeta.author,
                             bookMeta.coverUrl,
                             arrayBuffer
-                        ).catch(err => console.warn('[Reader] Failed to auto-cache:', err));
+                        ).catch(() => {}); // Silently ignore cache errors
                     }
                 }
 
@@ -111,9 +108,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 });
                 renditionRef.current = rendition;
 
-                // Generate locations for progress
                 await book.ready;
-                await book.locations.generate(1024);
 
                 // Load TOC
                 const navigation = await book.loaded.navigation;
@@ -123,24 +118,27 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 applyTheme();
                 applyTypography();
 
-                // Load saved position
+                // Display book immediately (fast)
                 const savedPosition = await loadPosition();
                 if (savedPosition?.cfi) {
-                    // Exact CFI position available
-                    console.log('[Reader] Restoring exact CFI position');
                     await rendition.display(savedPosition.cfi);
-                } else if (savedPosition?.progress && savedPosition.progress > 0) {
-                    // No CFI but progress available - use percentage fallback
-                    console.log('[Reader] No CFI, using percentage fallback:', savedPosition.progress + '%');
-                    await rendition.display();
-                    // Navigate to percentage after initial display
-                    const cfi = book.locations.cfiFromPercentage(savedPosition.progress / 100);
-                    if (cfi) {
-                        await rendition.display(cfi);
-                    }
                 } else {
                     await rendition.display();
                 }
+
+                // Mark as loaded - user can start reading
+                setState(prev => ({ ...prev, isLoading: false }));
+
+                // Generate locations in background (non-blocking)
+                book.locations.generate(2048).then(() => {
+                    // If we had a percentage fallback, navigate now that locations are ready
+                    if (!savedPosition?.cfi && savedPosition?.progress && savedPosition.progress > 0) {
+                        const cfi = book.locations.cfiFromPercentage(savedPosition.progress / 100);
+                        if (cfi) {
+                            rendition.display(cfi);
+                        }
+                    }
+                });
 
                 // Track location changes
                 rendition.on('relocated', (location: any) => {
@@ -154,8 +152,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     setState(prev => ({ ...prev, progress }));
                     savePosition(location.start.cfi, progress);
                 });
-
-                setState(prev => ({ ...prev, isLoading: false }));
             } catch (error) {
                 setState(prev => ({
                     ...prev,
@@ -176,7 +172,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             }
             bookRef.current?.destroy();
         };
-    }, [bookId, epubUrl, containerRef]); // Don't include settings.flowMode to avoid re-init on settings change
+    }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
     // Apply theme when it changes
     useEffect(() => {
