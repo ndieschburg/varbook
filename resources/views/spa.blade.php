@@ -22,7 +22,9 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|literata:400,400i,700|merriweather:400,400i,700|lora:400,400i,700|open-sans:400,400i,700" rel="stylesheet" />
+    <!-- OpenDyslexic for accessibility -->
+    <link href="https://fonts.cdnfonts.com/css/opendyslexic" rel="stylesheet" />
 
     <!-- Scripts -->
     @viteReactRefresh

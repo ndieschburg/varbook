@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 
 export type Theme = 'light' | 'dark' | 'sepia';
-export type FontFamily = 'default' | 'serif' | 'sans' | 'mono';
+export type FontFamily = 'default' | 'literata' | 'merriweather' | 'lora' | 'inter' | 'opensans' | 'dyslexic';
 export type Margins = 'compact' | 'normal' | 'wide';
 export type FlowMode = 'paginated' | 'scrolled';
 
@@ -96,11 +96,14 @@ export const themeStyles = {
     sepia: { background: '#f4ecd8', color: '#5c4b37' },
 };
 
-export const fontFamilies = {
+export const fontFamilies: Record<FontFamily, string> = {
     default: 'inherit',
-    serif: 'Georgia, "Times New Roman", serif',
-    sans: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-    mono: 'ui-monospace, "Cascadia Code", "Source Code Pro", monospace',
+    literata: '"Literata", Georgia, serif',
+    merriweather: '"Merriweather", Georgia, serif',
+    lora: '"Lora", Georgia, serif',
+    inter: '"Inter", system-ui, sans-serif',
+    opensans: '"Open Sans", system-ui, sans-serif',
+    dyslexic: '"OpenDyslexic", Arial, sans-serif',
 };
 
 export const marginValues = {

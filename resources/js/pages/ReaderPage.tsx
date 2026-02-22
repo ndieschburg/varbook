@@ -225,17 +225,25 @@ export function ReaderPage() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">{t('Font')}</label>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {(['default', 'serif', 'sans', 'mono'] as FontFamily[]).map(font => (
+                                    {([
+                                        { key: 'default', label: t('Default') },
+                                        { key: 'literata', label: 'Literata' },
+                                        { key: 'merriweather', label: 'Merriweather' },
+                                        { key: 'lora', label: 'Lora' },
+                                        { key: 'inter', label: 'Inter' },
+                                        { key: 'opensans', label: 'Open Sans' },
+                                        { key: 'dyslexic', label: 'Dyslexic' },
+                                    ] as { key: FontFamily; label: string }[]).map(font => (
                                         <button
-                                            key={font}
-                                            onClick={() => setFontFamily(font)}
+                                            key={font.key}
+                                            onClick={() => setFontFamily(font.key)}
                                             className={`py-2 px-3 rounded border text-sm ${
-                                                settings.fontFamily === font
+                                                settings.fontFamily === font.key
                                                     ? 'border-indigo-500 bg-indigo-600/20 text-white'
                                                     : 'border-gray-600 text-gray-300 hover:border-gray-500'
                                             }`}
                                         >
-                                            {font === 'default' ? t('Default') : font}
+                                            {font.label}
                                         </button>
                                     ))}
                                 </div>
