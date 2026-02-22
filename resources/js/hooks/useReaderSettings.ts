@@ -12,6 +12,7 @@ interface ReaderSettings {
     lineHeight: number;
     margins: Margins;
     flowMode: FlowMode;
+    textSelection: boolean;
 }
 
 const defaultSettings: ReaderSettings = {
@@ -21,9 +22,11 @@ const defaultSettings: ReaderSettings = {
     lineHeight: 1.5,
     margins: 'normal',
     flowMode: 'paginated',
+    textSelection: false,
 };
 
 function loadSettings(): ReaderSettings {
+    const textSelectionStored = localStorage.getItem('reader-text-selection');
     return {
         theme: (localStorage.getItem('reader-theme') as Theme) || defaultSettings.theme,
         fontSize: parseInt(localStorage.getItem('reader-font-size') || '') || defaultSettings.fontSize,
@@ -31,6 +34,7 @@ function loadSettings(): ReaderSettings {
         lineHeight: parseFloat(localStorage.getItem('reader-line-height') || '') || defaultSettings.lineHeight,
         margins: (localStorage.getItem('reader-margins') as Margins) || defaultSettings.margins,
         flowMode: (localStorage.getItem('reader-flow') as FlowMode) || defaultSettings.flowMode,
+        textSelection: textSelectionStored !== null ? textSelectionStored === 'true' : defaultSettings.textSelection,
     };
 }
 
@@ -69,6 +73,11 @@ export function useReaderSettings() {
         setSettings(prev => ({ ...prev, flowMode }));
     }, []);
 
+    const setTextSelection = useCallback((textSelection: boolean) => {
+        localStorage.setItem('reader-text-selection', String(textSelection));
+        setSettings(prev => ({ ...prev, textSelection }));
+    }, []);
+
     return {
         settings,
         setTheme,
@@ -77,6 +86,7 @@ export function useReaderSettings() {
         setLineHeight,
         setMargins,
         setFlowMode,
+        setTextSelection,
     };
 }
 

@@ -37,7 +37,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         toc: [],
     });
 
-    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode } = useReaderSettings();
+    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection } = useReaderSettings();
     const { loadPosition, savePosition, flushSync } = usePositionSync({ bookId });
 
     // Prevent screen from sleeping while reading
@@ -59,6 +59,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         const margin = marginValues[settings.margins];
         renditionRef.current.themes.override('padding', `${margin.top}px ${margin.side}px`);
     }, [settings.fontSize, settings.fontFamily, settings.lineHeight, settings.margins]);
+
+    // Apply text selection setting
+    const applyTextSelection = useCallback(() => {
+        if (!renditionRef.current) return;
+        const userSelect = settings.textSelection ? 'text' : 'none';
+        renditionRef.current.themes.override('user-select', userSelect);
+        renditionRef.current.themes.override('-webkit-user-select', userSelect);
+    }, [settings.textSelection]);
 
     // Initialize reader
     useEffect(() => {
@@ -119,6 +127,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Apply settings
                 applyTheme();
                 applyTypography();
+                applyTextSelection();
 
                 // Display book immediately (fast)
                 const savedPosition = await loadPosition();
@@ -202,6 +211,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     useEffect(() => {
         applyTypography();
     }, [applyTypography]);
+
+    // Apply text selection when it changes
+    useEffect(() => {
+        applyTextSelection();
+    }, [applyTextSelection]);
 
     // Navigation functions
     const nextPage = useCallback(() => {
@@ -295,6 +309,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         setLineHeight,
         setMargins,
         setFlowMode,
+        setTextSelection,
         nextPage,
         prevPage,
         goTo,
