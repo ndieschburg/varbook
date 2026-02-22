@@ -5,7 +5,7 @@ import { useBook } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
-import type { Theme, FontFamily, Margins } from '@/hooks/useReaderSettings';
+import type { Theme, FontFamily, Margins, FlowMode } from '@/hooks/useReaderSettings';
 
 export function ReaderPage() {
     const { t } = useTranslation();
@@ -275,6 +275,26 @@ export function ReaderPage() {
                                             }`}
                                         >
                                             {t(margin.charAt(0).toUpperCase() + margin.slice(1))}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Flow Mode */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Reading Mode')}</label>
+                                <div className="flex gap-2">
+                                    {(['paginated', 'scrolled'] as FlowMode[]).map(mode => (
+                                        <button
+                                            key={mode}
+                                            onClick={() => setFlowMode(mode)}
+                                            className={`flex-1 py-2 rounded border text-sm ${
+                                                settings.flowMode === mode
+                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
+                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            }`}
+                                        >
+                                            {mode === 'paginated' ? t('Paginated') : t('Scrolling')}
                                         </button>
                                     ))}
                                 </div>

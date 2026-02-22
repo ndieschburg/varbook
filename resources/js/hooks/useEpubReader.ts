@@ -241,6 +241,51 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         return () => document.removeEventListener('keydown', handleKeydown);
     }, [nextPage, prevPage]);
 
+    // Swipe navigation for mobile
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        const minSwipeDistance = 50; // Minimum distance for a swipe
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            touchEndX = e.changedTouches[0].clientX;
+            touchEndY = e.changedTouches[0].clientY;
+
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            // Only trigger swipe if horizontal movement is greater than vertical
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                if (deltaX < 0) {
+                    // Swipe left → next page
+                    nextPage();
+                } else {
+                    // Swipe right → previous page
+                    prevPage();
+                }
+            }
+        };
+
+        container.addEventListener('touchstart', handleTouchStart, { passive: true });
+        container.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+        return () => {
+            container.removeEventListener('touchstart', handleTouchStart);
+            container.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [containerRef, nextPage, prevPage]);
+
     return {
         ...state,
         settings,
