@@ -179,22 +179,24 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     }
                 });
 
-                // Helper to find current chapter from CFI
-                const findCurrentChapter = (cfi: string): string => {
+                // Helper to find current chapter from location
+                const findCurrentChapter = (loc: any): string => {
                     const toc = navigation.toc;
                     let currentChapter = '';
+                    const currentHref = loc?.start?.href;
 
-                    const searchToc = (items: NavItem[]): boolean => {
+                    if (!currentHref) return '';
+
+                    const searchToc = (items: NavItem[]): void => {
                         for (const item of items) {
                             // Check if this TOC item's href matches current location
-                            if (item.href && location.start.href?.includes(item.href.split('#')[0])) {
+                            if (item.href && currentHref.includes(item.href.split('#')[0])) {
                                 currentChapter = item.label;
                             }
                             if (item.subitems && item.subitems.length > 0) {
                                 searchToc(item.subitems);
                             }
                         }
-                        return false;
                     };
 
                     searchToc(toc);
@@ -215,7 +217,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                         progress = location.start.percentage * 100;
                     }
 
-                    const currentChapter = findCurrentChapter(location.start.cfi);
+                    const currentChapter = findCurrentChapter(location);
 
                     // Don't save progress if locations aren't ready and progress would be lower than saved
                     // This prevents overwriting real progress with 0 or incorrect values
