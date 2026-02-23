@@ -278,6 +278,43 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
         applyTextSelection();
     }, [applyTextSelection]);
 
+    // Sync position when app returns to foreground (e.g., after reading on another device)
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!renditionRef.current || !bookRef.current) return;
+            if (!navigator.onLine) return;
+
+            try {
+                const serverPosition = await loadPosition();
+                if (!serverPosition) return;
+
+                const currentProgress = progressRef.current;
+
+                // Only sync if server progress is ahead
+                if (serverPosition.progress > currentProgress) {
+                    // Navigate to server position
+                    if (serverPosition.cfi) {
+                        renditionRef.current.display(serverPosition.cfi);
+                    } else if (serverPosition.progress > 0 && locationsReadyRef.current) {
+                        // Fallback to percentage if no CFI
+                        const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+                        if (cfi) {
+                            renditionRef.current.display(cfi);
+                        }
+                    }
+                    // Update initial progress ref to prevent saving lower values
+                    initialProgressRef.current = serverPosition.progress;
+                }
+            } catch (error) {
+                console.error('Failed to sync position on visibility change:', error);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [loadPosition]);
+
     // Navigation functions
     const nextPage = useCallback(() => {
         renditionRef.current?.next();

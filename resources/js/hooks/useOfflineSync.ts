@@ -22,7 +22,7 @@ export function useOfflineSync() {
     const syncingRef = useRef(false);
 
     const syncMutation = useMutation({
-        mutationFn: async (updates: { bookId: number; data: BatchUpdate[] }[]) => {
+        mutationFn: async (updates: { bookId: number; positionIds: number[]; data: BatchUpdate[] }[]) => {
             const results = await Promise.allSettled(
                 updates.map(({ bookId, data }) =>
                     api.post(`/books/${bookId}/progress/batch`, { updates: data })
@@ -56,30 +56,46 @@ export function useOfflineSync() {
                 {} as Record<number, OfflinePosition[]>
             );
 
-            // Prepare batch updates
-            const batchUpdates = Object.entries(grouped).map(([bookId, positions]) => ({
+            // Prepare batch updates with position IDs for tracking
+            const batchUpdates = Object.entries(grouped).map(([bookId, bookPositions]) => ({
                 bookId: Number(bookId),
-                data: positions.map((p) => ({
+                positionIds: bookPositions.map((p) => p.id!).filter(Boolean),
+                data: bookPositions.map((p) => ({
                     cfi: p.cfi,
                     progress: p.progress,
                     timestamp: p.timestamp.toISOString(),
                 })),
             }));
 
-            await syncMutation.mutateAsync(batchUpdates);
+            const results = await syncMutation.mutateAsync(batchUpdates);
 
-            // Mark as synced
-            const ids = positions.map((p) => p.id!).filter(Boolean);
-            await markPositionsSynced(ids);
+            // Only mark positions as synced for successful requests
+            const successfulIds: number[] = [];
+            let hasFailures = false;
 
-            // Clean up synced positions
-            await clearSyncedPositions();
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    successfulIds.push(...batchUpdates[index].positionIds);
+                } else {
+                    hasFailures = true;
+                    console.error(`Failed to sync book ${batchUpdates[index].bookId}:`, result.reason);
+                }
+            });
 
-            // Invalidate progress queries
-            queryClient.invalidateQueries({ queryKey: ['books'] });
+            if (successfulIds.length > 0) {
+                await markPositionsSynced(successfulIds);
+                await clearSyncedPositions();
+                queryClient.invalidateQueries({ queryKey: ['books'] });
+            }
 
-            // Show success toast
-            toast.success(t('Reading progress synced'));
+            // Show appropriate toast
+            if (hasFailures && successfulIds.length > 0) {
+                toast.success(t('Some reading progress synced'));
+            } else if (!hasFailures) {
+                toast.success(t('Reading progress synced'));
+            } else {
+                toast.error(t('Failed to sync reading progress'));
+            }
         } catch (error) {
             console.error('Failed to sync positions:', error);
             toast.error(t('Failed to sync reading progress'));
