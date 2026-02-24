@@ -51,6 +51,9 @@ class SettingsService
             return false;
         }
 
+        // Normalize value based on type
+        $value = $this->normalizeValue($definition->type, $value);
+
         SettingValue::updateOrCreate(
             [
                 'setting_definition_id' => $definition->id,
@@ -75,6 +78,9 @@ class SettingsService
             return false;
         }
 
+        // Normalize value based on type
+        $value = $this->normalizeValue($definition->type, $value);
+
         SettingValue::updateOrCreate(
             [
                 'setting_definition_id' => $definition->id,
@@ -86,6 +92,18 @@ class SettingsService
         );
 
         return true;
+    }
+
+    /**
+     * Normalize a value based on setting type.
+     */
+    protected function normalizeValue(string $type, mixed $value): mixed
+    {
+        return match ($type) {
+            'checkbox' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'number' => is_numeric($value) ? (float) $value : $value,
+            default => $value,
+        };
     }
 
     /**
@@ -250,7 +268,8 @@ class SettingsService
         // Type validation
         switch ($definition->type) {
             case 'checkbox':
-                if (!is_bool($value)) {
+                // Accept boolean, 0/1, "true"/"false", "0"/"1"
+                if (!is_bool($value) && !in_array($value, [0, 1, '0', '1', 'true', 'false'], true)) {
                     $errors[] = __('Value must be a boolean');
                 }
                 break;
