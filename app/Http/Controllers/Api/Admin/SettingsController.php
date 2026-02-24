@@ -26,8 +26,10 @@ class SettingsController extends Controller
      */
     public function update(Request $request, string $key): JsonResponse
     {
-        // URL decode the key (dots are encoded in URLs)
-        $key = str_replace('_', '.', $key);
+        // Convert URL key format to database key format
+        // Only replace the first underscore (category separator) with a dot
+        // e.g., "general_progress_logging" -> "general.progress_logging"
+        $key = preg_replace('/_/', '.', $key, 1);
 
         // Validate the value
         $validation = Settings::validateValue($key, $request->input('value'));
