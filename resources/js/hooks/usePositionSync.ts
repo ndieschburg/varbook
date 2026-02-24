@@ -1,5 +1,4 @@
 import { useRef, useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import api from '@/api/client';
 import { queuePositionSync } from '@/services/offlineDb';
 
@@ -8,8 +7,16 @@ interface PositionSyncOptions {
     debounceMs?: number;
 }
 
+// Get CSRF token from cookies for sendBeacon
+function getCsrfToken(): string | null {
+    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
+    if (match) {
+        return decodeURIComponent(match[1]);
+    }
+    return null;
+}
+
 export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptions) {
-    const queryClient = useQueryClient();
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSavedCfiRef = useRef<string | null>(null);
 
@@ -79,44 +86,54 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
         }, debounceMs);
     }, [bookId, debounceMs]);
 
-    const flushSync = useCallback(async (cfi: string | null, progress: number) => {
+    // Synchronous flush using sendBeacon - guaranteed to send even during page unload
+    const flushSync = useCallback((cfi: string | null, progress: number) => {
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
         }
 
         if (!cfi || cfi === lastSavedCfiRef.current) return;
 
-        // If offline, queue immediately
+        // If offline, queue for later sync
         if (!navigator.onLine) {
-            try {
-                await queuePositionSync(bookId, cfi, progress);
-                lastSavedCfiRef.current = cfi;
-            } catch (queueError) {
-                console.error('Failed to queue position for offline sync:', queueError);
-            }
+            queuePositionSync(bookId, cfi, progress).catch(err => {
+                console.error('Failed to queue position for offline sync:', err);
+            });
+            lastSavedCfiRef.current = cfi;
             return;
         }
 
-        try {
-            await api.put(`/books/${bookId}/progress`, {
+        // Use sendBeacon for reliable delivery during page unload
+        // sendBeacon is fire-and-forget but guaranteed to be sent
+        const csrfToken = getCsrfToken();
+        const url = `/api/books/${bookId}/progress`;
+
+        // Try sendBeacon first (works during unload)
+        let sent = false;
+        if (navigator.sendBeacon) {
+            // sendBeacon doesn't support custom headers, so we need to include CSRF in the payload
+            // Laravel accepts _token in the body as well
+            const dataWithToken = JSON.stringify({
                 progress,
                 position: cfi,
                 client: 'web',
+                _token: csrfToken,
+            });
+            const blobWithToken = new Blob([dataWithToken], { type: 'application/json' });
+            sent = navigator.sendBeacon(url, blobWithToken);
+        }
+
+        if (sent) {
+            lastSavedCfiRef.current = cfi;
+        } else {
+            // Fallback: queue for offline sync if sendBeacon fails
+            console.warn('sendBeacon failed, queueing for offline sync');
+            queuePositionSync(bookId, cfi, progress).catch(err => {
+                console.error('Failed to queue position for offline sync:', err);
             });
             lastSavedCfiRef.current = cfi;
-            // Invalidate books list cache so "Continue Reading" updates
-            queryClient.invalidateQueries({ queryKey: ['books'] });
-        } catch (error) {
-            // Queue for offline sync when flush fails (e.g., network error)
-            console.warn('Flush failed, queueing for offline sync');
-            try {
-                await queuePositionSync(bookId, cfi, progress);
-                lastSavedCfiRef.current = cfi;
-            } catch (queueError) {
-                console.error('Failed to queue position for offline sync:', queueError);
-            }
         }
-    }, [bookId, queryClient]);
+    }, [bookId]);
 
     return {
         loadPosition,
