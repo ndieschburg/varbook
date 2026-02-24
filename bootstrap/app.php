@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webdav/*',
             'opds/*',
             'api/kosync/*',
+            'api/books/*/progress', // For sendBeacon (can't send CSRF header)
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -7,15 +7,6 @@ interface PositionSyncOptions {
     debounceMs?: number;
 }
 
-// Get CSRF token from cookies for sendBeacon
-function getCsrfToken(): string | null {
-    const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
-    if (match) {
-        return decodeURIComponent(match[1]);
-    }
-    return null;
-}
-
 export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptions) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSavedCfiRef = useRef<string | null>(null);
@@ -105,23 +96,16 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
 
         // Use sendBeacon for reliable delivery during page unload
         // sendBeacon is fire-and-forget but guaranteed to be sent
-        const csrfToken = getCsrfToken();
         const url = `/api/books/${bookId}/progress`;
+        const data = JSON.stringify({
+            progress,
+            position: cfi,
+            client: 'web',
+        });
+        const blob = new Blob([data], { type: 'application/json' });
 
-        // Try sendBeacon first (works during unload)
-        let sent = false;
-        if (navigator.sendBeacon) {
-            // sendBeacon doesn't support custom headers, so we need to include CSRF in the payload
-            // Laravel accepts _token in the body as well
-            const dataWithToken = JSON.stringify({
-                progress,
-                position: cfi,
-                client: 'web',
-                _token: csrfToken,
-            });
-            const blobWithToken = new Blob([dataWithToken], { type: 'application/json' });
-            sent = navigator.sendBeacon(url, blobWithToken);
-        }
+        // Try sendBeacon (works during unload, CSRF disabled for this route)
+        const sent = navigator.sendBeacon?.(url, blob) ?? false;
 
         if (sent) {
             lastSavedCfiRef.current = cfi;
