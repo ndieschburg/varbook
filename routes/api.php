@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\Admin\ProgressLogsController as AdminProgressLogsController;
 use App\Http\Controllers\Api\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Api\Admin\StatsController as AdminStatsController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
@@ -57,5 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stats', [AdminStatsController::class, 'index'])->name('stats');
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/{key}', [AdminSettingsController::class, 'update'])->name('settings.update');
+
+        // Progress Logs
+        Route::get('/progress-logs', [AdminProgressLogsController::class, 'index'])->name('progress-logs.index');
+        Route::get('/progress-logs/stats', [AdminProgressLogsController::class, 'stats'])->name('progress-logs.stats');
+        Route::get('/progress-logs/{progressLog}', [AdminProgressLogsController::class, 'show'])->name('progress-logs.show');
+        Route::delete('/progress-logs', [AdminProgressLogsController::class, 'destroy'])->name('progress-logs.destroy');
     });
 });

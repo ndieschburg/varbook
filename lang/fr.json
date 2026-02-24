@@ -187,6 +187,8 @@
     "settings.general.max_session_hours_description": "Durée maximale d'une session de lecture avant fermeture automatique",
     "settings.general.finished_threshold": "Seuil de fin (%)",
     "settings.general.finished_threshold_description": "Pourcentage de progression pour marquer automatiquement le livre comme terminé",
+    "settings.general.progress_logging": "Journalisation de progression",
+    "settings.general.progress_logging_description": "Journaliser tous les appels de synchronisation de progression pour le débogage (admin uniquement)",
 
     "settings.reader.font_size": "Taille de police",
     "settings.reader.font_size_description": "Taille de police par défaut en pixels pour le lecteur EPUB",

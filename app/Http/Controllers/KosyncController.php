@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BookSyncIdentifier;
 use App\Models\User;
+use App\Services\ProgressLoggingService;
 use App\Services\ReadingSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -99,6 +100,14 @@ class KosyncController extends Controller
             'document' => $documentHash,
         ];
 
+        ProgressLoggingService::log(
+            request: $request,
+            action: 'kosync_put',
+            bookId: $book->id,
+            client: 'koreader',
+            requestData: $validated
+        );
+
         // Process sync event using existing service
         $this->readingSessionService->processSyncEvent(
             book: $book,
@@ -152,13 +161,24 @@ class KosyncController extends Controller
         $rawPosition = $syncIdentifier?->raw_position ?? (string) $progress;
         $lastSyncAt = $syncIdentifier?->last_sync_at ?? $book->updated_at;
 
-        return response()->json([
+        $responseData = [
             'document' => $documentHash,
             'progress' => $rawPosition,
             'percentage' => $progress / 100,
             'device' => 'BookShelf',
             'device_id' => 'bookshelf-server',
             'timestamp' => $lastSyncAt->timestamp,
-        ], 200);
+        ];
+
+        ProgressLoggingService::log(
+            request: $request,
+            action: 'kosync_get',
+            bookId: $book->id,
+            client: 'koreader',
+            requestData: ['document' => $documentHash],
+            responseData: $responseData
+        );
+
+        return response()->json($responseData, 200);
     }
 }

@@ -12,6 +12,7 @@ use App\Http\Resources\ReadingSessionResource;
 use App\Models\Book;
 use App\Models\BookSyncIdentifier;
 use App\Services\EpubService;
+use App\Services\ProgressLoggingService;
 use App\Services\ReadingSessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -202,7 +203,7 @@ class BookController extends Controller
      * GET /api/books/{book}/progress
      * Get current reading position
      */
-    public function getProgress(Book $book): JsonResponse
+    public function getProgress(Request $request, Book $book): JsonResponse
     {
         if (! $this->authorizeBook($book)) {
             return response()->json(['message' => __('Access denied')], 403);
@@ -212,15 +213,23 @@ class BookController extends Controller
             ->where('client', 'web')
             ->first();
 
+        $responseData = [
+            'progress' => (float) $book->progress,
+            'position' => $syncIdentifier?->raw_position,
+            'last_sync_at' => $syncIdentifier?->last_sync_at?->toIso8601String(),
+        ];
+
+        ProgressLoggingService::log(
+            request: $request,
+            action: 'load_progress',
+            bookId: $book->id,
+            client: 'web',
+            responseData: $responseData
+        );
+
         // Always return progress, even if no CFI position is available
         // This allows fallback to percentage-based navigation
-        return response()->json([
-            'data' => [
-                'progress' => (float) $book->progress,
-                'position' => $syncIdentifier?->raw_position, // May be null
-                'last_sync_at' => $syncIdentifier?->last_sync_at?->toIso8601String(),
-            ],
-        ]);
+        return response()->json(['data' => $responseData]);
     }
 
     /**
@@ -234,10 +243,19 @@ class BookController extends Controller
         }
 
         $validated = $request->validated();
+        $client = $validated['client'] ?? 'web';
+
+        ProgressLoggingService::log(
+            request: $request,
+            action: 'save_progress',
+            bookId: $book->id,
+            client: $client,
+            requestData: $validated
+        );
 
         $this->readingSessionService->processSyncEvent(
             book: $book,
-            client: $validated['client'] ?? 'web',
+            client: $client,
             externalIdentifier: $book->file_hash,
             progress: $validated['progress'],
             rawPayload: ['source' => 'api', 'timestamp' => $validated['timestamp'] ?? now()->toIso8601String()],
@@ -268,6 +286,14 @@ class BookController extends Controller
             'updates.*.progress' => 'required|numeric|min:0|max:100',
             'updates.*.timestamp' => 'required|date',
         ])['updates'];
+
+        ProgressLoggingService::log(
+            request: $request,
+            action: 'batch_progress',
+            bookId: $book->id,
+            client: 'web',
+            requestData: ['updates_count' => count($updates), 'updates' => $updates]
+        );
 
         // Sort by timestamp to process in order
         usort($updates, fn ($a, $b) => strtotime($a['timestamp']) <=> strtotime($b['timestamp']));
