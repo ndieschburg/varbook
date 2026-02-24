@@ -100,7 +100,7 @@ class SettingsService
     protected function normalizeValue(string $type, mixed $value): mixed
     {
         return match ($type) {
-            'checkbox' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'checkbox' => $value === null ? false : filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'number' => is_numeric($value) ? (float) $value : $value,
             default => $value,
         };
@@ -268,8 +268,8 @@ class SettingsService
         // Type validation
         switch ($definition->type) {
             case 'checkbox':
-                // Accept boolean, 0/1, "true"/"false", "0"/"1"
-                if (!is_bool($value) && !in_array($value, [0, 1, '0', '1', 'true', 'false'], true)) {
+                // Accept boolean, 0/1, "true"/"false", "0"/"1", null (treated as false)
+                if (!is_bool($value) && $value !== null && !in_array($value, [0, 1, '0', '1', 'true', 'false'], true)) {
                     $errors[] = __('Value must be a boolean');
                 }
                 break;
