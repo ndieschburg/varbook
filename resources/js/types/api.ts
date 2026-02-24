@@ -69,3 +69,37 @@ export interface UserStats {
     reading_by_client: ClientReading[];
     recent_sessions: RecentSession[];
 }
+
+export interface ProgressLog {
+    id: number;
+    user_id: number;
+    book_id: number | null;
+    action: string;
+    client: string | null;
+    request_data: Record<string, unknown>;
+    response_data: Record<string, unknown>;
+    ip_address: string | null;
+    user_agent: string | null;
+    success: boolean;
+    error_message: string | null;
+    created_at: string;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    book?: {
+        id: number;
+        title: string;
+        author?: string;
+    };
+}
+
+export interface ProgressLogsStats {
+    total_logs: number;
+    logs_today: number;
+    failed_logs: number;
+    by_action: Record<string, number>;
+    by_client: Record<string, number>;
+    logging_enabled: boolean;
+}

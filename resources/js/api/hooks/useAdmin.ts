@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../client';
-import type { User, PaginatedResponse } from '@/types';
+import type { User, PaginatedResponse, ProgressLog, ProgressLogsStats } from '@/types';
 
 export function useAdminUsers() {
     return useQuery({
@@ -76,6 +76,66 @@ export function useDeleteUser() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+        },
+    });
+}
+
+// Progress Logs
+export interface ProgressLogsParams {
+    page?: number;
+    per_page?: number;
+    user_id?: number;
+    book_id?: number;
+    action?: string;
+    client?: string;
+    success?: boolean;
+}
+
+export function useProgressLogs(params: ProgressLogsParams = {}, options?: { refetchInterval?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.per_page) searchParams.set('per_page', String(params.per_page));
+    if (params.user_id) searchParams.set('user_id', String(params.user_id));
+    if (params.book_id) searchParams.set('book_id', String(params.book_id));
+    if (params.action) searchParams.set('action', params.action);
+    if (params.client) searchParams.set('client', params.client);
+    if (params.success !== undefined) searchParams.set('success', String(params.success));
+
+    const queryString = searchParams.toString();
+    const url = `/admin/progress-logs${queryString ? `?${queryString}` : ''}`;
+
+    return useQuery({
+        queryKey: ['admin', 'progress-logs', params],
+        queryFn: async (): Promise<PaginatedResponse<ProgressLog>> => {
+            const { data } = await api.get(url);
+            return data;
+        },
+        refetchInterval: options?.refetchInterval,
+    });
+}
+
+export function useProgressLogsStats() {
+    return useQuery({
+        queryKey: ['admin', 'progress-logs', 'stats'],
+        queryFn: async (): Promise<ProgressLogsStats> => {
+            const { data } = await api.get('/admin/progress-logs/stats');
+            return data.data;
+        },
+    });
+}
+
+export function useClearProgressLogs() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (daysToKeep: number = 7): Promise<{ deleted_count: number }> => {
+            const { data } = await api.delete('/admin/progress-logs', {
+                data: { days_to_keep: daysToKeep },
+            });
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'progress-logs'] });
         },
     });
 }

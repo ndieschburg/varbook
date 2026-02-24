@@ -18,6 +18,7 @@ import {
     SettingsPage,
     UsersPage,
     AdminSettingsPage,
+    ProgressLogsPage,
 } from '@/pages';
 
 const queryClient = new QueryClient({
@@ -64,6 +65,14 @@ function App() {
                                 element={
                                     <ProtectedRoute requireAdmin>
                                         <AdminSettingsPage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin/logs"
+                                element={
+                                    <ProtectedRoute requireAdmin>
+                                        <ProgressLogsPage />
                                     </ProtectedRoute>
                                 }
                             />

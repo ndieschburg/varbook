@@ -81,6 +81,16 @@ export function Header() {
                                     >
                                         {t('System Settings')}
                                     </Link>
+                                    <Link
+                                        to="/admin/logs"
+                                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            isActive('/admin/logs')
+                                                ? 'bg-gray-900 text-white'
+                                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        }`}
+                                    >
+                                        {t('Progress Logs')}
+                                    </Link>
                                 </>
                             )}
                         </nav>
