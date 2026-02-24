@@ -39,7 +39,10 @@ Route::middleware(['auth'])->group(function () {
     Route::view('books/{book}', 'spa')->name('books.show');
     Route::view('books/{book}/read', 'spa')->name('books.read');
     Route::view('profile', 'spa')->name('profile');
+    Route::view('settings', 'spa')->name('settings');
     Route::view('admin/users', 'spa')->name('admin.users');
+    Route::view('admin/settings', 'spa')->name('admin.settings');
+    Route::view('admin/logs', 'spa')->name('admin.logs');
 
     // API routes that still need server-side handling
     Route::get('books/{book}/download', [BookController::class, 'download'])->name('books.download');
