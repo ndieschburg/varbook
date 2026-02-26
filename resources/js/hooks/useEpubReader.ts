@@ -45,6 +45,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
     const initialProgressRef = useRef<number>(0); // Track loaded progress to avoid overwriting
+    const isRestoringPositionRef = useRef<boolean>(false); // Skip saves while restoring server position
+    const lastLoadedCfiRef = useRef<string | null>(null); // Track the CFI we're restoring to
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -154,6 +156,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Display book immediately (fast)
                 const savedPosition = await loadPosition();
                 if (savedPosition?.cfi) {
+                    // Set flags to prevent saving while restoring position
+                    isRestoringPositionRef.current = true;
+                    lastLoadedCfiRef.current = savedPosition.cfi;
                     await rendition.display(savedPosition.cfi);
                 } else {
                     await rendition.display();
@@ -208,10 +213,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     let progress = 0;
                     let currentPage = 0;
                     let totalPages = 0;
+                    const currentCfi = location.start.cfi;
 
                     if (book.locations.length() > 0) {
-                        progress = book.locations.percentageFromCfi(location.start.cfi) * 100;
-                        currentPage = book.locations.locationFromCfi(location.start.cfi) || 0;
+                        progress = book.locations.percentageFromCfi(currentCfi) * 100;
+                        currentPage = book.locations.locationFromCfi(currentCfi) || 0;
                         totalPages = book.locations.length();
                     } else {
                         progress = location.start.percentage * 100;
@@ -219,9 +225,27 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     const currentChapter = findCurrentChapter(location);
 
-                    // Don't save progress if locations aren't ready and progress would be lower than saved
-                    // This prevents overwriting real progress with 0 or incorrect values
-                    const shouldSave = locationsReadyRef.current || progress >= initialProgressRef.current;
+                    // Check if we're still restoring a server-loaded position
+                    // Skip save if this is the initial relocated event after loading server position
+                    let shouldSave = true;
+                    if (isRestoringPositionRef.current) {
+                        // We're restoring - check if this is the restored position or user navigation
+                        if (lastLoadedCfiRef.current && currentCfi === lastLoadedCfiRef.current) {
+                            // This is the restored position event - don't save, clear flag
+                            shouldSave = false;
+                            isRestoringPositionRef.current = false;
+                            lastLoadedCfiRef.current = null;
+                        } else {
+                            // User navigated away - clear flag and allow save
+                            isRestoringPositionRef.current = false;
+                            lastLoadedCfiRef.current = null;
+                        }
+                    }
+
+                    // Also don't save if locations aren't ready and progress is lower than saved
+                    if (shouldSave && !locationsReadyRef.current && progress < initialProgressRef.current) {
+                        shouldSave = false;
+                    }
 
                     progressRef.current = progress; // Update ref for cleanup
                     setState(prev => ({
@@ -235,7 +259,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     }));
 
                     if (shouldSave) {
-                        savePosition(location.start.cfi, progress);
+                        savePosition(currentCfi, progress);
                     }
                 });
             } catch (error) {
@@ -260,6 +284,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             // Reset refs for next book
             locationsReadyRef.current = false;
             initialProgressRef.current = 0;
+            isRestoringPositionRef.current = false;
+            lastLoadedCfiRef.current = null;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
@@ -302,13 +328,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Only sync if server progress is ahead
                     if (serverPosition.progress > currentProgress) {
-                        // Navigate to server position
+                        // Set flags to prevent saving while restoring position
                         if (serverPosition.cfi) {
+                            isRestoringPositionRef.current = true;
+                            lastLoadedCfiRef.current = serverPosition.cfi;
                             renditionRef.current.display(serverPosition.cfi);
                         } else if (serverPosition.progress > 0 && locationsReadyRef.current) {
                             // Fallback to percentage if no CFI
                             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
                             if (cfi) {
+                                isRestoringPositionRef.current = true;
+                                lastLoadedCfiRef.current = cfi;
                                 renditionRef.current.display(cfi);
                             }
                         }
