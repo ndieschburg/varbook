@@ -35,7 +35,7 @@ class Book extends Model
     {
         return [
             'file_size' => 'integer',
-            'progress' => 'decimal:2',
+            'progress' => 'decimal:5',
             'total_reading_seconds' => 'integer',
             'is_finished' => 'boolean',
         ];

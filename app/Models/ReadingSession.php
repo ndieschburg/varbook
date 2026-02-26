@@ -27,8 +27,8 @@ class ReadingSession extends Model
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'duration_seconds' => 'integer',
-            'progress_before' => 'decimal:2',
-            'progress_after' => 'decimal:2',
+            'progress_before' => 'decimal:5',
+            'progress_after' => 'decimal:5',
             'raw_payload' => 'array',
         ];
     }

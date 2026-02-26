@@ -23,7 +23,7 @@ class BookSyncIdentifier extends Model
     {
         return [
             'last_sync_at' => 'datetime',
-            'last_progress' => 'decimal:2',
+            'last_progress' => 'decimal:5',
         ];
     }
 
