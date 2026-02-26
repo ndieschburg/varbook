@@ -153,26 +153,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                 // Load saved position from server
                 const savedPosition = await loadPosition();
-                const savedProgress = savedPosition?.progress || 0;
 
-                // Generate locations first (required for percentage-based navigation)
-                // Lower value = more locations = more precision (but slower generation)
-                // 512 chars ≈ 0.1% precision on a 500KB book
-                await book.locations.generate(512);
-                locationsReadyRef.current = true;
-
-                // Navigate to saved position using percentage
-                if (savedProgress > 0) {
-                    const cfi = book.locations.cfiFromPercentage(savedProgress / 100);
-                    if (cfi) {
-                        isRestoringRef.current = true; // Skip next save
-                        await rendition.display(cfi);
-                    } else {
-                        await rendition.display();
-                    }
+                // Navigate to saved CFI immediately (fast)
+                if (savedPosition?.cfi) {
+                    isRestoringRef.current = true; // Skip next save
+                    await rendition.display(savedPosition.cfi);
                 } else {
                     await rendition.display();
                 }
+
+                // Generate locations in background (non-blocking)
+                book.locations.generate(1024).then(() => {
+                    locationsReadyRef.current = true;
+                });
 
                 // Mark as loaded - user can start reading
                 setState(prev => ({ ...prev, isLoading: false }));
@@ -204,9 +197,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Track location changes
                 rendition.on('relocated', (location: any) => {
                     const currentCfi = location.start.cfi;
-                    const progress = book.locations.percentageFromCfi(currentCfi) * 100;
-                    const currentPage = book.locations.locationFromCfi(currentCfi) || 0;
-                    const totalPages = book.locations.length();
+                    let progress = 0;
+                    let currentPage = 0;
+                    let totalPages = 0;
+
+                    if (locationsReadyRef.current && book.locations.length() > 0) {
+                        progress = book.locations.percentageFromCfi(currentCfi) * 100;
+                        currentPage = book.locations.locationFromCfi(currentCfi) || 0;
+                        totalPages = book.locations.length();
+                    } else {
+                        progress = location.start.percentage * 100;
+                    }
+
                     const currentChapter = findCurrentChapter(location);
 
                     progressRef.current = progress;
@@ -292,10 +294,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Only sync if server progress is significantly ahead (avoid micro-jumps)
                     if (serverPosition.progress > currentProgress + 0.001) {
-                        const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
-                        if (cfi) {
-                            isRestoringRef.current = true; // Skip next save
-                            renditionRef.current.display(cfi);
+                        isRestoringRef.current = true; // Skip next save
+                        if (serverPosition.cfi) {
+                            renditionRef.current.display(serverPosition.cfi);
+                        } else if (locationsReadyRef.current) {
+                            const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+                            if (cfi) {
+                                renditionRef.current.display(cfi);
+                            }
                         }
                     }
                 } catch (error) {
