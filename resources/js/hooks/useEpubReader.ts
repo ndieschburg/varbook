@@ -44,7 +44,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const renditionRef = useRef<Rendition | null>(null);
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
-    const isRestoringRef = useRef<boolean>(false); // Skip save after position restore
+    const skipSaveCountRef = useRef<number>(0); // Skip N saves after position restore
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -154,11 +154,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Load saved position from server
                 const savedPosition = await loadPosition();
 
-                // Navigate to saved CFI immediately (fast)
+                // First display to initialize, then navigate to saved CFI
+                // Skip 2 saves (one for init, one for navigation)
                 if (savedPosition?.cfi) {
-                    isRestoringRef.current = true; // Skip next save
+                    skipSaveCountRef.current = 2;
+                    await rendition.display();
                     await rendition.display(savedPosition.cfi);
                 } else {
+                    skipSaveCountRef.current = 1;
                     await rendition.display();
                 }
 
@@ -223,8 +226,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     }));
 
                     // Skip save if we just restored a position (avoids overwriting server value)
-                    if (isRestoringRef.current) {
-                        isRestoringRef.current = false;
+                    if (skipSaveCountRef.current > 0) {
+                        skipSaveCountRef.current--;
                         return;
                     }
 
@@ -251,7 +254,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             bookRef.current?.destroy();
             // Reset refs for next book
             locationsReadyRef.current = false;
-            isRestoringRef.current = false;
+            skipSaveCountRef.current = 0;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
@@ -294,7 +297,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Only sync if server progress is significantly ahead (avoid micro-jumps)
                     if (serverPosition.progress > currentProgress + 0.001) {
-                        isRestoringRef.current = true; // Skip next save
+                        skipSaveCountRef.current = 1; // Skip next save
                         if (serverPosition.cfi) {
                             renditionRef.current.display(serverPosition.cfi);
                         } else if (locationsReadyRef.current) {
