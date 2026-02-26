@@ -156,7 +156,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 const savedProgress = savedPosition?.progress || 0;
 
                 // Generate locations first (required for percentage-based navigation)
-                await book.locations.generate(2048);
+                // Lower value = more locations = more precision (but slower generation)
+                // 512 chars ≈ 0.1% precision on a 500KB book
+                await book.locations.generate(512);
                 locationsReadyRef.current = true;
 
                 // Navigate to saved position using percentage
