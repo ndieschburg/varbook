@@ -156,17 +156,28 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                 // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
-                    skipSaveCountRef.current = 1;
-                    console.log('[BookShelf] Navigating to CFI:', savedPosition.cfi);
-                    // Use a promise to wait for the displayed event
+                    // Skip all saves during position restoration
+                    skipSaveCountRef.current = 20; // Will be reset after we're done
+
+                    // Navigate to saved position
                     await new Promise<void>((resolve) => {
-                        rendition.once('displayed', () => {
-                            const loc = rendition.currentLocation();
-                            console.log('[BookShelf] Displayed at CFI:', loc?.start?.cfi);
-                            resolve();
-                        });
+                        rendition.once('displayed', () => resolve());
                         rendition.display(savedPosition.cfi);
                     });
+
+                    // epub.js may show an earlier position - try to advance to saved progress
+                    if (savedPosition.progress > 0) {
+                        let attempts = 0;
+                        const maxAttempts = 10;
+                        while (attempts < maxAttempts) {
+                            const loc = rendition.currentLocation();
+                            const currentPercent = loc?.start?.percentage * 100 || 0;
+                            if (currentPercent >= savedPosition.progress - 0.3) break;
+                            await rendition.next();
+                            attempts++;
+                        }
+                    }
+                    skipSaveCountRef.current = 1; // Reset to skip only next user action
                 } else {
                     skipSaveCountRef.current = 1;
                     await rendition.display();
