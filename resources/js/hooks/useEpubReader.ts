@@ -44,8 +44,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const renditionRef = useRef<Rendition | null>(null);
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
-    const initialProgressRef = useRef<number>(0); // Track loaded progress to avoid overwriting
-    const skipNextSaveRef = useRef<boolean>(false); // Skip the next save after restoring server position
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -152,35 +150,28 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 applyTypography();
                 applyTextSelection();
 
-                // Display book immediately (fast)
+                // Load saved position from server
                 const savedPosition = await loadPosition();
-                if (savedPosition?.cfi) {
-                    // Skip the next relocated event save (position restore)
-                    skipNextSaveRef.current = true;
-                    await rendition.display(savedPosition.cfi);
+                const savedProgress = savedPosition?.progress || 0;
+
+                // Generate locations first (required for percentage-based navigation)
+                await book.locations.generate(2048);
+                locationsReadyRef.current = true;
+
+                // Navigate to saved position using percentage
+                if (savedProgress > 0) {
+                    const cfi = book.locations.cfiFromPercentage(savedProgress / 100);
+                    if (cfi) {
+                        await rendition.display(cfi);
+                    } else {
+                        await rendition.display();
+                    }
                 } else {
                     await rendition.display();
                 }
 
                 // Mark as loaded - user can start reading
                 setState(prev => ({ ...prev, isLoading: false }));
-
-                // Store initial progress to avoid overwriting with 0
-                if (savedPosition?.progress) {
-                    initialProgressRef.current = savedPosition.progress;
-                }
-
-                // Generate locations in background (non-blocking)
-                book.locations.generate(2048).then(() => {
-                    locationsReadyRef.current = true;
-                    // If we had a percentage fallback, navigate now that locations are ready
-                    if (!savedPosition?.cfi && savedPosition?.progress && savedPosition.progress > 0) {
-                        const cfi = book.locations.cfiFromPercentage(savedPosition.progress / 100);
-                        if (cfi) {
-                            rendition.display(cfi);
-                        }
-                    }
-                });
 
                 // Helper to find current chapter from location
                 const findCurrentChapter = (loc: any): string => {
@@ -208,34 +199,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                 // Track location changes
                 rendition.on('relocated', (location: any) => {
-                    let progress = 0;
-                    let currentPage = 0;
-                    let totalPages = 0;
                     const currentCfi = location.start.cfi;
-
-                    if (book.locations.length() > 0) {
-                        progress = book.locations.percentageFromCfi(currentCfi) * 100;
-                        currentPage = book.locations.locationFromCfi(currentCfi) || 0;
-                        totalPages = book.locations.length();
-                    } else {
-                        progress = location.start.percentage * 100;
-                    }
-
+                    const progress = book.locations.percentageFromCfi(currentCfi) * 100;
+                    const currentPage = book.locations.locationFromCfi(currentCfi) || 0;
+                    const totalPages = book.locations.length();
                     const currentChapter = findCurrentChapter(location);
 
-                    // Skip save if this is the first relocated event after restoring a position
-                    let shouldSave = true;
-                    if (skipNextSaveRef.current) {
-                        shouldSave = false;
-                        skipNextSaveRef.current = false;
-                    }
-
-                    // Also don't save if locations aren't ready and progress is lower than saved
-                    if (shouldSave && !locationsReadyRef.current && progress < initialProgressRef.current) {
-                        shouldSave = false;
-                    }
-
-                    progressRef.current = progress; // Update ref for cleanup
+                    progressRef.current = progress;
                     setState(prev => ({
                         ...prev,
                         progress,
@@ -246,9 +216,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                         },
                     }));
 
-                    if (shouldSave) {
-                        savePosition(currentCfi, progress);
-                    }
+                    // Always save - progress is stable now that locations are generated first
+                    savePosition(currentCfi, progress);
                 });
             } catch (error) {
                 setState(prev => ({
@@ -271,8 +240,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             bookRef.current?.destroy();
             // Reset refs for next book
             locationsReadyRef.current = false;
-            initialProgressRef.current = 0;
-            skipNextSaveRef.current = false;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
@@ -306,28 +273,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             }
 
             // Page becoming visible - check if server has newer position
-            if (document.visibilityState === 'visible' && navigator.onLine) {
+            if (document.visibilityState === 'visible' && navigator.onLine && locationsReadyRef.current) {
                 try {
                     const serverPosition = await loadPosition();
                     if (!serverPosition) return;
 
                     const currentProgress = progressRef.current;
 
-                    // Only sync if server progress is ahead
-                    if (serverPosition.progress > currentProgress) {
-                        // Skip the next relocated event save (position restore)
-                        skipNextSaveRef.current = true;
-                        if (serverPosition.cfi) {
-                            renditionRef.current.display(serverPosition.cfi);
-                        } else if (serverPosition.progress > 0 && locationsReadyRef.current) {
-                            // Fallback to percentage if no CFI
-                            const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
-                            if (cfi) {
-                                renditionRef.current.display(cfi);
-                            }
+                    // Only sync if server progress is significantly ahead (avoid micro-jumps)
+                    if (serverPosition.progress > currentProgress + 0.001) {
+                        const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+                        if (cfi) {
+                            renditionRef.current.display(cfi);
                         }
-                        // Update initial progress ref to prevent saving lower values
-                        initialProgressRef.current = serverPosition.progress;
                     }
                 } catch (error) {
                     console.error('Failed to sync position on visibility change:', error);
