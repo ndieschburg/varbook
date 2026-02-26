@@ -45,8 +45,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
     const initialProgressRef = useRef<number>(0); // Track loaded progress to avoid overwriting
-    const isRestoringPositionRef = useRef<boolean>(false); // Skip saves while restoring server position
-    const lastLoadedCfiRef = useRef<string | null>(null); // Track the CFI we're restoring to
+    const skipNextSaveRef = useRef<boolean>(false); // Skip the next save after restoring server position
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -156,9 +155,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Display book immediately (fast)
                 const savedPosition = await loadPosition();
                 if (savedPosition?.cfi) {
-                    // Set flags to prevent saving while restoring position
-                    isRestoringPositionRef.current = true;
-                    lastLoadedCfiRef.current = savedPosition.cfi;
+                    // Skip the next relocated event save (position restore)
+                    skipNextSaveRef.current = true;
                     await rendition.display(savedPosition.cfi);
                 } else {
                     await rendition.display();
@@ -225,21 +223,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     const currentChapter = findCurrentChapter(location);
 
-                    // Check if we're still restoring a server-loaded position
-                    // Skip save if this is the initial relocated event after loading server position
+                    // Skip save if this is the first relocated event after restoring a position
                     let shouldSave = true;
-                    if (isRestoringPositionRef.current) {
-                        // We're restoring - check if this is the restored position or user navigation
-                        if (lastLoadedCfiRef.current && currentCfi === lastLoadedCfiRef.current) {
-                            // This is the restored position event - don't save, clear flag
-                            shouldSave = false;
-                            isRestoringPositionRef.current = false;
-                            lastLoadedCfiRef.current = null;
-                        } else {
-                            // User navigated away - clear flag and allow save
-                            isRestoringPositionRef.current = false;
-                            lastLoadedCfiRef.current = null;
-                        }
+                    if (skipNextSaveRef.current) {
+                        shouldSave = false;
+                        skipNextSaveRef.current = false;
                     }
 
                     // Also don't save if locations aren't ready and progress is lower than saved
@@ -284,8 +272,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             // Reset refs for next book
             locationsReadyRef.current = false;
             initialProgressRef.current = 0;
-            isRestoringPositionRef.current = false;
-            lastLoadedCfiRef.current = null;
+            skipNextSaveRef.current = false;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
@@ -328,17 +315,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Only sync if server progress is ahead
                     if (serverPosition.progress > currentProgress) {
-                        // Set flags to prevent saving while restoring position
+                        // Skip the next relocated event save (position restore)
+                        skipNextSaveRef.current = true;
                         if (serverPosition.cfi) {
-                            isRestoringPositionRef.current = true;
-                            lastLoadedCfiRef.current = serverPosition.cfi;
                             renditionRef.current.display(serverPosition.cfi);
                         } else if (serverPosition.progress > 0 && locationsReadyRef.current) {
                             // Fallback to percentage if no CFI
                             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
                             if (cfi) {
-                                isRestoringPositionRef.current = true;
-                                lastLoadedCfiRef.current = cfi;
                                 renditionRef.current.display(cfi);
                             }
                         }
