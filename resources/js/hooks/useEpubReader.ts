@@ -44,6 +44,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
     const renditionRef = useRef<Rendition | null>(null);
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
+    const isRestoringRef = useRef<boolean>(false); // Skip save after position restore
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -162,6 +163,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 if (savedProgress > 0) {
                     const cfi = book.locations.cfiFromPercentage(savedProgress / 100);
                     if (cfi) {
+                        isRestoringRef.current = true; // Skip next save
                         await rendition.display(cfi);
                     } else {
                         await rendition.display();
@@ -216,7 +218,12 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                         },
                     }));
 
-                    // Always save - progress is stable now that locations are generated first
+                    // Skip save if we just restored a position (avoids overwriting server value)
+                    if (isRestoringRef.current) {
+                        isRestoringRef.current = false;
+                        return;
+                    }
+
                     savePosition(currentCfi, progress);
                 });
             } catch (error) {
@@ -240,6 +247,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             bookRef.current?.destroy();
             // Reset refs for next book
             locationsReadyRef.current = false;
+            isRestoringRef.current = false;
         };
     }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
 
@@ -284,6 +292,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     if (serverPosition.progress > currentProgress + 0.001) {
                         const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
                         if (cfi) {
+                            isRestoringRef.current = true; // Skip next save
                             renditionRef.current.display(cfi);
                         }
                     }
