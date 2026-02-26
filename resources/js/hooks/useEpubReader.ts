@@ -154,12 +154,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Load saved position from server
                 const savedPosition = await loadPosition();
 
-                // First display to initialize, then navigate to saved CFI
-                // Skip 2 saves (one for init, one for navigation)
+                // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
-                    skipSaveCountRef.current = 2;
-                    await rendition.display();
-                    await rendition.display(savedPosition.cfi);
+                    skipSaveCountRef.current = 1;
+                    console.log('[BookShelf] Navigating to CFI:', savedPosition.cfi);
+                    // Use a promise to wait for the displayed event
+                    await new Promise<void>((resolve) => {
+                        rendition.once('displayed', () => {
+                            const loc = rendition.currentLocation();
+                            console.log('[BookShelf] Displayed at CFI:', loc?.start?.cfi);
+                            resolve();
+                        });
+                        rendition.display(savedPosition.cfi);
+                    });
                 } else {
                     skipSaveCountRef.current = 1;
                     await rendition.display();
