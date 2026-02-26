@@ -154,10 +154,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Load saved position from server
                 const savedPosition = await loadPosition();
 
-                // Generate locations FIRST (helps epub.js navigate more precisely)
-                await book.locations.generate(1024);
-                locationsReadyRef.current = true;
-
                 // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
                     skipSaveCountRef.current = 1;
@@ -166,6 +162,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                     skipSaveCountRef.current = 1;
                     await rendition.display();
                 }
+
+                // Generate locations in background (non-blocking)
+                book.locations.generate(1024).then(() => {
+                    locationsReadyRef.current = true;
+                });
 
                 // Mark as loaded - user can start reading
                 setState(prev => ({ ...prev, isLoading: false }));
