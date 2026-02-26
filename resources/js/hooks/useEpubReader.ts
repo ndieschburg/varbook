@@ -154,39 +154,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Load saved position from server
                 const savedPosition = await loadPosition();
 
+                // Generate locations FIRST (helps epub.js navigate more precisely)
+                await book.locations.generate(1024);
+                locationsReadyRef.current = true;
+
                 // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
-                    // Skip all saves during position restoration
-                    skipSaveCountRef.current = 20; // Will be reset after we're done
-
-                    // Navigate to saved position
-                    await new Promise<void>((resolve) => {
-                        rendition.once('displayed', () => resolve());
-                        rendition.display(savedPosition.cfi);
-                    });
-
-                    // epub.js may show an earlier position - try to advance to saved progress
-                    if (savedPosition.progress > 0) {
-                        let attempts = 0;
-                        const maxAttempts = 10;
-                        while (attempts < maxAttempts) {
-                            const loc = rendition.currentLocation();
-                            const currentPercent = loc?.start?.percentage * 100 || 0;
-                            if (currentPercent >= savedPosition.progress - 0.3) break;
-                            await rendition.next();
-                            attempts++;
-                        }
-                    }
-                    skipSaveCountRef.current = 1; // Reset to skip only next user action
+                    skipSaveCountRef.current = 1;
+                    await rendition.display(savedPosition.cfi);
                 } else {
                     skipSaveCountRef.current = 1;
                     await rendition.display();
                 }
-
-                // Generate locations in background (non-blocking)
-                book.locations.generate(1024).then(() => {
-                    locationsReadyRef.current = true;
-                });
 
                 // Mark as loaded - user can start reading
                 setState(prev => ({ ...prev, isLoading: false }));
