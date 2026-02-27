@@ -15,6 +15,8 @@ interface UseEpubReaderOptions {
         author: string;
         coverUrl: string | null;
     };
+    /** Expose epub.js objects to window for console debugging */
+    debugMode?: boolean;
 }
 
 interface SearchResult {
@@ -39,7 +41,19 @@ interface EpubReaderState {
     isSearching: boolean;
 }
 
-export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEpubReaderOptions) {
+export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
+    // Debug logging helper
+    const debug = debugMode
+        ? (message: string, data?: any) => {
+            const timestamp = new Date().toISOString().substring(11, 23);
+            if (data !== undefined) {
+                console.log(`[BookShelf ${timestamp}] ${message}`, data);
+            } else {
+                console.log(`[BookShelf ${timestamp}] ${message}`);
+            }
+        }
+        : () => {};
+
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
@@ -140,7 +154,20 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 });
                 renditionRef.current = rendition;
 
+                // Expose objects for console debugging when debug mode is enabled
+                if (debugMode) {
+                    (window as any).epubBook = book;
+                    (window as any).epubRendition = rendition;
+                    console.log('[BookShelf Debug] epub.js objects exposed: epubBook, epubRendition');
+                    console.log('[BookShelf Debug] Useful commands:');
+                    console.log('  epubRendition.currentLocation().start.cfi  // Get current CFI');
+                    console.log('  epubRendition.display("epubcfi(...)")      // Navigate to CFI');
+                    console.log('  epubBook.locations.percentageFromCfi(cfi)  // CFI to percentage');
+                }
+
+                debug('Book ready, waiting for book.ready promise...');
                 await book.ready;
+                debug('Book initialized');
 
                 // Load TOC
                 const navigation = await book.loaded.navigation;
@@ -152,20 +179,30 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 applyTextSelection();
 
                 // Load saved position from server
+                debug('Loading saved position from server...');
                 const savedPosition = await loadPosition();
+                debug('Server position loaded', savedPosition);
 
                 // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
+                    debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
+                    debug(`Saved progress: ${savedPosition.progress?.toFixed(5)}%`);
                     skipSaveCountRef.current = 1;
                     await rendition.display(savedPosition.cfi);
+                    const afterLocation = rendition.currentLocation();
+                    debug('After display() - actual CFI:', afterLocation?.start?.cfi);
+                    debug('CFI match:', savedPosition.cfi === afterLocation?.start?.cfi ? '✓ YES' : '✗ NO (position drift!)');
                 } else {
+                    debug('No saved position, starting from beginning');
                     skipSaveCountRef.current = 1;
                     await rendition.display();
                 }
 
                 // Generate locations in background (non-blocking)
+                debug('Starting background location generation (1024 chars/location)...');
                 book.locations.generate(1024).then(() => {
                     locationsReadyRef.current = true;
+                    debug(`Locations generated: ${book.locations.length()} total locations`);
                 });
 
                 // Mark as loaded - user can start reading
@@ -212,6 +249,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     const currentChapter = findCurrentChapter(location);
 
+                    debug('relocated event', {
+                        cfi: currentCfi,
+                        progress: progress.toFixed(5) + '%',
+                        page: `${currentPage}/${totalPages}`,
+                        chapter: currentChapter,
+                        locationsReady: locationsReadyRef.current,
+                    });
+
                     progressRef.current = progress;
                     setState(prev => ({
                         ...prev,
@@ -225,10 +270,12 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
                     // Skip save if we just restored a position (avoids overwriting server value)
                     if (skipSaveCountRef.current > 0) {
+                        debug(`Skipping save (skipSaveCount: ${skipSaveCountRef.current})`);
                         skipSaveCountRef.current--;
                         return;
                     }
 
+                    debug('Saving position to server', { cfi: currentCfi, progress: progress.toFixed(5) + '%' });
                     savePosition(currentCfi, progress);
                 });
             } catch (error) {
@@ -244,8 +291,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
         // Cleanup
         return () => {
+            debug('Cleanup - destroying reader');
             const location = renditionRef.current?.currentLocation();
             if (location?.start?.cfi) {
+                debug('Cleanup - flushing final position', {
+                    cfi: location.start.cfi,
+                    progress: progressRef.current.toFixed(5) + '%',
+                });
                 // Use ref to get current progress (avoids stale closure)
                 flushSync(location.start.cfi, progressRef.current);
             }
@@ -253,8 +305,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             // Reset refs for next book
             locationsReadyRef.current = false;
             skipSaveCountRef.current = 0;
+            // Clean up debug objects
+            if ((window as any).epubBook) delete (window as any).epubBook;
+            if ((window as any).epubRendition) delete (window as any).epubRendition;
         };
-    }, [bookId, epubUrl, containerRef]); // Don't include bookMeta to avoid re-init loops
+    }, [bookId, epubUrl, containerRef, debugMode]); // Don't include bookMeta to avoid re-init loops
 
     // Apply theme when it changes
     useEffect(() => {
@@ -280,6 +335,10 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
                 // Page going to background - save progress immediately
                 const location = renditionRef.current.currentLocation();
                 if (location?.start?.cfi) {
+                    debug('Page hidden - flushing position', {
+                        cfi: location.start.cfi,
+                        progress: progressRef.current.toFixed(5) + '%',
+                    });
                     flushSync(location.start.cfi, progressRef.current);
                 }
                 return;
@@ -287,23 +346,36 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
             // Page becoming visible - check if server has newer position
             if (document.visibilityState === 'visible' && navigator.onLine && locationsReadyRef.current) {
+                debug('Page visible - checking server for newer position...');
                 try {
                     const serverPosition = await loadPosition();
-                    if (!serverPosition) return;
+                    if (!serverPosition) {
+                        debug('No server position found');
+                        return;
+                    }
 
                     const currentProgress = progressRef.current;
+                    debug('Comparing positions', {
+                        server: serverPosition.progress?.toFixed(5) + '%',
+                        local: currentProgress.toFixed(5) + '%',
+                        diff: ((serverPosition.progress || 0) - currentProgress).toFixed(5) + '%',
+                    });
 
                     // Only sync if server progress is significantly ahead (avoid micro-jumps)
                     if (serverPosition.progress > currentProgress + 0.001) {
+                        debug('Server is ahead - syncing position', { serverCfi: serverPosition.cfi });
                         skipSaveCountRef.current = 1; // Skip next save
                         if (serverPosition.cfi) {
                             renditionRef.current.display(serverPosition.cfi);
                         } else if (locationsReadyRef.current) {
                             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
                             if (cfi) {
+                                debug('Generated CFI from percentage', { cfi });
                                 renditionRef.current.display(cfi);
                             }
                         }
+                    } else {
+                        debug('Local position is current or ahead - no sync needed');
                     }
                 } catch (error) {
                     console.error('Failed to sync position on visibility change:', error);
@@ -313,7 +385,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [loadPosition, flushSync]);
+    }, [loadPosition, flushSync, debug]);
 
     // Save progress on page unload (pagehide is more reliable than beforeunload on mobile)
     useEffect(() => {
@@ -321,13 +393,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta }: UseEp
             if (!renditionRef.current) return;
             const location = renditionRef.current.currentLocation();
             if (location?.start?.cfi) {
+                debug('pagehide - flushing position', {
+                    cfi: location.start.cfi,
+                    progress: progressRef.current.toFixed(5) + '%',
+                });
                 flushSync(location.start.cfi, progressRef.current);
             }
         };
 
         window.addEventListener('pagehide', handlePageHide);
         return () => window.removeEventListener('pagehide', handlePageHide);
-    }, [flushSync]);
+    }, [flushSync, debug]);
 
     // Navigation functions
     const nextPage = useCallback(() => {

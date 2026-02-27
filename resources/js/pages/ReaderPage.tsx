@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useBook } from '@/api/hooks';
+import { useBook, useSettings } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
@@ -15,7 +15,16 @@ export function ReaderPage() {
     const containerRef = useRef<HTMLDivElement>(null);
 
     const { data: bookData, isLoading: bookDataLoading, error: bookError } = useBook(bookId);
+    const { data: settingsData } = useSettings();
     const epubUrl = `/api/books/${bookId}/download`;
+
+    // Extract debug mode from settings
+    const debugMode = useMemo(() => {
+        if (!settingsData) return false;
+        const readerCategory = settingsData.categories.find(c => c.key === 'reader');
+        const debugSetting = readerCategory?.settings.find(s => s.key === 'reader.debug_mode');
+        return debugSetting?.value === true;
+    }, [settingsData]);
 
     const {
         isLoading,
@@ -49,6 +58,7 @@ export function ReaderPage() {
             author: bookData.author,
             coverUrl: bookData.cover_url,
         } : undefined,
+        debugMode,
     });
 
     const [showToc, setShowToc] = useState(false);
