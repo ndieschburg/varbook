@@ -42,17 +42,20 @@ interface EpubReaderState {
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
-    // Debug logging helper
-    const debug = debugMode
-        ? (message: string, data?: any) => {
-            const timestamp = new Date().toISOString().substring(11, 23);
-            if (data !== undefined) {
-                console.log(`[BookShelf ${timestamp}] ${message}`, data);
-            } else {
-                console.log(`[BookShelf ${timestamp}] ${message}`);
-            }
+    // Use ref for debugMode to avoid re-initializing reader when settings load
+    const debugModeRef = useRef(debugMode);
+    debugModeRef.current = debugMode;
+
+    // Debug logging helper - uses ref to always have latest value
+    const debug = useCallback((message: string, data?: any) => {
+        if (!debugModeRef.current) return;
+        const timestamp = new Date().toISOString().substring(11, 23);
+        if (data !== undefined) {
+            console.log(`[BookShelf ${timestamp}] ${message}`, data);
+        } else {
+            console.log(`[BookShelf ${timestamp}] ${message}`);
         }
-        : () => {};
+    }, []);
 
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
@@ -155,7 +158,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 renditionRef.current = rendition;
 
                 // Expose objects for console debugging when debug mode is enabled
-                if (debugMode) {
+                if (debugModeRef.current) {
                     (window as any).epubBook = book;
                     (window as any).epubRendition = rendition;
                     console.log('[BookShelf Debug] epub.js objects exposed: epubBook, epubRendition');
@@ -309,7 +312,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             if ((window as any).epubBook) delete (window as any).epubBook;
             if ((window as any).epubRendition) delete (window as any).epubRendition;
         };
-    }, [bookId, epubUrl, containerRef, debugMode]); // Don't include bookMeta to avoid re-init loops
+    }, [bookId, epubUrl, containerRef, debug]); // Don't include bookMeta or debugMode to avoid re-init loops
 
     // Apply theme when it changes
     useEffect(() => {
@@ -325,6 +328,22 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     useEffect(() => {
         applyTextSelection();
     }, [applyTextSelection]);
+
+    // Expose/hide debug objects when debugMode changes
+    useEffect(() => {
+        if (debugMode && bookRef.current && renditionRef.current) {
+            (window as any).epubBook = bookRef.current;
+            (window as any).epubRendition = renditionRef.current;
+            console.log('[BookShelf Debug] epub.js objects exposed: epubBook, epubRendition');
+            console.log('[BookShelf Debug] Useful commands:');
+            console.log('  epubRendition.currentLocation().start.cfi  // Get current CFI');
+            console.log('  epubRendition.display("epubcfi(...)")      // Navigate to CFI');
+            console.log('  epubBook.locations.percentageFromCfi(cfi)  // CFI to percentage');
+        } else if (!debugMode) {
+            if ((window as any).epubBook) delete (window as any).epubBook;
+            if ((window as any).epubRendition) delete (window as any).epubRendition;
+        }
+    }, [debugMode]);
 
     // Sync position when app returns to foreground or save when going to background
     useEffect(() => {
