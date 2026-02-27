@@ -186,15 +186,82 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 const savedPosition = await loadPosition();
                 debug('Server position loaded', savedPosition);
 
+                // Helper to compare two CFIs and determine if we need to advance
+                // Returns: -1 if cfiA < cfiB, 0 if equal, 1 if cfiA > cfiB
+                const compareCfi = (cfiA: string, cfiB: string): number => {
+                    // Extract the path portion after the last "!"
+                    // e.g., "epubcfi(/6/100!/4[x9782207138595-51]/2/12/1:0)" -> "/4[x9782207138595-51]/2/12/1:0"
+                    const pathA = cfiA.split('!').pop() || '';
+                    const pathB = cfiB.split('!').pop() || '';
+
+                    // Extract all numbers from the path
+                    const numsA = pathA.match(/\d+/g)?.map(Number) || [];
+                    const numsB = pathB.match(/\d+/g)?.map(Number) || [];
+
+                    // Compare number by number
+                    const maxLen = Math.max(numsA.length, numsB.length);
+                    for (let i = 0; i < maxLen; i++) {
+                        const a = numsA[i] ?? 0;
+                        const b = numsB[i] ?? 0;
+                        if (a < b) return -1;
+                        if (a > b) return 1;
+                    }
+                    return 0;
+                };
+
                 // Navigate to saved CFI or start
                 if (savedPosition?.cfi) {
                     debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
                     debug(`Saved progress: ${savedPosition.progress?.toFixed(5)}%`);
                     skipSaveCountRef.current = 1;
                     await rendition.display(savedPosition.cfi);
-                    const afterLocation = rendition.currentLocation();
+                    let afterLocation = rendition.currentLocation();
                     debug('After display() - actual CFI:', afterLocation?.start?.cfi);
-                    debug('CFI match:', savedPosition.cfi === afterLocation?.start?.cfi ? '✓ YES' : '✗ NO (position drift!)');
+
+                    // Check if we need to advance pages to reach the saved position
+                    if (afterLocation?.start?.cfi && savedPosition.cfi !== afterLocation.start.cfi) {
+                        const comparison = compareCfi(afterLocation.start.cfi, savedPosition.cfi);
+                        debug('CFI comparison:', { current: afterLocation.start.cfi, target: savedPosition.cfi, result: comparison });
+
+                        if (comparison < 0) {
+                            // Current position is BEFORE target - need to advance
+                            debug('Position drift detected - advancing pages to reach target...');
+                            const maxIterations = 20; // Safety limit
+                            let iterations = 0;
+
+                            while (iterations < maxIterations) {
+                                iterations++;
+                                skipSaveCountRef.current++; // Skip save for each advance
+
+                                // Wait for next page
+                                await new Promise<void>((resolve) => {
+                                    rendition.once('relocated', () => resolve());
+                                    rendition.next();
+                                });
+
+                                afterLocation = rendition.currentLocation();
+                                const currentCfi = afterLocation?.start?.cfi;
+                                debug(`Advance ${iterations}: CFI = ${currentCfi}`);
+
+                                if (!currentCfi) break;
+
+                                // Check if we've reached or passed the target
+                                const newComparison = compareCfi(currentCfi, savedPosition.cfi);
+                                if (newComparison >= 0) {
+                                    debug(`Reached target position after ${iterations} page advance(s)`);
+                                    break;
+                                }
+                            }
+
+                            if (iterations >= maxIterations) {
+                                debug('Warning: Hit max iterations, stopping advance');
+                            }
+                        } else {
+                            debug('CFI match: ✗ NO (but current is ahead of target, not advancing)');
+                        }
+                    } else if (savedPosition.cfi === afterLocation?.start?.cfi) {
+                        debug('CFI match: ✓ YES');
+                    }
                 } else {
                     debug('No saved position, starting from beginning');
                     skipSaveCountRef.current = 1;
