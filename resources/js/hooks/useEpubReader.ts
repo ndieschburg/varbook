@@ -218,46 +218,77 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     let afterLocation = rendition.currentLocation();
                     debug('After display() - actual CFI:', afterLocation?.start?.cfi);
 
+                    // Check if target CFI is on the current page (between start and end)
+                    const isTargetOnCurrentPage = (location: any, targetCfi: string): boolean => {
+                        const startCfi = location?.start?.cfi;
+                        const endCfi = location?.end?.cfi;
+                        if (!startCfi || !endCfi) return false;
+
+                        const startComparison = compareCfi(targetCfi, startCfi);
+                        const endComparison = compareCfi(targetCfi, endCfi);
+
+                        // Target is on current page if: start <= target <= end
+                        return startComparison >= 0 && endComparison <= 0;
+                    };
+
                     // Check if we need to advance pages to reach the saved position
                     if (afterLocation?.start?.cfi && savedPosition.cfi !== afterLocation.start.cfi) {
-                        const comparison = compareCfi(afterLocation.start.cfi, savedPosition.cfi);
-                        debug('CFI comparison:', { current: afterLocation.start.cfi, target: savedPosition.cfi, result: comparison });
-
-                        if (comparison < 0) {
-                            // Current position is BEFORE target - need to advance
-                            debug('Position drift detected - advancing pages to reach target...');
-                            const maxIterations = 20; // Safety limit
-                            let iterations = 0;
-
-                            while (iterations < maxIterations) {
-                                iterations++;
-                                skipSaveCountRef.current++; // Skip save for each advance
-
-                                // Wait for next page
-                                await new Promise<void>((resolve) => {
-                                    rendition.once('relocated', () => resolve());
-                                    rendition.next();
-                                });
-
-                                afterLocation = rendition.currentLocation();
-                                const currentCfi = afterLocation?.start?.cfi;
-                                debug(`Advance ${iterations}: CFI = ${currentCfi}`);
-
-                                if (!currentCfi) break;
-
-                                // Check if we've reached or passed the target
-                                const newComparison = compareCfi(currentCfi, savedPosition.cfi);
-                                if (newComparison >= 0) {
-                                    debug(`Reached target position after ${iterations} page advance(s)`);
-                                    break;
-                                }
-                            }
-
-                            if (iterations >= maxIterations) {
-                                debug('Warning: Hit max iterations, stopping advance');
-                            }
+                        // First check if target is already on the current page
+                        if (isTargetOnCurrentPage(afterLocation, savedPosition.cfi)) {
+                            debug('Target CFI is on current page (between start and end) - no advance needed');
+                            debug('Page range:', { start: afterLocation.start.cfi, end: afterLocation.end?.cfi, target: savedPosition.cfi });
                         } else {
-                            debug('CFI match: ✗ NO (but current is ahead of target, not advancing)');
+                            const comparison = compareCfi(afterLocation.start.cfi, savedPosition.cfi);
+                            debug('CFI comparison:', { current: afterLocation.start.cfi, target: savedPosition.cfi, result: comparison });
+
+                            if (comparison < 0) {
+                                // Current position is BEFORE target - need to advance
+                                debug('Position drift detected - advancing pages to reach target...');
+                                const maxIterations = 20; // Safety limit
+                                let iterations = 0;
+
+                                while (iterations < maxIterations) {
+                                    iterations++;
+                                    skipSaveCountRef.current++; // Skip save for each advance
+
+                                    // Wait for next page
+                                    await new Promise<void>((resolve) => {
+                                        rendition.once('relocated', () => resolve());
+                                        rendition.next();
+                                    });
+
+                                    afterLocation = rendition.currentLocation();
+                                    const currentCfi = afterLocation?.start?.cfi;
+                                    debug(`Advance ${iterations}: CFI = ${currentCfi}`);
+
+                                    if (!currentCfi) break;
+
+                                    // Check if target is now on the current page
+                                    if (isTargetOnCurrentPage(afterLocation, savedPosition.cfi)) {
+                                        debug(`Target found on page after ${iterations} advance(s)`);
+                                        break;
+                                    }
+
+                                    // Or if we've passed the target completely
+                                    const newComparison = compareCfi(currentCfi, savedPosition.cfi);
+                                    if (newComparison > 0) {
+                                        debug(`Warning: Passed target after ${iterations} advance(s), going back...`);
+                                        // We went too far, go back one page
+                                        skipSaveCountRef.current++;
+                                        await new Promise<void>((resolve) => {
+                                            rendition.once('relocated', () => resolve());
+                                            rendition.prev();
+                                        });
+                                        break;
+                                    }
+                                }
+
+                                if (iterations >= maxIterations) {
+                                    debug('Warning: Hit max iterations, stopping advance');
+                                }
+                            } else {
+                                debug('CFI match: ✗ NO (but current is ahead of target, not advancing)');
+                            }
                         }
                     } else if (savedPosition.cfi === afterLocation?.start?.cfi) {
                         debug('CFI match: ✓ YES');
