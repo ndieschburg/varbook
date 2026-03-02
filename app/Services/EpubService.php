@@ -85,8 +85,9 @@ class EpubService
         if ($identifiers) {
             foreach ($identifiers as $identifier) {
                 $value = $identifier->getValue();
-                if (preg_match('/^(978|979)?\d{9}[\dX]$/i', preg_replace('/[^0-9X]/i', '', $value))) {
-                    $isbn = $value;
+                $cleanedIsbn = preg_replace('/[^0-9X]/i', '', $value);
+                if (preg_match('/^(978|979)?\d{9}[\dX]$/i', $cleanedIsbn)) {
+                    $isbn = $cleanedIsbn;
                     break;
                 }
             }
