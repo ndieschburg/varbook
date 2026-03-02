@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInfiniteBooks, useCurrentlyReading } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
@@ -62,12 +62,29 @@ export function LibraryPage() {
     // Show "Continue Reading" only when no filters are applied
     const showCurrentlyReading = !status && !debouncedSearch && currentlyReading.length > 0;
 
-    // Manual load more handler
-    const handleLoadMore = () => {
-        if (hasNextPage && !isFetchingNextPage) {
+    // Infinite scroll with IntersectionObserver
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
             fetchNextPage();
         }
-    };
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+    useEffect(() => {
+        const element = loadMoreRef.current;
+        if (!element) return;
+
+        const observer = new IntersectionObserver(handleObserver, {
+            root: null,
+            rootMargin: '100px', // Load before reaching the bottom
+            threshold: 0,
+        });
+
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [handleObserver]);
 
     // Only show full loading spinner on initial load (no data yet)
     if (isLoading && !data) {
@@ -161,22 +178,15 @@ export function LibraryPage() {
                             ))}
                         </div>
 
-                        {/* Load More / End of list */}
-                        <div className="mt-8 flex justify-center">
+                        {/* Infinite scroll sentinel & loading indicator */}
+                        <div ref={loadMoreRef} className="mt-8 flex justify-center py-4">
                             {isFetchingNextPage ? (
                                 <LoadingSpinner size="md" />
-                            ) : hasNextPage ? (
-                                <button
-                                    onClick={handleLoadMore}
-                                    className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg font-medium transition-colors"
-                                >
-                                    {t('Load more')}
-                                </button>
-                            ) : (
+                            ) : !hasNextPage && totalBooks > 0 ? (
                                 <p className="text-slate-500 text-sm">
                                     {totalBooks} {t('Books').toLowerCase()}
                                 </p>
-                            )}
+                            ) : null}
                         </div>
                     </>
                 ) : (
