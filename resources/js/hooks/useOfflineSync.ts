@@ -104,15 +104,33 @@ export function useOfflineSync() {
         }
     }, [queryClient, syncMutation, t]);
 
-    // Listen for online event
+    // Listen for online event and visibility changes
     useEffect(() => {
         const handleOnline = () => {
             console.log('[OfflineSync] Online event triggered');
             syncPendingPositions();
         };
 
+        // Also sync when app becomes visible (handles case where navigator.onLine is unreliable)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && navigator.onLine) {
+                console.log('[OfflineSync] App visible, attempting sync');
+                syncPendingPositions();
+            }
+        };
+
+        // Sync on window focus (another opportunity to sync)
+        const handleFocus = () => {
+            if (navigator.onLine) {
+                console.log('[OfflineSync] Window focused, attempting sync');
+                syncPendingPositions();
+            }
+        };
+
         window.addEventListener('online', handleOnline);
-        console.log('[OfflineSync] Listening for online event');
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+        console.log('[OfflineSync] Listening for online/visibility/focus events');
 
         // Also try to sync on mount if online
         if (navigator.onLine) {
@@ -122,6 +140,8 @@ export function useOfflineSync() {
 
         return () => {
             window.removeEventListener('online', handleOnline);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
         };
     }, [syncPendingPositions]);
 
