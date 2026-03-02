@@ -55,8 +55,9 @@ export function LibraryPage() {
         return data.pages.flatMap(page => page.data);
     }, [data?.pages]);
 
-    // Get total count from first page
-    const totalBooks = data?.pages[0]?.meta?.total ?? 0;
+    // Get total count from first page (handle array values from corrupted cache)
+    const rawTotal = data?.pages[0]?.meta?.total ?? 0;
+    const totalBooks = Array.isArray(rawTotal) ? Number(rawTotal[0]) : Number(rawTotal);
 
     // Show "Continue Reading" only when no filters are applied
     const showCurrentlyReading = !status && !debouncedSearch && currentlyReading.length > 0;

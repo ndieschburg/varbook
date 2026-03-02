@@ -34,12 +34,9 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
         queryFn: async ({ pageParam }): Promise<PaginatedResponse<Book>> => {
             // Ensure page is always a single integer (defensive against array concatenation bugs)
             const page = typeof pageParam === 'number' ? pageParam : Number(pageParam) || 1;
-            console.log('[DEBUG] queryFn - pageParam:', pageParam, 'type:', typeof pageParam, 'Array?:', Array.isArray(pageParam));
-            console.log('[DEBUG] queryFn - computed page:', page);
             const { data } = await api.get('/books', {
                 params: { ...params, page }
             });
-            console.log('[DEBUG] API response meta:', JSON.stringify(data.meta));
             return data;
         },
         initialPageParam: 1,
@@ -49,12 +46,9 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
                 return undefined;
             }
             const { current_page, last_page } = lastPage.meta;
-            console.log('[DEBUG] getNextPageParam - current_page:', current_page, 'type:', typeof current_page, 'Array?:', Array.isArray(current_page));
-            console.log('[DEBUG] getNextPageParam - last_page:', last_page, 'type:', typeof last_page, 'Array?:', Array.isArray(last_page));
-            // Force integers to prevent array/string issues
+            // Force integers to prevent array/string issues from corrupted cache
             const currentPageNum = Array.isArray(current_page) ? Number(current_page[0]) : Number(current_page);
             const lastPageNum = Array.isArray(last_page) ? Number(last_page[0]) : Number(last_page);
-            console.log('[DEBUG] getNextPageParam - parsed:', currentPageNum, lastPageNum);
             if (currentPageNum < lastPageNum) {
                 return currentPageNum + 1;
             }
