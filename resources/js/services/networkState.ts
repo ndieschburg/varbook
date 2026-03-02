@@ -43,5 +43,10 @@ export function markAsOnline(): void {
         console.log('[NetworkState] API success - clearing offline state');
         effectivelyOffline = false;
         offlineUntil = 0;
+        // Dispatch custom event to trigger sync
+        if (typeof window !== 'undefined') {
+            console.log('[NetworkState] Dispatching network-restored event');
+            window.dispatchEvent(new CustomEvent('network-restored'));
+        }
     }
 }

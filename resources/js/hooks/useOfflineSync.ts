@@ -144,10 +144,17 @@ export function useOfflineSync() {
             }
         };
 
+        // Listen for our custom network-restored event (fired when API call succeeds after being offline)
+        const handleNetworkRestored = () => {
+            console.log('[OfflineSync] Network restored event triggered');
+            syncPendingPositions();
+        };
+
         window.addEventListener('online', handleOnline);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleFocus);
-        console.log('[OfflineSync] Listening for online/visibility/focus events');
+        window.addEventListener('network-restored', handleNetworkRestored);
+        console.log('[OfflineSync] Listening for online/visibility/focus/network-restored events');
 
         // Also try to sync on mount if online
         if (navigator.onLine) {
@@ -159,6 +166,7 @@ export function useOfflineSync() {
             window.removeEventListener('online', handleOnline);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('network-restored', handleNetworkRestored);
         };
     }, [syncPendingPositions]);
 
