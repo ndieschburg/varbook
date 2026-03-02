@@ -9,6 +9,7 @@ import {
     clearSyncedPositions,
     type OfflinePosition,
 } from '@/services/offlineDb';
+import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
 
 interface BatchUpdate {
     cfi: string;
@@ -33,7 +34,11 @@ export function useOfflineSync() {
     });
 
     const syncPendingPositions = useCallback(async () => {
-        if (syncingRef.current || !navigator.onLine) return;
+        // Don't sync if already syncing or effectively offline
+        if (syncingRef.current || isEffectivelyOffline()) {
+            console.log('[OfflineSync] Skipping sync - already syncing or offline');
+            return;
+        }
 
         syncingRef.current = true;
 
@@ -43,6 +48,8 @@ export function useOfflineSync() {
                 syncingRef.current = false;
                 return;
             }
+
+            console.log(`[OfflineSync] Syncing ${positions.length} positions...`);
 
             // Group by bookId
             const grouped = positions.reduce(
@@ -71,34 +78,44 @@ export function useOfflineSync() {
 
             // Only mark positions as synced for successful requests
             const successfulIds: number[] = [];
-            let hasFailures = false;
+            let hasNetworkFailure = false;
 
             results.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
                     successfulIds.push(...batchUpdates[index].positionIds);
                 } else {
-                    hasFailures = true;
                     console.error(`Failed to sync book ${batchUpdates[index].bookId}:`, result.reason);
+                    if (isNetworkError(result.reason)) {
+                        hasNetworkFailure = true;
+                    }
                 }
             });
+
+            // If we had network failures, mark as offline to prevent immediate retries
+            if (hasNetworkFailure) {
+                markAsOffline();
+            } else if (successfulIds.length > 0) {
+                // Success - mark as online
+                markAsOnline();
+            }
 
             if (successfulIds.length > 0) {
                 await markPositionsSynced(successfulIds);
                 await clearSyncedPositions();
                 queryClient.invalidateQueries({ queryKey: ['books'] });
-            }
-
-            // Show appropriate toast
-            if (hasFailures && successfulIds.length > 0) {
-                toast.success(t('Some reading progress synced'));
-            } else if (!hasFailures) {
+                console.log(`[OfflineSync] Successfully synced ${successfulIds.length} positions`);
                 toast.success(t('Reading progress synced'));
-            } else {
-                toast.error(t('Failed to sync reading progress'));
+            } else if (hasNetworkFailure) {
+                // Don't show error toast for network failures - will retry later
+                console.log('[OfflineSync] Network failure, will retry later');
             }
         } catch (error) {
             console.error('Failed to sync positions:', error);
-            toast.error(t('Failed to sync reading progress'));
+            if (isNetworkError(error)) {
+                markAsOffline();
+            } else {
+                toast.error(t('Failed to sync reading progress'));
+            }
         } finally {
             syncingRef.current = false;
         }
