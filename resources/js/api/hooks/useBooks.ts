@@ -45,12 +45,10 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
             if (!lastPage?.meta) {
                 return undefined;
             }
-            // Ensure current_page and last_page are numbers
-            const currentPage = Number(lastPage.meta.current_page) || 1;
-            const lastPageNum = Number(lastPage.meta.last_page) || 1;
+            const { current_page, last_page } = lastPage.meta;
             // Only return next page if there are more pages
-            if (currentPage < lastPageNum) {
-                return currentPage + 1;
+            if (current_page < last_page) {
+                return current_page + 1;
             }
             return undefined;
         },
