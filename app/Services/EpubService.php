@@ -26,34 +26,46 @@ class EpubService
             throw new \Exception('This book already exists in your library.');
         }
 
-        // Parse EPUB metadata
-        $ebook = Ebook::read($file->getRealPath());
-        $metadata = $this->extractMetadata($ebook);
+        // Copy to temp file with original extension (required by kiwilan/php-ebook)
+        $extension = $file->getClientOriginalExtension();
+        $tempPath = sys_get_temp_dir() . '/' . $fileHash . ($extension ? '.' . $extension : '');
+        copy($file->getRealPath(), $tempPath);
 
-        // Store the EPUB file
-        $storagePath = $this->storeEpub($file, $user->id, $fileHash);
+        try {
+            // Parse EPUB metadata
+            $ebook = Ebook::read($tempPath);
+            $metadata = $this->extractMetadata($ebook);
 
-        // Extract and store cover
-        $coverPath = $this->extractCover($ebook, $user->id, $fileHash);
+            // Store the EPUB file
+            $storagePath = $this->storeEpub($file, $user->id, $fileHash);
 
-        // Create book record
-        return Book::create([
-            'user_id' => $user->id,
-            'title' => $metadata['title'] ?? pathinfo($originalFilename, PATHINFO_FILENAME),
-            'author' => $metadata['author'],
-            'description' => $metadata['description'],
-            'language' => $metadata['language'],
-            'publisher' => $metadata['publisher'],
-            'isbn' => $metadata['isbn'],
-            'filename' => $originalFilename,
-            'storage_path' => $storagePath,
-            'cover_path' => $coverPath,
-            'file_hash' => $fileHash,
-            'file_size' => $fileSize,
-            'progress' => 0,
-            'total_reading_seconds' => 0,
-            'is_finished' => false,
-        ]);
+            // Extract and store cover
+            $coverPath = $this->extractCover($ebook, $user->id, $fileHash);
+
+            // Create book record
+            return Book::create([
+                'user_id' => $user->id,
+                'title' => $metadata['title'] ?? pathinfo($originalFilename, PATHINFO_FILENAME),
+                'author' => $metadata['author'],
+                'description' => $metadata['description'],
+                'language' => $metadata['language'],
+                'publisher' => $metadata['publisher'],
+                'isbn' => $metadata['isbn'],
+                'filename' => $originalFilename,
+                'storage_path' => $storagePath,
+                'cover_path' => $coverPath,
+                'file_hash' => $fileHash,
+                'file_size' => $fileSize,
+                'progress' => 0,
+                'total_reading_seconds' => 0,
+                'is_finished' => false,
+            ]);
+        } finally {
+            // Clean up temp file
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
     }
 
     protected function extractMetadata(Ebook $ebook): array
