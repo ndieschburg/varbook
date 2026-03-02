@@ -32,8 +32,10 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
     return useInfiniteQuery({
         queryKey: ['books', 'infinite', params],
         queryFn: async ({ pageParam }): Promise<PaginatedResponse<Book>> => {
+            // Ensure page is always a single integer (defensive against array concatenation bugs)
+            const page = typeof pageParam === 'number' ? pageParam : Number(pageParam) || 1;
             const { data } = await api.get('/books', {
-                params: { ...params, page: pageParam }
+                params: { ...params, page }
             });
             return data;
         },
@@ -43,10 +45,12 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
             if (!lastPage?.meta) {
                 return undefined;
             }
-            const { current_page, last_page } = lastPage.meta;
+            // Ensure current_page and last_page are numbers
+            const currentPage = Number(lastPage.meta.current_page) || 1;
+            const lastPageNum = Number(lastPage.meta.last_page) || 1;
             // Only return next page if there are more pages
-            if (current_page < last_page) {
-                return current_page + 1;
+            if (currentPage < lastPageNum) {
+                return currentPage + 1;
             }
             return undefined;
         },

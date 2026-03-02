@@ -9,6 +9,10 @@ const api = axios.create({
     },
     withCredentials: true,
     withXSRFToken: true,
+    // Explicit params serializer to avoid array/comma serialization issues in axios 1.x
+    paramsSerializer: {
+        indexes: null, // Use default array serialization (key[]=value)
+    },
 });
 
 // Add CSRF token to all requests
