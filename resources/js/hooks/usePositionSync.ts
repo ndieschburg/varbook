@@ -15,6 +15,8 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
     const loadPosition = useCallback(async (): Promise<{ cfi: string | null; progress: number } | null> => {
         try {
             const response = await api.get(`/books/${bookId}/progress`);
+            // API request succeeded - we're online
+            markAsOnline();
             const data = response.data.data;
             if (data) {
                 // Return progress even if CFI is null (allows percentage fallback)
@@ -23,6 +25,9 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
             return null;
         } catch (error) {
             console.error('Failed to load position:', error);
+            if (isNetworkError(error)) {
+                markAsOffline();
+            }
             return null;
         }
     }, [bookId]);
