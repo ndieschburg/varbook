@@ -34,24 +34,22 @@ export function useInfiniteBooks(params: Omit<ListBooksParams, 'page'> = {}) {
         queryFn: async ({ pageParam }): Promise<PaginatedResponse<Book>> => {
             // Ensure page is always a single integer (defensive against array concatenation bugs)
             const page = typeof pageParam === 'number' ? pageParam : Number(pageParam) || 1;
-            console.log('[useInfiniteBooks] queryFn called with pageParam:', pageParam, '-> page:', page);
             const { data } = await api.get('/books', {
                 params: { ...params, page }
             });
-            console.log('[useInfiniteBooks] response meta:', data.meta);
             return data;
         },
         initialPageParam: 1,
         getNextPageParam: (lastPage) => {
             // Safety check for missing meta
             if (!lastPage?.meta) {
-                console.log('[useInfiniteBooks] getNextPageParam: no meta, returning undefined');
                 return undefined;
             }
             const { current_page, last_page } = lastPage.meta;
-            const nextPage = current_page < last_page ? current_page + 1 : undefined;
-            console.log('[useInfiniteBooks] getNextPageParam:', { current_page, last_page, nextPage });
-            return nextPage;
+            if (current_page < last_page) {
+                return current_page + 1;
+            }
+            return undefined;
         },
         // Keep previous data while fetching new results (prevents input focus loss)
         placeholderData: keepPreviousData,

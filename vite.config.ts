@@ -85,7 +85,13 @@ export default defineConfig({
                         },
                     },
                     {
-                        // API responses - NetworkFirst for reliable offline support
+                        // API responses - NetworkOnly to prevent caching issues with pagination
+                        // Pagination params can cause cache key mismatches and stale data
+                        urlPattern: /\/api\/books(\?|$)/i,
+                        handler: 'NetworkOnly',
+                    },
+                    {
+                        // Other API responses - NetworkFirst for reliable offline support
                         urlPattern: /\/api\//i,
                         handler: 'NetworkFirst',
                         options: {
