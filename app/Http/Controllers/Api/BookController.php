@@ -59,10 +59,11 @@ class BookController extends Controller
         $sortDir = $request->validated('sort_dir', 'desc');
         $query->orderBy($sortBy, $sortDir);
 
-        // Pagination
+        // Pagination - explicitly cast page to int to prevent array injection
         $perPage = $request->validated('per_page', 20);
+        $page = (int) $request->input('page', 1);
 
-        return new BookCollection($query->paginate($perPage));
+        return new BookCollection($query->paginate($perPage, ['*'], 'page', $page));
     }
 
     /**
