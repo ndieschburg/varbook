@@ -63,7 +63,9 @@ export function LibraryPage() {
 
     // Manual load more handler
     const handleLoadMore = () => {
+        console.log('[LibraryPage] handleLoadMore called', { hasNextPage, isFetchingNextPage, data });
         if (hasNextPage && !isFetchingNextPage) {
+            console.log('[LibraryPage] calling fetchNextPage');
             fetchNextPage();
         }
     };
