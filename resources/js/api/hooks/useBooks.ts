@@ -134,7 +134,7 @@ export function useUploadBook() {
     return useMutation({
         mutationFn: async (file: File): Promise<Book> => {
             const formData = new FormData();
-            formData.append('epub', file);
+            formData.append('file', file);
             const { data } = await api.post('/books', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
