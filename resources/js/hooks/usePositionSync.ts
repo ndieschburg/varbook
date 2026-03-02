@@ -37,9 +37,11 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
 
             // If offline, queue immediately without trying API
             if (!navigator.onLine) {
+                console.log('[PositionSync] Offline - queuing position for sync');
                 try {
                     await queuePositionSync(bookId, cfi, progress);
                     lastSavedCfiRef.current = cfi;
+                    console.log('[PositionSync] Position queued successfully');
                 } catch (queueError) {
                     console.error('Failed to queue position for offline sync:', queueError);
                 }
@@ -87,6 +89,7 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
 
         // If offline, queue for later sync
         if (!navigator.onLine) {
+            console.log('[PositionSync] flushSync - Offline, queuing position');
             queuePositionSync(bookId, cfi, progress).catch(err => {
                 console.error('Failed to queue position for offline sync:', err);
             });

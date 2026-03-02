@@ -107,13 +107,16 @@ export function useOfflineSync() {
     // Listen for online event
     useEffect(() => {
         const handleOnline = () => {
+            console.log('[OfflineSync] Online event triggered');
             syncPendingPositions();
         };
 
         window.addEventListener('online', handleOnline);
+        console.log('[OfflineSync] Listening for online event');
 
         // Also try to sync on mount if online
         if (navigator.onLine) {
+            console.log('[OfflineSync] Already online, syncing on mount');
             syncPendingPositions();
         }
 

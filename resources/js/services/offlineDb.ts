@@ -76,17 +76,21 @@ export async function queuePositionSync(
     cfi: string,
     progress: number
 ): Promise<void> {
-    await db.positions.add({
+    console.log('[OfflineDB] Queuing position:', { bookId, cfi, progress });
+    const id = await db.positions.add({
         bookId,
         cfi,
         progress,
         timestamp: new Date(),
         synced: false,
     });
+    console.log('[OfflineDB] Position queued with id:', id);
 }
 
 export async function getUnsyncedPositions(): Promise<OfflinePosition[]> {
-    return db.positions.where('synced').equals(0).toArray();
+    const positions = await db.positions.filter((pos) => pos.synced === false).toArray();
+    console.log('[OfflineDB] Getting unsynced positions:', positions.length, positions);
+    return positions;
 }
 
 export async function markPositionsSynced(ids: number[]): Promise<void> {
@@ -94,7 +98,7 @@ export async function markPositionsSynced(ids: number[]): Promise<void> {
 }
 
 export async function clearSyncedPositions(): Promise<void> {
-    await db.positions.where('synced').equals(1).delete();
+    await db.positions.filter((pos) => pos.synced === true).delete();
 }
 
 export async function getOfflineStorageUsage(): Promise<{
