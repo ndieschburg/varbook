@@ -203,8 +203,9 @@ if (!$result['valid']) { /* handle $result['errors'] */ }
 ```php
 'settings_categories' => [
     'general' => ['label' => 'General', 'icon' => 'settings', 'sort' => 1],
-    'library' => ['label' => 'Library', 'icon' => 'library', 'sort' => 2],
-    'appearance' => ['label' => 'Appearance', 'icon' => 'palette', 'sort' => 3],
+    'reader' => ['label' => 'EPUB Reader', 'icon' => 'book-open', 'sort' => 2],
+    'library' => ['label' => 'Library', 'icon' => 'library', 'sort' => 3],
+    'appearance' => ['label' => 'Appearance', 'icon' => 'palette', 'sort' => 4],
 ],
 ```
 
@@ -254,16 +255,21 @@ Note: In URLs, dots in keys are replaced with underscores (e.g., `reader.font_si
 | `general.finished_threshold` | number | 95 | Progress percentage to mark book as finished |
 | `general.progress_logging` | checkbox | false | Log all progress sync calls for debugging |
 
+##### Reader Settings (User overridable, synced via API)
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `reader.debug_mode` | checkbox | false | Expose epub.js objects to browser console for debugging |
+
 ##### Reader Settings (localStorage only, NOT in database)
 
-Reader settings are **device-specific** and stored in the browser's `localStorage` only. They are NOT defined in the database and NOT synced via the settings API. Each device maintains its own reader preferences.
+Most reader settings are **device-specific** and stored in the browser's `localStorage` only. Each device maintains its own reader preferences.
 
 Managed in `resources/js/pages/ReaderPage.tsx` using localStorage keys:
 - `reader.font_size` - Font size in pixels (default: 16)
 - `reader.font_family` - Font family: system, serif, sans-serif, monospace (default: system)
 - `reader.theme` - Color theme: light, dark, sepia (default: dark)
 - `reader.line_height` - Line spacing multiplier (default: 1.6)
-- `reader.debug_mode` - Expose epub.js objects to console (default: false)
 
 ##### Library Settings (User overridable, synced via API)
 

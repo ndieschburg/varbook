@@ -162,6 +162,7 @@
     "Value must be at most :max characters": "Value must be at most :max characters",
 
     "settings.category.general": "General",
+    "settings.category.reader": "EPUB Reader",
     "settings.category.library": "Library",
     "settings.category.appearance": "Appearance",
 
@@ -175,6 +176,9 @@
     "settings.general.finished_threshold_description": "Progress percentage to automatically mark book as finished",
     "settings.general.progress_logging": "Progress logging",
     "settings.general.progress_logging_description": "Log all progress sync calls for debugging (admin only)",
+
+    "settings.reader.debug_mode": "Debug mode",
+    "settings.reader.debug_mode_description": "Expose epub.js objects to browser console for debugging",
 
     "settings.library.default_sort": "Default sort",
     "settings.library.default_sort_description": "How books are sorted by default",
