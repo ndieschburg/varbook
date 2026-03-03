@@ -174,20 +174,18 @@ export function ReaderPage() {
                     </div>
                 )}
 
-                {/* Navigation buttons */}
+                {/* Navigation buttons - hidden on mobile, swipe is used instead */}
                 {!isLoading && !error && !bookDataLoading && (
                     <>
                         <button
                             onClick={(e) => { e.stopPropagation(); prevPage(); }}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="absolute left-0 top-0 bottom-0 w-20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10 select-none touch-manipulation"
+                            className="absolute left-0 top-0 bottom-0 w-16 hidden md:flex items-center justify-center text-gray-400/50 hover:text-white hover:bg-black/10 transition-colors z-10 select-none"
                         >
                             <ChevronLeftIcon className="h-8 w-8" />
                         </button>
                         <button
                             onClick={(e) => { e.stopPropagation(); nextPage(); }}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-black/10 transition-colors z-10 select-none touch-manipulation"
+                            className="absolute right-0 top-0 bottom-0 w-16 hidden md:flex items-center justify-center text-gray-400/50 hover:text-white hover:bg-black/10 transition-colors z-10 select-none"
                         >
                             <ChevronRightIcon className="h-8 w-8" />
                         </button>

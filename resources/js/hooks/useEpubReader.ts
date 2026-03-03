@@ -420,6 +420,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     // Apply typography when it changes
     useEffect(() => {
         applyTypography();
+        // Force resize to apply margin changes properly (especially on mobile)
+        if (renditionRef.current) {
+            // Small delay to ensure styles are applied first
+            setTimeout(() => {
+                renditionRef.current?.resize();
+            }, 50);
+        }
     }, [applyTypography]);
 
     // Apply text selection when it changes
