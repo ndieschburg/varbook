@@ -208,6 +208,8 @@
     "settings.reader.swipe_to_turn_description": "Activer les gestes de glissement pour la navigation",
     "settings.reader.tap_to_turn": "Toucher pour tourner les pages",
     "settings.reader.tap_to_turn_description": "Activer les zones tactiles pour la navigation",
+    "settings.reader.debug_mode": "Mode debug",
+    "settings.reader.debug_mode_description": "Afficher les informations de débogage dans la console du navigateur pendant la lecture",
 
     "settings.library.default_sort": "Tri par défaut",
     "settings.library.default_sort_description": "Comment les livres sont triés par défaut",

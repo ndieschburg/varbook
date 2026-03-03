@@ -195,6 +195,8 @@
     "settings.reader.swipe_to_turn_description": "Enable swipe gestures for page navigation",
     "settings.reader.tap_to_turn": "Tap to turn pages",
     "settings.reader.tap_to_turn_description": "Enable tap zones for page navigation",
+    "settings.reader.debug_mode": "Debug mode",
+    "settings.reader.debug_mode_description": "Show debug information in browser console while reading",
 
     "settings.library.default_sort": "Default sort",
     "settings.library.default_sort_description": "How books are sorted by default",
