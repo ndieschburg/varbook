@@ -95,43 +95,24 @@ export function ReaderPage() {
 
     // Disable browser back/forward swipe gestures while in reader
     useEffect(() => {
-        document.body.style.overscrollBehaviorX = 'none';
-
-        let touchStartX = 0;
-        let touchStartedNearEdge = false;
-        const edgeThreshold = 30;
-
-        const handleTouchStart = (e: TouchEvent) => {
-            touchStartX = e.touches[0].clientX;
-            const screenWidth = window.innerWidth;
-            touchStartedNearEdge = touchStartX < edgeThreshold || touchStartX > screenWidth - edgeThreshold;
+        // Apply multiple CSS properties to block browser navigation gestures
+        const originalStyles = {
+            overscrollBehavior: document.body.style.overscrollBehavior,
+            touchAction: document.body.style.touchAction,
         };
 
-        const handleTouchMove = (e: TouchEvent) => {
-            if (touchStartedNearEdge) {
-                e.preventDefault();
-            }
-        };
-
-        const handleTouchEnd = () => {
-            touchStartedNearEdge = false;
-        };
-
-        document.addEventListener('touchstart', handleTouchStart, { passive: true });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+        document.body.style.overscrollBehavior = 'none';
+        document.body.style.touchAction = 'pan-y pinch-zoom';
 
         return () => {
-            document.body.style.overscrollBehaviorX = '';
-            document.removeEventListener('touchstart', handleTouchStart);
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
+            document.body.style.overscrollBehavior = originalStyles.overscrollBehavior;
+            document.body.style.touchAction = originalStyles.touchAction;
         };
     }, []);
 
     // Always render the full layout so containerRef is available
     return (
-        <div className="h-screen flex flex-col bg-gray-900 touch-pan-y">
+        <div className="h-screen flex flex-col bg-gray-900">
             {/* Top bar */}
             {showControls && (
                 <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 z-20">

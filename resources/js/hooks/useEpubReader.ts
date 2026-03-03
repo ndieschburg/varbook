@@ -160,27 +160,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 // Swipe navigation for mobile - attach to epub.js iframe content
                 let touchStartX = 0;
                 let touchStartY = 0;
-                let touchStartedNearEdge = false;
                 const minSwipeDistance = 50;
-                const edgeThreshold = 30; // Pixels from edge to block browser gesture
 
                 rendition.hooks.content.register((contents: any) => {
                     const doc = contents.document;
 
+                    // Block browser navigation gestures via CSS
+                    doc.body.style.touchAction = 'pan-y pinch-zoom';
+                    doc.body.style.overscrollBehavior = 'none';
+
                     doc.addEventListener('touchstart', (e: TouchEvent) => {
                         touchStartX = e.touches[0].clientX;
                         touchStartY = e.touches[0].clientY;
-                        // Check if touch started near left or right edge
-                        const screenWidth = window.innerWidth;
-                        touchStartedNearEdge = touchStartX < edgeThreshold || touchStartX > screenWidth - edgeThreshold;
                     }, { passive: true });
-
-                    // Block browser back/forward gesture by preventing default on edge swipes
-                    doc.addEventListener('touchmove', (e: TouchEvent) => {
-                        if (touchStartedNearEdge) {
-                            e.preventDefault();
-                        }
-                    }, { passive: false });
 
                     doc.addEventListener('touchend', (e: TouchEvent) => {
                         const deltaX = e.changedTouches[0].clientX - touchStartX;
@@ -192,7 +184,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                                 rendition.prev();
                             }
                         }
-                        touchStartedNearEdge = false;
                     }, { passive: true });
                 });
 
