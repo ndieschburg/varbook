@@ -1,6 +1,6 @@
 import { useRef, useCallback } from 'react';
 import api from '@/api/client';
-import { queuePositionSync } from '@/services/offlineDb';
+import { queuePositionSync, getLatestUnsyncedPosition } from '@/services/offlineDb';
 import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
 
 interface PositionSyncOptions {
@@ -13,6 +13,21 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
     const lastSavedCfiRef = useRef<string | null>(null);
 
     const loadPosition = useCallback(async (): Promise<{ cfi: string | null; progress: number } | null> => {
+        // First check for unsynced local positions - they take priority over server
+        // This prevents overwriting recent offline reading with old server position
+        try {
+            const localPosition = await getLatestUnsyncedPosition(bookId);
+            if (localPosition) {
+                console.log('[PositionSync] Using local unsynced position instead of server');
+                // Still try to trigger online detection for sync, but don't use the result
+                api.get(`/books/${bookId}/progress`).then(() => markAsOnline()).catch(() => {});
+                return { cfi: localPosition.cfi, progress: localPosition.progress };
+            }
+        } catch (e) {
+            console.error('Failed to check local positions:', e);
+        }
+
+        // No local positions, fetch from server
         try {
             const response = await api.get(`/books/${bookId}/progress`);
             // API request succeeded - we're online

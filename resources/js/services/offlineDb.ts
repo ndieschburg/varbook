@@ -93,6 +93,21 @@ export async function getUnsyncedPositions(): Promise<OfflinePosition[]> {
     return positions;
 }
 
+export async function getLatestUnsyncedPosition(bookId: number): Promise<OfflinePosition | null> {
+    const positions = await db.positions
+        .filter((pos) => pos.bookId === bookId && pos.synced === false)
+        .toArray();
+
+    if (positions.length === 0) return null;
+
+    // Return the most recent position (highest timestamp)
+    const latest = positions.reduce((a, b) =>
+        a.timestamp > b.timestamp ? a : b
+    );
+    console.log('[OfflineDB] Latest unsynced position for book', bookId, ':', latest);
+    return latest;
+}
+
 export async function markPositionsSynced(ids: number[]): Promise<void> {
     await db.positions.where('id').anyOf(ids).modify({ synced: true });
 }
