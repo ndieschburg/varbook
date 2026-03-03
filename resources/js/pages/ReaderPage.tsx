@@ -96,8 +96,36 @@ export function ReaderPage() {
     // Disable browser back/forward swipe gestures while in reader
     useEffect(() => {
         document.body.style.overscrollBehaviorX = 'none';
+
+        let touchStartX = 0;
+        let touchStartedNearEdge = false;
+        const edgeThreshold = 30;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartX = e.touches[0].clientX;
+            const screenWidth = window.innerWidth;
+            touchStartedNearEdge = touchStartX < edgeThreshold || touchStartX > screenWidth - edgeThreshold;
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (touchStartedNearEdge) {
+                e.preventDefault();
+            }
+        };
+
+        const handleTouchEnd = () => {
+            touchStartedNearEdge = false;
+        };
+
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
         return () => {
             document.body.style.overscrollBehaviorX = '';
+            document.removeEventListener('touchstart', handleTouchStart);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
         };
     }, []);
 
