@@ -93,9 +93,17 @@ export function ReaderPage() {
         );
     }
 
+    // Disable browser back/forward swipe gestures while in reader
+    useEffect(() => {
+        document.body.style.overscrollBehaviorX = 'none';
+        return () => {
+            document.body.style.overscrollBehaviorX = '';
+        };
+    }, []);
+
     // Always render the full layout so containerRef is available
     return (
-        <div className="h-screen flex flex-col bg-gray-900">
+        <div className="h-screen flex flex-col bg-gray-900 touch-pan-y">
             {/* Top bar */}
             {showControls && (
                 <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 z-20">
