@@ -93,6 +93,10 @@ export function ReaderPage() {
         );
     }
 
+    // Store prevPage in a ref so we can use it in the popstate handler
+    const prevPageRef = useRef(prevPage);
+    prevPageRef.current = prevPage;
+
     // Disable browser back/forward swipe gestures while in reader
     useEffect(() => {
         // Apply CSS properties to block browser navigation gestures
@@ -104,14 +108,19 @@ export function ReaderPage() {
         document.body.style.overscrollBehavior = 'none';
         document.body.style.touchAction = 'pan-y pinch-zoom';
 
-        // For PWA: Push a fake history entry and intercept back navigation
-        // This prevents the swipe-back gesture from leaving the reader
+        // For PWA: Push fake history entries and intercept back navigation
+        // Convert swipe-back gesture into "previous page" in the book
         const readerHistoryState = { isReaderPage: true, bookId };
+        // Push 2 entries so we have buffer for the back gesture
+        history.pushState(readerHistoryState, '', window.location.href);
         history.pushState(readerHistoryState, '', window.location.href);
 
         const handlePopState = () => {
-            // If we're still on the reader page, push the state back
+            // If we're still on the reader page, go to previous page and restore history
             if (window.location.pathname.includes('/read/')) {
+                // Go to previous page in the book
+                prevPageRef.current();
+                // Push the state back to maintain the buffer
                 history.pushState(readerHistoryState, '', window.location.href);
             }
         };
