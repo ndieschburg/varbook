@@ -95,7 +95,7 @@ export function ReaderPage() {
 
     // Disable browser back/forward swipe gestures while in reader
     useEffect(() => {
-        // Apply multiple CSS properties to block browser navigation gestures
+        // Apply CSS properties to block browser navigation gestures
         const originalStyles = {
             overscrollBehavior: document.body.style.overscrollBehavior,
             touchAction: document.body.style.touchAction,
@@ -104,11 +104,26 @@ export function ReaderPage() {
         document.body.style.overscrollBehavior = 'none';
         document.body.style.touchAction = 'pan-y pinch-zoom';
 
+        // For PWA: Push a fake history entry and intercept back navigation
+        // This prevents the swipe-back gesture from leaving the reader
+        const readerHistoryState = { isReaderPage: true, bookId };
+        history.pushState(readerHistoryState, '', window.location.href);
+
+        const handlePopState = () => {
+            // If we're still on the reader page, push the state back
+            if (window.location.pathname.includes('/read/')) {
+                history.pushState(readerHistoryState, '', window.location.href);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
         return () => {
             document.body.style.overscrollBehavior = originalStyles.overscrollBehavior;
             document.body.style.touchAction = originalStyles.touchAction;
+            window.removeEventListener('popstate', handlePopState);
         };
-    }, []);
+    }, [bookId]);
 
     // Always render the full layout so containerRef is available
     return (
