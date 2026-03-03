@@ -10,6 +10,7 @@ import {
     type OfflinePosition,
 } from '@/services/offlineDb';
 import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
+import { debugLog, debugError } from '@/services/debugLogger';
 
 interface BatchUpdate {
     cfi: string;
@@ -36,7 +37,7 @@ export function useOfflineSync() {
     const syncPendingPositions = useCallback(async () => {
         // Don't sync if already syncing or effectively offline
         if (syncingRef.current || isEffectivelyOffline()) {
-            console.log('[OfflineSync] Skipping sync - already syncing or offline');
+            debugLog('OfflineSync', 'Skipping sync - already syncing or offline');
             return;
         }
 
@@ -49,7 +50,7 @@ export function useOfflineSync() {
                 return;
             }
 
-            console.log(`[OfflineSync] Syncing ${positions.length} positions...`);
+            debugLog('OfflineSync', `Syncing ${positions.length} positions...`);
 
             // Group by bookId
             const grouped = positions.reduce(
@@ -84,7 +85,7 @@ export function useOfflineSync() {
                 if (result.status === 'fulfilled') {
                     successfulIds.push(...batchUpdates[index].positionIds);
                 } else {
-                    console.error(`Failed to sync book ${batchUpdates[index].bookId}:`, result.reason);
+                    debugError('OfflineSync', `Failed to sync book ${batchUpdates[index].bookId}`, result.reason);
                     if (isNetworkError(result.reason)) {
                         hasNetworkFailure = true;
                     }
@@ -103,14 +104,14 @@ export function useOfflineSync() {
                 await markPositionsSynced(successfulIds);
                 await clearSyncedPositions();
                 queryClient.invalidateQueries({ queryKey: ['books'] });
-                console.log(`[OfflineSync] Successfully synced ${successfulIds.length} positions`);
+                debugLog('OfflineSync', `Successfully synced ${successfulIds.length} positions`);
                 toast.success(t('Reading progress synced'));
             } else if (hasNetworkFailure) {
                 // Don't show error toast for network failures - will retry later
-                console.log('[OfflineSync] Network failure, will retry later');
+                debugLog('OfflineSync', 'Network failure, will retry later');
             }
         } catch (error) {
-            console.error('Failed to sync positions:', error);
+            debugError('OfflineSync', 'Failed to sync positions', error);
             if (isNetworkError(error)) {
                 markAsOffline();
             } else {
@@ -124,14 +125,14 @@ export function useOfflineSync() {
     // Listen for online event and visibility changes
     useEffect(() => {
         const handleOnline = () => {
-            console.log('[OfflineSync] Online event triggered');
+            debugLog('OfflineSync', 'Online event triggered');
             syncPendingPositions();
         };
 
         // Also sync when app becomes visible (handles case where navigator.onLine is unreliable)
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && navigator.onLine) {
-                console.log('[OfflineSync] App visible, attempting sync');
+                debugLog('OfflineSync', 'App visible, attempting sync');
                 syncPendingPositions();
             }
         };
@@ -139,14 +140,14 @@ export function useOfflineSync() {
         // Sync on window focus (another opportunity to sync)
         const handleFocus = () => {
             if (navigator.onLine) {
-                console.log('[OfflineSync] Window focused, attempting sync');
+                debugLog('OfflineSync', 'Window focused, attempting sync');
                 syncPendingPositions();
             }
         };
 
         // Listen for our custom network-restored event (fired when API call succeeds after being offline)
         const handleNetworkRestored = () => {
-            console.log('[OfflineSync] Network restored event triggered');
+            debugLog('OfflineSync', 'Network restored event triggered');
             syncPendingPositions();
         };
 
@@ -154,11 +155,11 @@ export function useOfflineSync() {
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleFocus);
         window.addEventListener('network-restored', handleNetworkRestored);
-        console.log('[OfflineSync] Listening for online/visibility/focus/network-restored events');
+        debugLog('OfflineSync', 'Listening for online/visibility/focus/network-restored events');
 
         // Also try to sync on mount if online
         if (navigator.onLine) {
-            console.log('[OfflineSync] Already online, syncing on mount');
+            debugLog('OfflineSync', 'Already online, syncing on mount');
             syncPendingPositions();
         }
 

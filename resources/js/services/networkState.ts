@@ -1,6 +1,8 @@
 // Shared network state tracking
 // Detects when we're "effectively offline" (network errors despite navigator.onLine being true)
 
+import { debugLog } from './debugLogger';
+
 let effectivelyOffline = false;
 let offlineUntil = 0;
 const OFFLINE_DURATION_MS = 30000; // Don't retry API for 30 seconds after network error
@@ -8,7 +10,7 @@ const OFFLINE_DURATION_MS = 30000; // Don't retry API for 30 seconds after netwo
 // Reset offline state when browser reports online
 if (typeof window !== 'undefined') {
     window.addEventListener('online', () => {
-        console.log('[NetworkState] Browser online event - resetting offline state');
+        debugLog('NetworkState', 'Browser online event - resetting offline state');
         effectivelyOffline = false;
         offlineUntil = 0;
     });
@@ -33,19 +35,19 @@ export function isEffectivelyOffline(): boolean {
 }
 
 export function markAsOffline(): void {
-    console.log('[NetworkState] Network error detected - entering offline mode for 30s');
+    debugLog('NetworkState', 'Network error detected - entering offline mode for 30s');
     effectivelyOffline = true;
     offlineUntil = Date.now() + OFFLINE_DURATION_MS;
 }
 
 export function markAsOnline(): void {
     if (effectivelyOffline) {
-        console.log('[NetworkState] API success - clearing offline state');
+        debugLog('NetworkState', 'API success - clearing offline state');
         effectivelyOffline = false;
         offlineUntil = 0;
         // Dispatch custom event to trigger sync
         if (typeof window !== 'undefined') {
-            console.log('[NetworkState] Dispatching network-restored event');
+            debugLog('NetworkState', 'Dispatching network-restored event');
             window.dispatchEvent(new CustomEvent('network-restored'));
         }
     }

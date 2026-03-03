@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import api from '@/api/client';
 import { queuePositionSync, getLatestUnsyncedPosition } from '@/services/offlineDb';
 import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
+import { debugLog, debugWarn, debugError } from '@/services/debugLogger';
 
 interface PositionSyncOptions {
     bookId: number;
@@ -18,13 +19,13 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
         try {
             const localPosition = await getLatestUnsyncedPosition(bookId);
             if (localPosition) {
-                console.log('[PositionSync] Using local unsynced position instead of server');
+                debugLog('PositionSync', 'Using local unsynced position instead of server');
                 // Still try to trigger online detection for sync, but don't use the result
                 api.get(`/books/${bookId}/progress`).then(() => markAsOnline()).catch(() => {});
                 return { cfi: localPosition.cfi, progress: localPosition.progress };
             }
         } catch (e) {
-            console.error('Failed to check local positions:', e);
+            debugError('PositionSync', 'Failed to check local positions', e);
         }
 
         // No local positions, fetch from server
@@ -39,7 +40,7 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
             }
             return null;
         } catch (error) {
-            console.error('Failed to load position:', error);
+            debugError('PositionSync', 'Failed to load position', error);
             if (isNetworkError(error)) {
                 markAsOffline();
             }
@@ -58,12 +59,12 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
 
             // If offline (browser says so, or we detected network errors), queue immediately
             if (isEffectivelyOffline()) {
-                console.log('[PositionSync] Offline - queuing position for sync');
+                debugLog('PositionSync', 'Offline - queuing position for sync');
                 try {
                     await queuePositionSync(bookId, cfi, progress);
                     lastSavedCfiRef.current = cfi;
                 } catch (queueError) {
-                    console.error('Failed to queue position for offline sync:', queueError);
+                    debugError('PositionSync', 'Failed to queue position for offline sync', queueError);
                 }
                 return;
             }
@@ -86,12 +87,12 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
                 }
 
                 // Queue for offline sync
-                console.warn('[PositionSync] API failed, queueing for offline sync');
+                debugWarn('PositionSync', 'API failed, queueing for offline sync');
                 try {
                     await queuePositionSync(bookId, cfi, progress);
                     lastSavedCfiRef.current = cfi;
                 } catch (queueError) {
-                    console.error('Failed to queue position for offline sync:', queueError);
+                    debugError('PositionSync', 'Failed to queue position for offline sync', queueError);
                 }
             }
         }, debounceMs);
@@ -107,9 +108,9 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
 
         // If offline (browser says so, or we detected network errors), queue for later sync
         if (isEffectivelyOffline()) {
-            console.log('[PositionSync] flushSync - Offline, queuing position');
+            debugLog('PositionSync', 'flushSync - Offline, queuing position');
             queuePositionSync(bookId, cfi, progress).catch(err => {
-                console.error('Failed to queue position for offline sync:', err);
+                debugError('PositionSync', 'Failed to queue position for offline sync', err);
             });
             lastSavedCfiRef.current = cfi;
             return;
@@ -132,9 +133,9 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
             lastSavedCfiRef.current = cfi;
         } else {
             // Fallback: queue for offline sync if sendBeacon fails
-            console.warn('sendBeacon failed, queueing for offline sync');
+            debugWarn('PositionSync', 'sendBeacon failed, queueing for offline sync');
             queuePositionSync(bookId, cfi, progress).catch(err => {
-                console.error('Failed to queue position for offline sync:', err);
+                debugError('PositionSync', 'Failed to queue position for offline sync', err);
             });
             lastSavedCfiRef.current = cfi;
         }

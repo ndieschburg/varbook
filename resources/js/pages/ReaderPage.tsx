@@ -1,10 +1,11 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useBook, useSettings } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
+import { setDebugMode } from '@/services/debugLogger';
 import type { Theme, FontFamily, Margins, FlowMode } from '@/hooks/useReaderSettings';
 
 export function ReaderPage() {
@@ -25,6 +26,11 @@ export function ReaderPage() {
         const debugSetting = readerCategory?.settings.find(s => s.key === 'reader.debug_mode');
         return debugSetting?.value === true;
     }, [settingsData]);
+
+    // Set global debug mode for offline sync logging
+    useEffect(() => {
+        setDebugMode(debugMode);
+    }, [debugMode]);
 
     const {
         isLoading,

@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { debugLog } from './debugLogger';
 
 export interface OfflineBook {
     id?: number;
@@ -76,7 +77,7 @@ export async function queuePositionSync(
     cfi: string,
     progress: number
 ): Promise<void> {
-    console.log('[OfflineDB] Queuing position:', { bookId, cfi, progress });
+    debugLog('OfflineDB', 'Queuing position', { bookId, cfi, progress });
     const id = await db.positions.add({
         bookId,
         cfi,
@@ -84,12 +85,12 @@ export async function queuePositionSync(
         timestamp: new Date(),
         synced: false,
     });
-    console.log('[OfflineDB] Position queued with id:', id);
+    debugLog('OfflineDB', `Position queued with id: ${id}`);
 }
 
 export async function getUnsyncedPositions(): Promise<OfflinePosition[]> {
     const positions = await db.positions.filter((pos) => pos.synced === false).toArray();
-    console.log('[OfflineDB] Getting unsynced positions:', positions.length, positions);
+    debugLog('OfflineDB', `Getting unsynced positions: ${positions.length}`, positions);
     return positions;
 }
 
@@ -104,7 +105,7 @@ export async function getLatestUnsyncedPosition(bookId: number): Promise<Offline
     const latest = positions.reduce((a, b) =>
         a.timestamp > b.timestamp ? a : b
     );
-    console.log('[OfflineDB] Latest unsynced position for book', bookId, ':', latest);
+    debugLog('OfflineDB', `Latest unsynced position for book ${bookId}`, latest);
     return latest;
 }
 
