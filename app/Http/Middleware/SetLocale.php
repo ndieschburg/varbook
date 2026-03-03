@@ -30,20 +30,27 @@ class SetLocale
      */
     protected function determineLocale(Request $request): string
     {
-        // 1. Check session preference
+        // 1. Check authenticated user's locale preference
+        if ($user = $request->user()) {
+            if ($user->locale && in_array($user->locale, $this->supportedLocales)) {
+                return $user->locale;
+            }
+        }
+
+        // 2. Check session preference
         if ($locale = session('locale')) {
             if (in_array($locale, $this->supportedLocales)) {
                 return $locale;
             }
         }
 
-        // 2. Detect from browser Accept-Language header
+        // 3. Detect from browser Accept-Language header
         $browserLocale = $this->detectBrowserLocale($request);
         if ($browserLocale) {
             return $browserLocale;
         }
 
-        // 3. Fall back to default (English)
+        // 4. Fall back to default (English)
         return 'en';
     }
 
