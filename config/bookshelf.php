@@ -53,20 +53,15 @@ return [
             'icon' => 'settings',
             'sort' => 1,
         ],
-        'reader' => [
-            'label' => 'EPUB Reader',
-            'icon' => 'book-open',
-            'sort' => 2,
-        ],
         'library' => [
             'label' => 'Library',
             'icon' => 'library',
-            'sort' => 3,
+            'sort' => 2,
         ],
         'appearance' => [
             'label' => 'Appearance',
             'icon' => 'palette',
-            'sort' => 4,
+            'sort' => 3,
         ],
     ],
 ];

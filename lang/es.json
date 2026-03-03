@@ -175,7 +175,6 @@
     "Value must be at most :max characters": "El valor debe tener como máximo :max caracteres",
 
     "settings.category.general": "General",
-    "settings.category.reader": "Lector EPUB",
     "settings.category.library": "Biblioteca",
     "settings.category.appearance": "Apariencia",
 
@@ -189,17 +188,6 @@
     "settings.general.finished_threshold_description": "Porcentaje de progreso para marcar automáticamente el libro como terminado",
     "settings.general.progress_logging": "Registro de progreso",
     "settings.general.progress_logging_description": "Registrar todas las llamadas de sincronización de progreso para depuración (solo admin)",
-
-    "settings.reader.font_size": "Tamaño de fuente",
-    "settings.reader.font_size_description": "Tamaño de fuente predeterminado en píxeles para el lector EPUB",
-    "settings.reader.font_family": "Familia de fuente",
-    "settings.reader.font_family_description": "Fuente predeterminada para la lectura",
-    "settings.reader.theme": "Tema del lector",
-    "settings.reader.theme_description": "Tema de color para la lectura",
-    "settings.reader.line_height": "Interlineado",
-    "settings.reader.line_height_description": "Multiplicador de espaciado entre líneas",
-    "settings.reader.debug_mode": "Modo debug",
-    "settings.reader.debug_mode_description": "Mostrar información de depuración en la consola del navegador mientras lees",
 
     "settings.library.default_sort": "Orden predeterminado",
     "settings.library.default_sort_description": "Cómo se ordenan los libros por defecto",
@@ -215,13 +203,6 @@
     "settings.appearance.ui_theme": "Tema de la interfaz",
     "settings.appearance.ui_theme_description": "Tema de color para la interfaz de la aplicación",
 
-    "settings.options.reader.font_family.system": "Sistema predeterminado",
-    "settings.options.reader.font_family.serif": "Serif",
-    "settings.options.reader.font_family.sans-serif": "Sans-serif",
-    "settings.options.reader.font_family.monospace": "Monospace",
-    "settings.options.reader.theme.light": "Claro",
-    "settings.options.reader.theme.dark": "Oscuro",
-    "settings.options.reader.theme.sepia": "Sepia",
     "settings.options.library.default_sort.recent": "Reciente",
     "settings.options.library.default_sort.title": "Título",
     "settings.options.library.default_sort.author": "Autor",

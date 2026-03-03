@@ -203,9 +203,8 @@ if (!$result['valid']) { /* handle $result['errors'] */ }
 ```php
 'settings_categories' => [
     'general' => ['label' => 'General', 'icon' => 'settings', 'sort' => 1],
-    'reader' => ['label' => 'EPUB Reader', 'icon' => 'book-open', 'sort' => 2],
-    'library' => ['label' => 'Library', 'icon' => 'library', 'sort' => 3],
-    'appearance' => ['label' => 'Appearance', 'icon' => 'palette', 'sort' => 4],
+    'library' => ['label' => 'Library', 'icon' => 'library', 'sort' => 2],
+    'appearance' => ['label' => 'Appearance', 'icon' => 'palette', 'sort' => 3],
 ],
 ```
 
@@ -214,7 +213,7 @@ if (!$result['valid']) { /* handle $result['errors'] */ }
 ```
 # User settings (only user-overridable)
 GET    /api/settings              → SettingsController@index
-PUT    /api/settings/{key}        → SettingsController@update (key: reader_font_size)
+PUT    /api/settings/{key}        → SettingsController@update (key: library_default_sort)
 DELETE /api/settings/{key}        → SettingsController@destroy (reset to default)
 
 # Admin settings (all settings)
@@ -236,10 +235,10 @@ Note: In URLs, dots in keys are replaced with underscores (e.g., `reader.font_si
 ```json
 // lang/{en,fr,es}.json
 {
-  "settings.category.reader": "EPUB Reader",
-  "settings.reader.font_size": "Font size",
-  "settings.reader.font_size_description": "Default font size in pixels",
-  "settings.options.reader.theme.dark": "Dark"
+  "settings.category.library": "Library",
+  "settings.library.default_sort": "Default sort",
+  "settings.library.default_sort_description": "How books are sorted by default",
+  "settings.options.library.default_sort.recent": "Recent"
 }
 ```
 
@@ -255,17 +254,16 @@ Note: In URLs, dots in keys are replaced with underscores (e.g., `reader.font_si
 | `general.finished_threshold` | number | 95 | Progress percentage to mark book as finished |
 | `general.progress_logging` | checkbox | false | Log all progress sync calls for debugging |
 
-##### Reader Settings (User overridable, stored in localStorage)
+##### Reader Settings (localStorage only, NOT in database)
 
-These settings are device-specific and stored in the browser's localStorage, not synced via the settings API.
+Reader settings are **device-specific** and stored in the browser's `localStorage` only. They are NOT defined in the database and NOT synced via the settings API. Each device maintains its own reader preferences.
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `reader.font_size` | number | 16 | Font size in pixels for EPUB content |
-| `reader.font_family` | select | system | Font family (system, serif, sans-serif, monospace) |
-| `reader.theme` | select | dark | Reader color theme (light, dark, sepia) |
-| `reader.line_height` | number | 1.6 | Line spacing multiplier |
-| `reader.debug_mode` | checkbox | false | Expose epub.js objects to browser console |
+Managed in `resources/js/pages/ReaderPage.tsx` using localStorage keys:
+- `reader.font_size` - Font size in pixels (default: 16)
+- `reader.font_family` - Font family: system, serif, sans-serif, monospace (default: system)
+- `reader.theme` - Color theme: light, dark, sepia (default: dark)
+- `reader.line_height` - Line spacing multiplier (default: 1.6)
+- `reader.debug_mode` - Expose epub.js objects to console (default: false)
 
 ##### Library Settings (User overridable, synced via API)
 
