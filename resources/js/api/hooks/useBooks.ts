@@ -19,7 +19,7 @@ export function useCurrentlyReading() {
         queryKey: ['books', 'currently-reading'],
         queryFn: async (): Promise<Book[]> => {
             const { data } = await api.get('/books', {
-                params: { status: 'reading', per_page: 50 }
+                params: { status: 'reading', per_page: 50, sort_by: 'last_read_at', sort_dir: 'desc' }
             });
             return data.data;
         },

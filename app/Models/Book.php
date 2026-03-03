@@ -29,6 +29,7 @@ class Book extends Model
         'progress',
         'total_reading_seconds',
         'is_finished',
+        'last_read_at',
     ];
 
     protected function casts(): array
@@ -38,6 +39,7 @@ class Book extends Model
             'progress' => 'decimal:5',
             'total_reading_seconds' => 'integer',
             'is_finished' => 'boolean',
+            'last_read_at' => 'datetime',
         ];
     }
 

@@ -59,8 +59,10 @@ class ReadingSessionService
         }
         $syncIdentifier->save();
 
-        // Update book progress
+        // Update book progress and last read timestamp
         $book->updateProgress($progress);
+        $book->last_read_at = $now;
+        $book->save();
 
         // Recalculate total reading time
         $book->recalculateReadingTime();
