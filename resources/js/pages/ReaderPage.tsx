@@ -93,10 +93,6 @@ export function ReaderPage() {
         );
     }
 
-    // Store prevPage in a ref so we can use it in the popstate handler
-    const prevPageRef = useRef(prevPage);
-    prevPageRef.current = prevPage;
-
     // Disable browser back/forward swipe gestures while in reader
     useEffect(() => {
         // Apply CSS properties to block browser navigation gestures
@@ -116,12 +112,10 @@ export function ReaderPage() {
         history.pushState(readerHistoryState, '', window.location.href);
 
         const handlePopState = () => {
-            // If we're still on the reader page, go to previous page and restore history
+            // If we're still on the reader page, dispatch custom event and restore history
             if (window.location.pathname.includes('/read/')) {
-                // Go to previous page in the book (if reader is ready)
-                if (typeof prevPageRef.current === 'function') {
-                    prevPageRef.current();
-                }
+                // Dispatch custom event that will be caught below
+                window.dispatchEvent(new CustomEvent('reader-prev-page'));
                 // Push the state back to maintain the buffer
                 history.pushState(readerHistoryState, '', window.location.href);
             }
@@ -135,6 +129,16 @@ export function ReaderPage() {
             window.removeEventListener('popstate', handlePopState);
         };
     }, [bookId]);
+
+    // Listen for custom event to go to previous page
+    useEffect(() => {
+        const handlePrevPage = () => {
+            prevPage();
+        };
+
+        window.addEventListener('reader-prev-page', handlePrevPage);
+        return () => window.removeEventListener('reader-prev-page', handlePrevPage);
+    }, [prevPage]);
 
     // Always render the full layout so containerRef is available
     return (
