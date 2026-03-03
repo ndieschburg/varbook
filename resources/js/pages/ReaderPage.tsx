@@ -118,8 +118,10 @@ export function ReaderPage() {
         const handlePopState = () => {
             // If we're still on the reader page, go to previous page and restore history
             if (window.location.pathname.includes('/read/')) {
-                // Go to previous page in the book
-                prevPageRef.current();
+                // Go to previous page in the book (if reader is ready)
+                if (typeof prevPageRef.current === 'function') {
+                    prevPageRef.current();
+                }
                 // Push the state back to maintain the buffer
                 history.pushState(readerHistoryState, '', window.location.href);
             }
