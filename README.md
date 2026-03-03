@@ -155,6 +155,16 @@ BookShelf can be installed as a Progressive Web App:
 3. The app will be available as a standalone application
 4. Books can be downloaded for offline reading
 
+### Offline Sync
+
+When reading offline, your reading positions are stored locally and automatically synced when you come back online:
+
+- Positions are saved to IndexedDB while offline
+- On reconnection, all queued positions are batch-synced to the server
+- Local positions take priority to prevent overwriting recent offline reading with old server data
+
+**Debug Mode**: Enable "Debug mode" in Settings > EPUB Reader to see detailed logs for offline sync operations (`[NetworkState]`, `[OfflineDB]`, `[PositionSync]`, `[OfflineSync]`) in the browser console.
+
 ### Search & Filter
 
 - Use the search bar to find books by title or author
