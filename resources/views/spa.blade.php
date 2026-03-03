@@ -35,7 +35,7 @@
     <script src="/build/registerSW.js"></script>
     @endproduction
 </head>
-<body class="font-sans antialiased bg-gray-900 text-gray-100">
+<body class="font-sans antialiased bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
     <div id="app"></div>
 </body>
 </html>

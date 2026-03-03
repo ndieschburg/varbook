@@ -43,13 +43,13 @@ export function Header() {
     ] : [];
 
     return (
-        <header className="bg-gray-800 border-b border-gray-700">
+        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-14 md:h-16">
                     {/* Mobile menu button */}
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className="md:hidden p-2 -ml-2 text-gray-300 hover:text-white"
+                        className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                     >
                         {mobileMenuOpen ? (
                             <XIcon className="h-6 w-6" />
@@ -60,7 +60,7 @@ export function Header() {
 
                     {/* Logo & Desktop Navigation */}
                     <div className="flex items-center gap-8">
-                        <Link to="/library" className="text-lg md:text-xl font-bold text-white">
+                        <Link to="/library" className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
                             BookShelf
                         </Link>
                         <nav className="hidden md:flex items-center gap-4">
@@ -70,8 +70,8 @@ export function Header() {
                                     to={link.path}
                                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                         isActive(link.path)
-                                            ? 'bg-gray-900 text-white'
-                                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                     }`}
                                 >
                                     {link.label}
@@ -83,8 +83,8 @@ export function Header() {
                                     to={link.path}
                                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                         isActive(link.path)
-                                            ? 'bg-gray-900 text-white'
-                                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                     }`}
                                 >
                                     {link.label}
@@ -103,8 +103,8 @@ export function Header() {
                                     onClick={() => handleLanguageChange(lang.code)}
                                     className={`px-2 py-1 text-xs rounded transition-colors ${
                                         i18n.language === lang.code
-                                            ? 'bg-gray-600 text-white'
-                                            : 'text-gray-400 hover:text-white'
+                                            ? 'bg-gray-200 text-gray-900 dark:bg-gray-600 dark:text-white'
+                                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                     }`}
                                 >
                                     {lang.label}
@@ -118,8 +118,8 @@ export function Header() {
                                 to="/settings"
                                 className={`p-2 rounded-md transition-colors ${
                                     isActive('/settings')
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                 }`}
                                 title={t('Settings')}
                             >
@@ -129,8 +129,8 @@ export function Header() {
                                 to="/profile"
                                 className={`text-sm transition-colors ${
                                     isActive('/profile')
-                                        ? 'text-white'
-                                        : 'text-gray-300 hover:text-white'
+                                        ? 'text-gray-900 dark:text-white'
+                                        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                                 }`}
                             >
                                 {user?.name}
@@ -138,7 +138,7 @@ export function Header() {
                             <button
                                 onClick={handleLogout}
                                 disabled={logoutMutation.isPending}
-                                className="p-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded-md transition-colors disabled:opacity-50"
+                                className="p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md transition-colors disabled:opacity-50"
                                 title={t('Log Out')}
                             >
                                 <LogoutIcon className="h-5 w-5" />
@@ -152,8 +152,8 @@ export function Header() {
                             to="/settings"
                             className={`p-2 rounded-md transition-colors ${
                                 isActive('/settings')
-                                    ? 'bg-gray-900 text-white'
-                                    : 'text-gray-300 hover:text-white'
+                                    ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                             }`}
                         >
                             <CogIcon className="h-5 w-5" />
@@ -164,7 +164,7 @@ export function Header() {
 
             {/* Mobile menu */}
             {mobileMenuOpen && (
-                <div className="md:hidden bg-gray-800 border-t border-gray-700">
+                <div className="md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                     <nav className="px-4 py-3 space-y-1">
                         {navLinks.map((link) => (
                             <Link
@@ -173,8 +173,8 @@ export function Header() {
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                                     isActive(link.path)
-                                        ? 'bg-gray-900 text-white'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                        ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                 }`}
                             >
                                 {link.label}
@@ -182,7 +182,7 @@ export function Header() {
                         ))}
                         {adminLinks.length > 0 && (
                             <>
-                                <div className="border-t border-gray-700 my-2" />
+                                <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
                                 <p className="px-3 py-1 text-xs text-gray-500 uppercase">{t('Admin')}</p>
                                 {adminLinks.map((link) => (
                                     <Link
@@ -191,8 +191,8 @@ export function Header() {
                                         onClick={() => setMobileMenuOpen(false)}
                                         className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
                                             isActive(link.path)
-                                                ? 'bg-gray-900 text-white'
-                                                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
                                         }`}
                                     >
                                         {link.label}
@@ -203,7 +203,7 @@ export function Header() {
                     </nav>
 
                     {/* Language & User section */}
-                    <div className="px-4 py-3 border-t border-gray-700">
+                    <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
                         {/* Language */}
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-xs text-gray-500">{t('Language')}:</span>
@@ -214,8 +214,8 @@ export function Header() {
                                         onClick={() => handleLanguageChange(lang.code)}
                                         className={`px-2 py-1 text-xs rounded transition-colors ${
                                             i18n.language === lang.code
-                                                ? 'bg-gray-600 text-white'
-                                                : 'text-gray-400 hover:text-white'
+                                                ? 'bg-gray-200 text-gray-900 dark:bg-gray-600 dark:text-white'
+                                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                                         }`}
                                     >
                                         {lang.label}
@@ -229,7 +229,7 @@ export function Header() {
                             <Link
                                 to="/profile"
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="text-sm text-gray-300 hover:text-white"
+                                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                             >
                                 {user?.name}
                             </Link>

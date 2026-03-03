@@ -17,6 +17,13 @@ export default {
             fontFamily: {
                 sans: ['Inter', ...defaultTheme.fontFamily.sans],
             },
+            colors: {
+                accent: {
+                    DEFAULT: 'var(--color-accent)',
+                    light: 'color-mix(in srgb, var(--color-accent) 70%, white)',
+                    dark: 'color-mix(in srgb, var(--color-accent) 85%, black)',
+                },
+            },
         },
     },
 

@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom CSS variables for dynamic theming */
+:root {
+    --color-accent: #6366f1;
+    --color-accent-rgb: 99, 102, 241;
+}
+
+/* Accent color utilities using CSS variables */
+.bg-accent {
+    background-color: var(--color-accent);
+}
+
+.bg-accent-hover:hover {
+    background-color: color-mix(in srgb, var(--color-accent) 85%, black);
+}
+
+.text-accent {
+    color: var(--color-accent);
+}
+
+.border-accent {
+    border-color: var(--color-accent);
+}
+
+.ring-accent {
+    --tw-ring-color: var(--color-accent);
+}
+
+.shadow-accent {
+    box-shadow: 0 4px 14px 0 rgba(var(--color-accent-rgb), 0.2);
+}
+
+/* Gradient utilities with accent color */
+.from-accent {
+    --tw-gradient-from: var(--color-accent);
+}
+
+.to-accent {
+    --tw-gradient-to: var(--color-accent);
+}
