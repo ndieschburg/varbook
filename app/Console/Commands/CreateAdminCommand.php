@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\Validator;
 
 class CreateAdminCommand extends Command
 {
-    protected $signature = 'bookshelf:create-admin
+    protected $signature = 'varbook:create-admin
                             {--name= : Admin name}
                             {--email= : Admin email}
                             {--password= : Admin password}';
 
-    protected $description = 'Create an admin user for BookShelf';
+    protected $description = 'Create an admin user for Varbook';
 
     public function handle(): int
     {

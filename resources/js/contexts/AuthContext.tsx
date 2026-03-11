@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useEffect, useState } from 'react
 import { useUser, useLogin, useLogout } from '@/api/hooks';
 import type { User, LoginCredentials } from '@/types';
 
-const CACHED_USER_KEY = 'bookshelf_cached_user';
+const CACHED_USER_KEY = 'varbook_cached_user';
 
 interface AuthContextType {
     user: User | null | undefined;

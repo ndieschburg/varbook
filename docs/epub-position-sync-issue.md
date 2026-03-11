@@ -23,8 +23,8 @@ When reopening a book, the reader displays a position **2-5 pages behind** where
 
 Console logs confirmed:
 ```
-[BookShelf] Navigating to CFI: epubcfi(/6/86!/4[x9782207138595-44]/2/136/1:0)
-[BookShelf] Displayed at CFI: epubcfi(/6/86!/4[x9782207138595-44]/2/116/1:0)
+[Varbook] Navigating to CFI: epubcfi(/6/86!/4[x9782207138595-44]/2/136/1:0)
+[Varbook] Displayed at CFI: epubcfi(/6/86!/4[x9782207138595-44]/2/116/1:0)
 ```
 
 ## Solutions Attempted

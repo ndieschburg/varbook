@@ -1,20 +1,20 @@
 #!/bin/bash
 #
-# Build script for Bookshelf Calibre Plugin
+# Build script for Varbook Calibre Plugin
 #
 # Creates a ZIP file ready for installation in Calibre.
 #
 
 set -e
 
-PLUGIN_NAME="bookshelf_plugin"
+PLUGIN_NAME="varbook_plugin"
 OUTPUT_FILE="${PLUGIN_NAME}.zip"
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "Building Bookshelf Calibre Plugin..."
+echo "Building Varbook Calibre Plugin..."
 
 # Remove old build
 rm -f "$OUTPUT_FILE"
@@ -25,7 +25,7 @@ zip -r "$OUTPUT_FILE" \
     driver.py \
     config.py \
     ui.py \
-    plugin-import-name-bookshelf_plugin.txt \
+    plugin-import-name-varbook_plugin.txt \
     images/ \
     -x "*.pyc" \
     -x "__pycache__/*" \

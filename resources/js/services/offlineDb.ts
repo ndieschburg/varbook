@@ -25,7 +25,7 @@ class OfflineDatabase extends Dexie {
     positions!: EntityTable<OfflinePosition, 'id'>;
 
     constructor() {
-        super('BookShelfOffline');
+        super('VarbookOffline');
         this.version(1).stores({
             books: '++id, bookId, downloadedAt',
             positions: '++id, bookId, synced, timestamp',

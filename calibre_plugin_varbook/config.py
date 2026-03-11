@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Bookshelf Plugin Configuration
+Varbook Plugin Configuration
 
-Provides configuration storage and UI for the Bookshelf plugin.
+Provides configuration storage and UI for the Varbook plugin.
 Uses Calibre's JSONConfig for persistent storage.
 """
 
 from calibre.utils.config import JSONConfig
 
 # Configuration storage
-PREFS = JSONConfig('plugins/bookshelf_device')
+PREFS = JSONConfig('plugins/varbook_device')
 
 # Default values
 PREFS.defaults['server_url'] = ''
@@ -20,9 +20,9 @@ PREFS.defaults['auto_connect'] = False
 PREFS.defaults['ignore_ssl_errors'] = False
 
 
-class BookshelfConfig:
+class VarbookConfig:
     """
-    Configuration wrapper for Bookshelf plugin settings.
+    Configuration wrapper for Varbook plugin settings.
     """
 
     def __init__(self):
@@ -30,7 +30,7 @@ class BookshelfConfig:
 
     @property
     def server_url(self):
-        """Bookshelf server URL (e.g., https://bookshelf.example.com)"""
+        """Varbook server URL (e.g., https://varbook.example.com)"""
         url = self._prefs['server_url']
         # Ensure URL doesn't end with slash
         return url.rstrip('/') if url else ''
@@ -100,7 +100,7 @@ class ConfigWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.config = BookshelfConfig()
+        self.config = VarbookConfig()
         self._init_ui()
         self._load_settings()
 
@@ -114,7 +114,7 @@ class ConfigWidget(QWidget):
         # Server URL
         grid.addWidget(QLabel('Server URL:'), 0, 0)
         self.server_url_edit = QLineEdit()
-        self.server_url_edit.setPlaceholderText('https://bookshelf.example.com')
+        self.server_url_edit.setPlaceholderText('https://varbook.example.com')
         self.server_url_edit.setMinimumWidth(300)
         grid.addWidget(self.server_url_edit, 0, 1)
 
@@ -151,12 +151,12 @@ class ConfigWidget(QWidget):
         instructions = QLabel(
             '<p><b>Instructions:</b></p>'
             '<ol>'
-            '<li>Enter your Bookshelf server URL (without trailing slash)</li>'
+            '<li>Enter your Varbook server URL (without trailing slash)</li>'
             '<li>Enter your login credentials (same as web login)</li>'
             '<li>Click "Test Connection" to verify settings</li>'
             '<li>Enable auto-connect if you want Calibre to detect the device automatically</li>'
             '</ol>'
-            '<p><i>Books will be uploaded via WebDAV and will appear in your Bookshelf library.</i></p>'
+            '<p><i>Books will be uploaded via WebDAV and will appear in your Varbook library.</i></p>'
         )
         instructions.setWordWrap(True)
         layout.addWidget(instructions)
@@ -193,15 +193,15 @@ class ConfigWidget(QWidget):
             return
 
         # Test connection
-        from calibre_plugins.bookshelf_plugin.driver import BookshelfDriver
-        driver = BookshelfDriver(self.config)
+        from calibre_plugins.varbook_plugin.driver import VarbookDriver
+        driver = VarbookDriver(self.config)
 
         try:
             if driver.test_connection():
                 QMessageBox.information(
                     self,
                     'Connection Successful',
-                    'Successfully connected to Bookshelf server!'
+                    'Successfully connected to Varbook server!'
                 )
             else:
                 QMessageBox.warning(

@@ -61,7 +61,7 @@ export function Header() {
                     {/* Logo & Desktop Navigation */}
                     <div className="flex items-center gap-8">
                         <Link to="/library" className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                            BookShelf
+                            Varbook
                         </Link>
                         <nav className="hidden md:flex items-center gap-4">
                             {navLinks.map((link) => (

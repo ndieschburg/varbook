@@ -1,4 +1,4 @@
-# BookShelf
+# Varbook
 
 A self-hosted Laravel + React application for managing personal EPUB libraries with multi-device reading position sync. Features an integrated EPUB reader with offline PWA support, OPDS catalog, WebDAV sync for Moon+ Reader, and kosync API for KOReader.
 
@@ -31,8 +31,8 @@ A self-hosted Laravel + React application for managing personal EPUB libraries w
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/bookshelf.git
-cd bookshelf
+git clone https://github.com/ndieschburg/varbook.git
+cd varbook
 ```
 
 ### 2. Install dependencies
@@ -52,7 +52,7 @@ php artisan key:generate
 Edit `.env` with your database credentials and application URL:
 
 ```env
-APP_NAME=BookShelf
+APP_NAME=Varbook
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
@@ -60,7 +60,7 @@ APP_URL=https://your-domain.com
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=bookshelf
+DB_DATABASE=varbook
 DB_USERNAME=your_db_user
 DB_PASSWORD=your_db_password
 
@@ -69,7 +69,7 @@ SESSION_DRIVER=database
 # Sanctum SPA domains (for cookie auth)
 SANCTUM_STATEFUL_DOMAINS=your-domain.com
 
-# BookShelf Configuration
+# Varbook Configuration
 BOOKSHELF_MAX_SESSION_HOURS=4
 BOOKSHELF_SESSION_GAP_MINUTES=10
 BOOKSHELF_FINISHED_THRESHOLD=95
@@ -92,7 +92,7 @@ chown -R www-data:www-data storage bootstrap/cache
 ### 6. Create admin user
 
 ```bash
-php artisan bookshelf:create-admin
+php artisan varbook:create-admin
 ```
 
 ### 7. Optimize for production
@@ -111,7 +111,7 @@ php artisan view:cache
 server {
     listen 80;
     server_name your-domain.com;
-    root /var/www/bookshelf/public;
+    root /var/www/varbook/public;
 
     index index.php;
 
@@ -148,7 +148,7 @@ Access the application at your configured URL. The React SPA provides:
 
 ### PWA Installation
 
-BookShelf can be installed as a Progressive Web App:
+Varbook can be installed as a Progressive Web App:
 
 1. Open the site in Chrome/Edge/Safari
 2. Click "Install" in the address bar or browser menu
@@ -189,10 +189,10 @@ Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV 
 2. Go to **Menu** → **Net Library** → **OPDS catalogs**
 3. Tap **+** to add a new catalog
 4. Enter the following:
-   - **Name**: BookShelf (or any name you prefer)
+   - **Name**: Varbook (or any name you prefer)
    - **URL**: `https://your-domain.com/opds`
-   - **Username**: Your BookShelf email
-   - **Password**: Your BookShelf password
+   - **Username**: Your Varbook email
+   - **Password**: Your Varbook password
 5. Tap **OK** to save
 
 #### OPDS Endpoints
@@ -212,8 +212,8 @@ Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV 
 3. Select **WebDAV** as the sync method
 4. Enter the following:
    - **WebDAV URL**: `https://your-domain.com/webdav`
-   - **Username**: Your BookShelf email
-   - **Password**: Your BookShelf password
+   - **Username**: Your Varbook email
+   - **Password**: Your Varbook password
 5. Tap **Test** to verify the connection
 6. Enable **Auto sync** for automatic position syncing
 
@@ -228,14 +228,14 @@ KOReader syncs reading positions using the kosync protocol.
 3. Select **Custom sync server**
 4. Enter the following:
    - **Server URL**: `https://your-domain.com/api/kosync`
-   - **Username**: Your BookShelf email
-   - **Password**: Your BookShelf password
+   - **Username**: Your Varbook email
+   - **Password**: Your Varbook password
 5. Tap **Login** to authenticate
 
 ### How kosync Works
 
 - KOReader syncs position on book open/close and periodically
-- BookShelf tracks these as reading sessions
+- Varbook tracks these as reading sessions
 - Progress is calculated from the position data
 - Same session grouping logic as WebDAV (10-minute gap)
 
@@ -287,7 +287,7 @@ GET    /api/admin/stats              # Global statistics
 
 ```bash
 # Create a new admin user
-php artisan bookshelf:create-admin
+php artisan varbook:create-admin
 
 # Clear application cache
 php artisan optimize:clear
@@ -331,11 +331,11 @@ php artisan view:cache
 
 A Calibre plugin is available for uploading books directly from Calibre desktop.
 
-Location: `calibre_plugin_bookshelf/`
+Location: `calibre_plugin_varbook/`
 
 Build with:
 ```bash
-cd calibre_plugin_bookshelf
+cd calibre_plugin_varbook
 ./build.sh
 ```
 

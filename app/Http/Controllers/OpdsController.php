@@ -44,7 +44,7 @@ class OpdsController extends Controller
 
         return $this->opdsResponse(view('opds.feed', [
             'title' => 'All Books',
-            'id' => 'bookshelf:all',
+            'id' => 'varbook:all',
             'updated' => now()->toAtomString(),
             'books' => $books,
             'selfUrl' => route('opds.all'),
@@ -64,7 +64,7 @@ class OpdsController extends Controller
 
         return $this->opdsResponse(view('opds.authors', [
             'title' => 'Authors',
-            'id' => 'bookshelf:authors',
+            'id' => 'varbook:authors',
             'updated' => now()->toAtomString(),
             'authors' => $authors,
         ]));
@@ -79,7 +79,7 @@ class OpdsController extends Controller
 
         return $this->opdsResponse(view('opds.feed', [
             'title' => "Books by {$author}",
-            'id' => 'bookshelf:author:' . urlencode($author),
+            'id' => 'varbook:author:' . urlencode($author),
             'updated' => now()->toAtomString(),
             'books' => $books,
             'selfUrl' => route('opds.by-author', ['author' => $author]),
@@ -103,7 +103,7 @@ class OpdsController extends Controller
 
         return $this->opdsResponse(view('opds.feed', [
             'title' => "Search: {$query}",
-            'id' => 'bookshelf:search:' . urlencode($query),
+            'id' => 'varbook:search:' . urlencode($query),
             'updated' => now()->toAtomString(),
             'books' => $books,
             'selfUrl' => route('opds.search', ['q' => $query]),

@@ -1,4 +1,4 @@
-# BookShelf — Specifications
+# Varbook — Specifications
 
 ## Overview
 
@@ -11,7 +11,7 @@ Self-hosted Laravel application for managing personal EPUB libraries with multi-
 ### 1. Authentication & User Management
 
 **Admin user**
-- Created via artisan seeder or CLI command (`php artisan bookshelf:create-admin`)
+- Created via artisan seeder or CLI command (`php artisan varbook:create-admin`)
 - Can create, edit, deactivate and delete users
 - Can view all users' libraries and stats (read-only)
 
@@ -276,7 +276,7 @@ book_sync_identifiers
 ### Layout
 
 **Header** (fixed top):
-- Left: App logo/name "BookShelf"
+- Left: App logo/name "Varbook"
 - Center: Search bar (instant search with Livewire, filters on title/author)
 - Right: User avatar dropdown (Settings, Logout) + Admin link if admin
 
@@ -396,9 +396,9 @@ BOOKSHELF_MAX_UPLOAD_SIZE_MB=50        # Max EPUB file size
 ## Artisan Commands
 
 ```bash
-php artisan bookshelf:create-admin     # Create admin user interactively
-php artisan bookshelf:rehash-books     # Recompute MD5 hashes for all books (Phase 2 prep)
-php artisan bookshelf:stats            # Display global stats (users, books, reading time)
+php artisan varbook:create-admin     # Create admin user interactively
+php artisan varbook:rehash-books     # Recompute MD5 hashes for all books (Phase 2 prep)
+php artisan varbook:stats            # Display global stats (users, books, reading time)
 ```
 
 ---

@@ -17,7 +17,7 @@ export function PWAInstallBanner() {
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white">
-                            {t('Install BookShelf')}
+                            {t('Install Varbook')}
                         </p>
                         <p className="mt-1 text-sm text-indigo-200">
                             {t('Install the app for offline reading and quick access.')}

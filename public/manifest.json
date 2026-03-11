@@ -1,6 +1,6 @@
 {
-    "name": "BookShelf",
-    "short_name": "BookShelf",
+    "name": "Varbook",
+    "short_name": "Varbook",
     "description": "Personal EPUB library with reading progress sync",
     "start_url": "/library",
     "display": "standalone",

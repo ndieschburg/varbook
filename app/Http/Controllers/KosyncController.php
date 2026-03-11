@@ -165,8 +165,8 @@ class KosyncController extends Controller
             'document' => $documentHash,
             'progress' => $rawPosition,
             'percentage' => $progress / 100,
-            'device' => 'BookShelf',
-            'device_id' => 'bookshelf-server',
+            'device' => 'Varbook',
+            'device_id' => 'varbook-server',
             'timestamp' => $lastSyncAt->timestamp,
         ];
 

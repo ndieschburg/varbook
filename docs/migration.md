@@ -1,4 +1,4 @@
-# BookShelf — Migration Plan
+# Varbook — Migration Plan
 
 ## Context
 
@@ -265,8 +265,8 @@ This endpoint uses the same session grouping logic as kosync/WebDAV but accepts 
 6.1. **PWA manifest** (`public/manifest.json`):
 ```json
 {
-  "name": "BookShelf",
-  "short_name": "BookShelf",
+  "name": "Varbook",
+  "short_name": "Varbook",
   "start_url": "/library",
   "display": "standalone",
   "theme_color": "#0f172a",

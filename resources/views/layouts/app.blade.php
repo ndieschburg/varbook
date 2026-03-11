@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'BookShelf') }}</title>
+        <title>{{ config('app.name', 'Varbook') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -25,7 +25,7 @@
 
             <!-- Footer -->
             <footer class="py-4 text-center text-slate-500 text-sm border-t border-slate-800">
-                <p>BookShelf v1.0</p>
+                <p>Varbook v1.0</p>
             </footer>
         </div>
 

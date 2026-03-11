@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Bookshelf UI - InterfaceAction for Calibre toolbar.
+Varbook UI - InterfaceAction for Calibre toolbar.
 """
 
 import sys
@@ -22,17 +22,17 @@ except NameError:
 
 def debug_print(*args):
     """Print debug messages to calibre debug console."""
-    print('[Bookshelf]', *args, file=sys.stderr)
+    print('[Varbook]', *args, file=sys.stderr)
     sys.stderr.flush()
 
 
-class BookshelfAction(InterfaceAction):
+class VarbookAction(InterfaceAction):
     """
-    Toolbar action for sending books to Bookshelf.
+    Toolbar action for sending books to Varbook.
     """
 
-    name = 'Bookshelf'
-    action_spec = ('Bookshelf', None, 'Send books to Bookshelf server', None)
+    name = 'Varbook'
+    action_spec = ('Varbook', None, 'Send books to Varbook server', None)
     action_type = 'current'
     popup_type = QMenu.MenuButtonPopup if hasattr(QMenu, 'MenuButtonPopup') else 1
 
@@ -42,7 +42,7 @@ class BookshelfAction(InterfaceAction):
 
         # Set icon - get_icons is injected by calibre
         try:
-            icon = get_icons('images/icon.png', 'Bookshelf')
+            icon = get_icons('images/icon.png', 'Varbook')
             self.qaction.setIcon(icon)
         except Exception as e:
             debug_print(f'Could not set icon: {e}')
@@ -66,12 +66,12 @@ class BookshelfAction(InterfaceAction):
         self.send_selected_books()
 
     def send_selected_books(self):
-        """Send selected books to Bookshelf."""
+        """Send selected books to Varbook."""
         debug_print('send_selected_books() called')
 
         try:
-            from calibre_plugins.bookshelf_plugin.config import BookshelfConfig
-            from calibre_plugins.bookshelf_plugin.driver import BookshelfDriver
+            from calibre_plugins.varbook_plugin.config import VarbookConfig
+            from calibre_plugins.varbook_plugin.driver import VarbookDriver
         except Exception as e:
             debug_print(f'Import error: {e}')
             error_dialog(
@@ -82,15 +82,15 @@ class BookshelfAction(InterfaceAction):
             )
             return
 
-        config = BookshelfConfig()
+        config = VarbookConfig()
 
         if not config.is_configured():
             debug_print('Not configured')
             error_dialog(
                 self.gui,
                 'Not Configured',
-                'Please configure the Bookshelf plugin first.',
-                det_msg='Go to Preferences → Plugins → Bookshelf → Customize plugin',
+                'Please configure the Varbook plugin first.',
+                det_msg='Go to Preferences → Plugins → Varbook → Customize plugin',
                 show=True
             )
             return
@@ -112,7 +112,7 @@ class BookshelfAction(InterfaceAction):
         debug_print(f'Sending {len(book_ids)} book(s)')
 
         # Create driver
-        driver = BookshelfDriver(config)
+        driver = VarbookDriver(config)
 
         # Test connection first
         if not driver.test_connection():
@@ -120,7 +120,7 @@ class BookshelfAction(InterfaceAction):
             error_dialog(
                 self.gui,
                 'Connection Failed',
-                'Could not connect to Bookshelf server.',
+                'Could not connect to Varbook server.',
                 det_msg='Check your server URL and credentials in plugin settings.',
                 show=True
             )
@@ -128,12 +128,12 @@ class BookshelfAction(InterfaceAction):
 
         # Progress dialog
         progress = QProgressDialog(
-            'Sending books to Bookshelf...',
+            'Sending books to Varbook...',
             'Cancel',
             0, len(book_ids),
             self.gui
         )
-        progress.setWindowTitle('Bookshelf')
+        progress.setWindowTitle('Varbook')
         progress.setMinimumDuration(0)
         progress.setValue(0)
         progress.show()
@@ -206,7 +206,7 @@ class BookshelfAction(InterfaceAction):
             info_dialog(
                 self.gui,
                 'Upload Complete',
-                f'Successfully sent {success_count} book(s) to Bookshelf!',
+                f'Successfully sent {success_count} book(s) to Varbook!',
                 show=True
             )
 
@@ -219,12 +219,12 @@ class BookshelfAction(InterfaceAction):
         return result.strip('. ')[:200]
 
     def test_connection(self):
-        """Test connection to Bookshelf server."""
+        """Test connection to Varbook server."""
         debug_print('test_connection() called')
 
         try:
-            from calibre_plugins.bookshelf_plugin.config import BookshelfConfig
-            from calibre_plugins.bookshelf_plugin.driver import BookshelfDriver
+            from calibre_plugins.varbook_plugin.config import VarbookConfig
+            from calibre_plugins.varbook_plugin.driver import VarbookDriver
         except Exception as e:
             error_dialog(
                 self.gui,
@@ -234,7 +234,7 @@ class BookshelfAction(InterfaceAction):
             )
             return
 
-        config = BookshelfConfig()
+        config = VarbookConfig()
 
         if not config.is_configured():
             error_dialog(
@@ -245,7 +245,7 @@ class BookshelfAction(InterfaceAction):
             )
             return
 
-        driver = BookshelfDriver(config)
+        driver = VarbookDriver(config)
 
         if driver.test_connection():
             info_dialog(
@@ -258,7 +258,7 @@ class BookshelfAction(InterfaceAction):
             error_dialog(
                 self.gui,
                 'Connection Failed',
-                'Could not connect to Bookshelf server.',
+                'Could not connect to Varbook server.',
                 det_msg='Check your server URL and credentials.',
                 show=True
             )

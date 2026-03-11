@@ -4,14 +4,14 @@
 <updated>{{ $updated }}</updated>
 <title>{{ $title }}</title>
 <author>
-<name>BookShelf</name>
+<name>Varbook</name>
 </author>
 <link type="application/atom+xml;profile=opds-catalog" rel="self" href="{{ route('opds.authors') }}"/>
 <link type="application/atom+xml;profile=opds-catalog" rel="start" href="{{ route('opds.root') }}"/>
 @foreach ($authors as $author)
 <entry>
 <updated>{{ $updated }}</updated>
-<id>bookshelf:author:{{ urlencode($author) }}</id>
+<id>varbook:author:{{ urlencode($author) }}</id>
 <title>{{ htmlspecialchars($author, ENT_XML1) }}</title>
 <content type="text">Books by {{ htmlspecialchars($author, ENT_XML1) }}</content>
 <link type="application/atom+xml;profile=opds-catalog" rel="subsection" href="{{ route('opds.by-author', ['author' => $author]) }}"/>

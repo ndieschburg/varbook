@@ -51,9 +51,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         if (!debugModeRef.current) return;
         const timestamp = new Date().toISOString().substring(11, 23);
         if (data !== undefined) {
-            console.log(`[BookShelf ${timestamp}] ${message}`, data);
+            console.log(`[Varbook ${timestamp}] ${message}`, data);
         } else {
-            console.log(`[BookShelf ${timestamp}] ${message}`);
+            console.log(`[Varbook ${timestamp}] ${message}`);
         }
     }, []);
 
@@ -191,8 +191,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 if (debugModeRef.current) {
                     (window as any).epubBook = book;
                     (window as any).epubRendition = rendition;
-                    console.log('[BookShelf Debug] epub.js objects exposed: epubBook, epubRendition');
-                    console.log('[BookShelf Debug] Useful commands:');
+                    console.log('[Varbook Debug] epub.js objects exposed: epubBook, epubRendition');
+                    console.log('[Varbook Debug] Useful commands:');
                     console.log('  epubRendition.currentLocation().start.cfi  // Get current CFI');
                     console.log('  epubRendition.display("epubcfi(...)")      // Navigate to CFI');
                     console.log('  epubBook.locations.percentageFromCfi(cfi)  // CFI to percentage');
@@ -469,8 +469,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         if (debugMode && bookRef.current && renditionRef.current) {
             (window as any).epubBook = bookRef.current;
             (window as any).epubRendition = renditionRef.current;
-            console.log('[BookShelf Debug] epub.js objects exposed: epubBook, epubRendition');
-            console.log('[BookShelf Debug] Useful commands:');
+            console.log('[Varbook Debug] epub.js objects exposed: epubBook, epubRendition');
+            console.log('[Varbook Debug] Useful commands:');
             console.log('  epubRendition.currentLocation().start.cfi  // Get current CFI');
             console.log('  epubRendition.display("epubcfi(...)")      // Navigate to CFI');
             console.log('  epubBook.locations.percentageFromCfi(cfi)  // CFI to percentage');

@@ -4,7 +4,7 @@
 <updated>{{ $updated }}</updated>
 <title>{{ $title }}</title>
 <author>
-<name>BookShelf</name>
+<name>Varbook</name>
 </author>
 <link type="application/atom+xml;profile=opds-catalog" rel="self" href="{{ $selfUrl }}"/>
 <link type="application/atom+xml;profile=opds-catalog" rel="start" href="{{ route('opds.root') }}"/>
@@ -14,7 +14,7 @@
 @foreach ($books as $book)
 <entry>
 <updated>{{ $book->updated_at->toAtomString() }}</updated>
-<id>bookshelf:book:{{ $book->id }}</id>
+<id>varbook:book:{{ $book->id }}</id>
 <title>{{ htmlspecialchars($book->title, ENT_XML1) }}</title>
 @if ($book->author)
 <author>

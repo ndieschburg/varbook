@@ -13,7 +13,7 @@ const resources = {
 };
 
 const SUPPORTED_LANGUAGES = ['en', 'fr', 'es'];
-const STORAGE_KEY = 'bookshelf-locale';
+const STORAGE_KEY = 'varbook-locale';
 
 // Get initial locale: localStorage > HTML lang > browser language > 'en'
 const getInitialLocale = (): string => {

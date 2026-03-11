@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Bookshelf Driver - WebDAV and OPDS communication layer.
+Varbook Driver - WebDAV and OPDS communication layer.
 
-Handles all network communication with the Bookshelf server:
+Handles all network communication with the Varbook server:
 - WebDAV for uploading books
 - OPDS for browsing and listing books
 """
@@ -17,7 +17,7 @@ from urllib.error import URLError, HTTPError
 
 
 class Book:
-    """Represents a book on the Bookshelf server."""
+    """Represents a book on the Varbook server."""
 
     def __init__(self, title, authors=None, path=None, size=0, mime='application/epub+zip'):
         self.title = title
@@ -31,9 +31,9 @@ class Book:
         return f"Book({self.title!r}, {self.authors!r})"
 
 
-class BookshelfDriver:
+class VarbookDriver:
     """
-    Driver for communicating with Bookshelf server.
+    Driver for communicating with Varbook server.
     """
 
     WEBDAV_PATH = '/webdav/Apps/Books/'
@@ -44,7 +44,7 @@ class BookshelfDriver:
         Initialize driver with configuration.
 
         Args:
-            config: BookshelfConfig instance with server_url, email, password
+            config: VarbookConfig instance with server_url, email, password
         """
         self.config = config
         self._ssl_context = self._create_ssl_context()
@@ -110,7 +110,7 @@ class BookshelfDriver:
 
     def test_connection(self):
         """
-        Test if we can connect to the Bookshelf server.
+        Test if we can connect to the Varbook server.
 
         Returns:
             True if connection successful, False otherwise
@@ -123,7 +123,7 @@ class BookshelfDriver:
             self._make_request(url)
             return True
         except Exception as e:
-            print(f"Bookshelf connection test failed: {e}")
+            print(f"Varbook connection test failed: {e}")
             return False
 
     def get_books(self):
@@ -144,7 +144,7 @@ class BookshelfDriver:
             books = self._parse_opds_feed(response)
 
         except Exception as e:
-            print(f"Error fetching books from Bookshelf: {e}")
+            print(f"Error fetching books from Varbook: {e}")
 
         return books
 
@@ -212,7 +212,7 @@ class BookshelfDriver:
 
     def upload_book(self, filepath, filename, metadata=None):
         """
-        Upload a book to Bookshelf via WebDAV.
+        Upload a book to Varbook via WebDAV.
 
         Args:
             filepath: Local path to the book file
@@ -258,7 +258,7 @@ class BookshelfDriver:
 
     def delete_book(self, path):
         """
-        Delete a book from Bookshelf via WebDAV.
+        Delete a book from Varbook via WebDAV.
 
         Args:
             path: Path/filename of book to delete

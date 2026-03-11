@@ -52,7 +52,7 @@ export function LoginPage() {
             <div className="max-w-md w-full">
                 <div className="bg-gray-800 rounded-lg shadow-xl p-8">
                     <div className="text-center mb-8">
-                        <h1 className="text-2xl font-bold text-white">BookShelf</h1>
+                        <h1 className="text-2xl font-bold text-white">Varbook</h1>
                         <p className="text-gray-400 mt-2">{t('Log in')}</p>
                     </div>
 

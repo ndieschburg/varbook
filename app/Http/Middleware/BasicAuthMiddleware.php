@@ -34,6 +34,6 @@ class BasicAuthMiddleware
     protected function unauthorized(): Response
     {
         return response('Unauthorized', 401)
-            ->header('WWW-Authenticate', 'Basic realm="BookShelf"');
+            ->header('WWW-Authenticate', 'Basic realm="Varbook"');
     }
 }
