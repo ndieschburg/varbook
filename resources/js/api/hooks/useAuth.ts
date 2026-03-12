@@ -89,6 +89,7 @@ export function useRegister() {
 export function useResendVerification() {
     return useMutation({
         mutationFn: async (): Promise<{ message: string }> => {
+            await initCsrf();
             const { data } = await api.post('/email/verification-notification');
             return data;
         },
