@@ -20,8 +20,11 @@ export function useLogin() {
     return useMutation({
         mutationFn: async (credentials: LoginCredentials): Promise<LoginResponse> => {
             await initCsrf();
-            // Always remember for PWA - creates persistent cookie
-            const { data } = await api.post('/login', { ...credentials, remember: true });
+            // Default to remember=true for PWA if not specified
+            const { data } = await api.post('/login', {
+                ...credentials,
+                remember: credentials.remember ?? true,
+            });
             return data;
         },
         onSuccess: (data) => {

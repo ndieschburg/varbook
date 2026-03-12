@@ -15,6 +15,7 @@ export function LoginPage() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [remember, setRemember] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -32,7 +33,7 @@ export function LoginPage() {
         setIsLoading(true);
 
         try {
-            await login({ email, password });
+            await login({ email, password, remember });
             navigate(from, { replace: true });
         } catch (err) {
             if (err instanceof AxiosError && err.response?.data?.message) {
@@ -114,6 +115,19 @@ export function LoginPage() {
                                 placeholder="••••••••"
                                 className="w-full px-4 py-3 rounded-xl bg-gray-700/50 border border-gray-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                             />
+                        </div>
+
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="remember"
+                                checked={remember}
+                                onChange={(e) => setRemember(e.target.checked)}
+                                className="w-4 h-4 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0"
+                            />
+                            <label htmlFor="remember" className="ml-2 text-sm text-gray-300">
+                                {t('Remember me')}
+                            </label>
                         </div>
 
                         <Button
