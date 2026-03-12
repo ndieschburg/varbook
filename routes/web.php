@@ -16,8 +16,8 @@ Route::get('/build/sw.js', function () {
     ]);
 });
 
-// Redirect root to library
-Route::redirect('/', '/library');
+// Root route - serve SPA and let React Router handle the logic
+Route::view('/', 'spa')->name('home');
 
 // Language switch
 Route::get('locale/{locale}', function (string $locale) {
