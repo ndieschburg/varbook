@@ -89,11 +89,15 @@ export function LandingPage() {
                     </div>
 
                     {/* Hero Text */}
-                    <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
-                        {t('landing.hero.title')}
+                    <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 leading-tight">
+                        {t('Welcome')}
                     </h1>
 
-                    <p className="text-xl md:text-2xl text-indigo-200/80 mb-10 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-2xl md:text-3xl text-indigo-300/90 mb-4 font-medium">
+                        {t('landing.hero.title')}
+                    </p>
+
+                    <p className="text-lg md:text-xl text-indigo-200/70 mb-10 max-w-2xl mx-auto leading-relaxed">
                         {t('landing.hero.subtitle')}
                     </p>
 
