@@ -43,9 +43,19 @@ function RootRoute() {
     // Import useUser to check if auth verification is in progress
     const { isFetching: authFetching } = useUser();
 
+    console.log('[RootRoute] Debug:', {
+        authLoading,
+        configLoading,
+        authFetching,
+        isAuthenticated,
+        publicConfig,
+        showLanding: publicConfig?.show_landing_page,
+    });
+
     // Show loading while checking auth state, config, or verifying auth
     // We wait for authFetching to complete to avoid using stale cached data
     if (authLoading || configLoading || authFetching) {
+        console.log('[RootRoute] Showing loading spinner');
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-900">
                 <LoadingSpinner size="lg" />
@@ -55,15 +65,18 @@ function RootRoute() {
 
     // If authenticated, go to library
     if (isAuthenticated) {
+        console.log('[RootRoute] Authenticated, redirecting to /library');
         return <Navigate to="/library" replace />;
     }
 
     // If landing page is enabled, show it
     if (publicConfig?.show_landing_page) {
+        console.log('[RootRoute] Showing landing page');
         return <LandingPage />;
     }
 
     // Otherwise, redirect to login
+    console.log('[RootRoute] Redirecting to /login');
     return <Navigate to="/login" replace />;
 }
 
