@@ -132,7 +132,7 @@ export function SettingsPage() {
 
     if (!data?.categories || data.categories.length === 0) {
         return (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-gray-500 dark:text-slate-400">
                 {t('No settings available')}
             </div>
         );
@@ -142,10 +142,10 @@ export function SettingsPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <h1 className="text-2xl font-bold text-white">{t('Settings')}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('Settings')}</h1>
 
             {/* Category Tabs */}
-            <div className="flex flex-wrap gap-2 border-b border-slate-700 pb-4">
+            <div className="flex flex-wrap gap-2 border-b border-gray-200 dark:border-slate-700 pb-4">
                 {data.categories.map((category) => {
                     const IconComponent = categoryIcons[category.icon] || categoryIcons[category.key] || CogIcon;
                     return (
@@ -154,8 +154,8 @@ export function SettingsPage() {
                             onClick={() => setActiveTab(category.key)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                                 activeTab === category.key
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                                    ? 'bg-accent text-white'
+                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                             }`}
                         >
                             <IconComponent className="h-5 w-5" />
@@ -167,11 +167,11 @@ export function SettingsPage() {
 
             {/* Settings List */}
             {activeCategory && (
-                <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
-                    <h2 className="text-lg font-semibold text-white mb-4">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                         {activeCategory.label}
                     </h2>
-                    <div className="divide-y divide-slate-700">
+                    <div className="divide-y divide-gray-200 dark:divide-slate-700">
                         {activeCategory.settings.map((setting) => (
                             <SettingField
                                 key={setting.key}
@@ -191,9 +191,9 @@ export function SettingsPage() {
 
             {/* Saving indicator */}
             {pendingChanges.size > 0 && (
-                <div className="fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg shadow-lg">
+                <div className="fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg">
                     <LoadingSpinner size="sm" />
-                    <span className="text-slate-300 text-sm">{t('Saving...')}</span>
+                    <span className="text-gray-600 dark:text-slate-300 text-sm">{t('Saving...')}</span>
                 </div>
             )}
         </div>

@@ -58,7 +58,7 @@ export function BookUploader({ onUploadComplete }: BookUploaderProps) {
                 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
                 ${isDragActive
                     ? 'border-indigo-500 bg-indigo-500/10'
-                    : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/50'
+                    : 'border-gray-300 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800/50'
                 }
                 ${isUploading ? 'opacity-75 pointer-events-none' : ''}
             `}
@@ -68,8 +68,8 @@ export function BookUploader({ onUploadComplete }: BookUploaderProps) {
             {isUploading ? (
                 <div className="flex flex-col items-center gap-3">
                     <LoadingSpinner size="lg" />
-                    <p className="text-slate-300">{t('Uploading...')}</p>
-                    <div className="text-sm text-slate-500">
+                    <p className="text-gray-700 dark:text-slate-300">{t('Uploading...')}</p>
+                    <div className="text-sm text-gray-500 dark:text-slate-500">
                         {uploadingFiles.map(name => (
                             <div key={name}>{name}</div>
                         ))}
@@ -77,12 +77,12 @@ export function BookUploader({ onUploadComplete }: BookUploaderProps) {
                 </div>
             ) : (
                 <div className="flex flex-col items-center gap-3">
-                    <UploadIcon className="h-12 w-12 text-slate-500" />
+                    <UploadIcon className="h-12 w-12 text-gray-400 dark:text-slate-500" />
                     <div>
-                        <p className="text-slate-300 font-medium">
+                        <p className="text-gray-700 dark:text-slate-300 font-medium">
                             {t('Drag & drop EPUB files here')}
                         </p>
-                        <p className="text-slate-500 text-sm mt-1">
+                        <p className="text-gray-500 dark:text-slate-500 text-sm mt-1">
                             {t('or click to browse')}
                         </p>
                     </div>

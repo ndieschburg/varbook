@@ -73,8 +73,8 @@ export function BookDetailPage() {
     if (!book) {
         return (
             <div className="text-center py-16">
-                <p className="text-slate-400">{t('Book file not found')}</p>
-                <Link to="/library" className="text-indigo-400 hover:text-indigo-300 mt-4 inline-block">
+                <p className="text-gray-500 dark:text-slate-400">{t('Book file not found')}</p>
+                <Link to="/library" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 mt-4 inline-block">
                     {t('Back to Library')}
                 </Link>
             </div>
@@ -88,18 +88,18 @@ export function BookDetailPage() {
             {/* Back Link */}
             <Link
                 to="/library"
-                className="inline-flex items-center text-slate-400 hover:text-slate-100 mb-6 transition-colors"
+                className="inline-flex items-center text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 mb-6 transition-colors"
             >
                 <ArrowLeftIcon className="h-5 w-5 mr-2" />
                 {t('Back to Library')}
             </Link>
 
             {/* Book Header */}
-            <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
                 <div className="md:flex">
                     {/* Cover */}
                     <div className="md:w-64 md:flex-shrink-0">
-                        <div className="aspect-[2/3] bg-slate-700">
+                        <div className="aspect-[2/3] bg-gray-200 dark:bg-slate-700">
                             {book.cover_url ? (
                                 <img
                                     src={book.cover_url}
@@ -108,7 +108,7 @@ export function BookDetailPage() {
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center">
-                                    <BookIcon className="h-24 w-24 text-slate-600" />
+                                    <BookIcon className="h-24 w-24 text-gray-400 dark:text-slate-600" />
                                 </div>
                             )}
                         </div>
@@ -118,8 +118,8 @@ export function BookDetailPage() {
                     <div className="p-6 flex-1">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-100">{book.title}</h1>
-                                <p className="text-lg text-slate-400 mt-1">
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{book.title}</h1>
+                                <p className="text-lg text-gray-500 dark:text-slate-400 mt-1">
                                     {book.author || t('Unknown Author')}
                                 </p>
                             </div>
@@ -135,7 +135,7 @@ export function BookDetailPage() {
                                     {t('Reading')}
                                 </span>
                             ) : (
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-600 text-slate-300">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
                                     {t('Not Started')}
                                 </span>
                             )}
@@ -144,12 +144,12 @@ export function BookDetailPage() {
                         {/* Progress */}
                         <div className="mt-6">
                             <div className="flex items-center justify-between text-sm mb-2">
-                                <span className="text-slate-400">{t('Progress')}</span>
-                                <span className="text-slate-100 font-medium">
+                                <span className="text-gray-500 dark:text-slate-400">{t('Progress')}</span>
+                                <span className="text-gray-900 dark:text-slate-100 font-medium">
                                     {(book.progress ?? 0).toFixed(1)}%
                                 </span>
                             </div>
-                            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-indigo-500 rounded-full transition-all"
                                     style={{ width: `${book.progress ?? 0}%` }}
@@ -159,27 +159,27 @@ export function BookDetailPage() {
 
                         {/* Stats */}
                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="bg-slate-700/50 rounded-lg p-3">
-                                <p className="text-slate-400 text-xs">{t('Reading Time')}</p>
-                                <p className="text-slate-100 font-medium mt-1">
+                            <div className="bg-gray-100 dark:bg-slate-700/50 rounded-lg p-3">
+                                <p className="text-gray-500 dark:text-slate-400 text-xs">{t('Reading Time')}</p>
+                                <p className="text-gray-900 dark:text-slate-100 font-medium mt-1">
                                     {book.formatted_reading_time}
                                 </p>
                             </div>
-                            <div className="bg-slate-700/50 rounded-lg p-3">
-                                <p className="text-slate-400 text-xs">{t('File Size')}</p>
-                                <p className="text-slate-100 font-medium mt-1">
+                            <div className="bg-gray-100 dark:bg-slate-700/50 rounded-lg p-3">
+                                <p className="text-gray-500 dark:text-slate-400 text-xs">{t('File Size')}</p>
+                                <p className="text-gray-900 dark:text-slate-100 font-medium mt-1">
                                     {formatFileSize(book.file_size)}
                                 </p>
                             </div>
-                            <div className="bg-slate-700/50 rounded-lg p-3">
-                                <p className="text-slate-400 text-xs">{t('Language')}</p>
-                                <p className="text-slate-100 font-medium mt-1">
+                            <div className="bg-gray-100 dark:bg-slate-700/50 rounded-lg p-3">
+                                <p className="text-gray-500 dark:text-slate-400 text-xs">{t('Language')}</p>
+                                <p className="text-gray-900 dark:text-slate-100 font-medium mt-1">
                                     {book.language || 'N/A'}
                                 </p>
                             </div>
-                            <div className="bg-slate-700/50 rounded-lg p-3">
-                                <p className="text-slate-400 text-xs">{t('Added')}</p>
-                                <p className="text-slate-100 font-medium mt-1">
+                            <div className="bg-gray-100 dark:bg-slate-700/50 rounded-lg p-3">
+                                <p className="text-gray-500 dark:text-slate-400 text-xs">{t('Added')}</p>
+                                <p className="text-gray-900 dark:text-slate-100 font-medium mt-1">
                                     {formatDate(book.created_at)}
                                 </p>
                             </div>
@@ -189,14 +189,14 @@ export function BookDetailPage() {
                         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                             {book.publisher && (
                                 <div>
-                                    <span className="text-slate-400">{t('Publisher')}:</span>
-                                    <span className="text-slate-300 ml-1">{book.publisher}</span>
+                                    <span className="text-gray-500 dark:text-slate-400">{t('Publisher')}:</span>
+                                    <span className="text-gray-700 dark:text-slate-300 ml-1">{book.publisher}</span>
                                 </div>
                             )}
                             {book.isbn && (
                                 <div>
-                                    <span className="text-slate-400">{t('ISBN')}:</span>
-                                    <span className="text-slate-300 ml-1">{book.isbn}</span>
+                                    <span className="text-gray-500 dark:text-slate-400">{t('ISBN')}:</span>
+                                    <span className="text-gray-700 dark:text-slate-300 ml-1">{book.isbn}</span>
                                 </div>
                             )}
                         </div>
@@ -223,7 +223,7 @@ export function BookDetailPage() {
                                 <button
                                     onClick={downloadForOffline}
                                     disabled={downloadState.isDownloading}
-                                    className="inline-flex items-center px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                                    className="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-slate-600 hover:bg-gray-300 dark:hover:bg-slate-700 text-gray-900 dark:text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
                                 >
                                     <CloudDownloadIcon className="h-5 w-5 mr-2" />
                                     {downloadState.isDownloading
@@ -264,7 +264,7 @@ export function BookDetailPage() {
 
             {/* Reading Sessions */}
             <div className="mt-8">
-                <h2 className="text-lg font-semibold text-slate-100 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                     {t('Reading Sessions')}
                 </h2>
 
@@ -273,38 +273,38 @@ export function BookDetailPage() {
                         <LoadingSpinner />
                     </div>
                 ) : sessions.length > 0 ? (
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b border-slate-700">
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                <tr className="border-b border-gray-200 dark:border-slate-700">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                         {t('Date')}
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                         {t('Duration')}
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                         {t('Progress')}
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                         {t('Client')}
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-700">
+                            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                                 {sessions.map((session) => (
-                                    <tr key={session.id} className="hover:bg-slate-700/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+                                    <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                             {new Date(session.started_at).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                             {session.formatted_duration}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                             {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-600 text-slate-300">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
                                                 {session.client}
                                             </span>
                                         </td>
@@ -314,12 +314,12 @@ export function BookDetailPage() {
                         </table>
                     </div>
                 ) : (
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-                        <ClockIcon className="mx-auto h-12 w-12 text-slate-600" />
-                        <h3 className="mt-4 text-sm font-medium text-slate-300">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center">
+                        <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-600" />
+                        <h3 className="mt-4 text-sm font-medium text-gray-700 dark:text-slate-300">
                             {t('No reading sessions yet')}
                         </h3>
-                        <p className="mt-2 text-sm text-slate-500">
+                        <p className="mt-2 text-sm text-gray-500 dark:text-slate-500">
                             {t('Open this book in Moon+ Reader to start tracking your progress.')}
                         </p>
                     </div>
@@ -335,7 +335,7 @@ export function BookDetailPage() {
                 message={
                     <>
                         <p>{t('Are you sure you want to delete this book?')}</p>
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
                             {t('This action cannot be undone.')}
                         </p>
                     </>
@@ -355,7 +355,7 @@ export function BookDetailPage() {
                 message={
                     <>
                         <p>{t('Are you sure you want to reset all reading stats for this book?')}</p>
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
                             {t('This will delete all reading sessions and reset progress to 0%.')}
                         </p>
                     </>

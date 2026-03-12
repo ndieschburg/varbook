@@ -36,9 +36,9 @@ export function ConfirmModal({
                 />
 
                 {/* Modal */}
-                <div className="relative bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-                    <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-                    <div className="text-gray-300 mb-6">{message}</div>
+                <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+                    <div className="text-gray-600 dark:text-gray-300 mb-6">{message}</div>
                     <div className="flex justify-end gap-3">
                         <Button variant="ghost" onClick={onClose} disabled={isLoading}>
                             {cancelText}
