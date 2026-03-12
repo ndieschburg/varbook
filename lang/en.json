@@ -263,6 +263,9 @@
 
     "landing.hero.title": "Your Personal EPUB Library",
     "landing.hero.subtitle": "Manage your ebook collection, sync reading progress across all your devices, and enjoy offline reading anywhere.",
+    "landing.badge.pwa": "Progressive Web App",
+    "landing.badge.android": "Optimized for Android",
+    "landing.badge.opensource": "Open Source",
     "landing.cta.login": "Sign In",
     "landing.cta.register": "Get Started",
     "landing.feature.library.title": "EPUB Library",

@@ -275,6 +275,9 @@
 
     "landing.hero.title": "Tu biblioteca EPUB personal",
     "landing.hero.subtitle": "Gestiona tu colección de ebooks, sincroniza el progreso de lectura entre dispositivos y disfruta de la lectura sin conexión en cualquier lugar.",
+    "landing.badge.pwa": "Aplicación Web Progresiva",
+    "landing.badge.android": "Optimizada para Android",
+    "landing.badge.opensource": "Código Abierto",
     "landing.cta.login": "Iniciar sesión",
     "landing.cta.register": "Comenzar",
     "landing.feature.library.title": "Biblioteca EPUB",

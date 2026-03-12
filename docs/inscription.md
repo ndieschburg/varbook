@@ -1,0 +1,1 @@
+J'aimerais rendre cet applicatif disponible à l'inscription des utilisateurs. Cette fonctionnalité doit cependant être conditionnée par un setting système. Ce setting est par défaut à faux. Quand il est à true, il faut permettre l'inscription des utilisateur avec validation email etc.
