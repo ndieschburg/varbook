@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Route;
 // Public auth routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/registration-status', [AuthController::class, 'registrationStatus']);
+Route::get('/public-config', [AuthController::class, 'publicConfig']);
 Route::post('/register', [AuthController::class, 'register']);
 
 // Authenticated routes

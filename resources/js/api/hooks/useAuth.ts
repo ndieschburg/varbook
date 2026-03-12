@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { initCsrf } from '../client';
-import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, RegistrationStatus } from '@/types';
+import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, RegistrationStatus, PublicConfig } from '@/types';
 
 export function useUser() {
     return useQuery({
@@ -65,6 +65,17 @@ export function useRegistrationStatus() {
         queryKey: ['registration-status'],
         queryFn: async (): Promise<RegistrationStatus> => {
             const { data } = await api.get('/registration-status');
+            return data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+export function usePublicConfig() {
+    return useQuery({
+        queryKey: ['public-config'],
+        queryFn: async (): Promise<PublicConfig> => {
+            const { data } = await api.get('/public-config');
             return data;
         },
         staleTime: 5 * 60 * 1000, // 5 minutes

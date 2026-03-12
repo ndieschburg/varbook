@@ -270,6 +270,21 @@
 
     "settings.general.allow_registration": "Permitir registro público",
     "settings.general.allow_registration_description": "Cuando está activado, los usuarios pueden crear cuentas desde la página de inicio de sesión",
+    "settings.general.show_landing_page": "Mostrar página de inicio",
+    "settings.general.show_landing_page_description": "Cuando está activado, los visitantes no autenticados ven una página de inicio en lugar de la página de inicio de sesión",
+
+    "landing.hero.title": "Tu biblioteca EPUB personal",
+    "landing.hero.subtitle": "Gestiona tu colección de ebooks, sincroniza el progreso de lectura entre dispositivos y disfruta de la lectura sin conexión en cualquier lugar.",
+    "landing.cta.login": "Iniciar sesión",
+    "landing.cta.register": "Comenzar",
+    "landing.feature.library.title": "Biblioteca EPUB",
+    "landing.feature.library.description": "Sube y organiza tu colección EPUB con extracción automática de metadatos e imágenes de portada.",
+    "landing.feature.sync.title": "Sincronización multidispositivo",
+    "landing.feature.sync.description": "Sincroniza el progreso de lectura con Moon+ Reader y KOReader en todos tus dispositivos.",
+    "landing.feature.offline.title": "Lectura sin conexión",
+    "landing.feature.offline.description": "Instala como PWA y lee tus libros sin conexión con contenido en caché.",
+    "landing.feature.opds.title": "Soporte OPDS",
+    "landing.feature.opds.description": "Accede a tu biblioteca desde cualquier aplicación de lectura compatible con OPDS.",
 
     "Your personal EPUB library": "Tu biblioteca EPUB personal",
     "Welcome back": "Bienvenido de nuevo",

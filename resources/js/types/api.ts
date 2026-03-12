@@ -41,6 +41,11 @@ export interface RegistrationStatus {
     enabled: boolean;
 }
 
+export interface PublicConfig {
+    show_landing_page: boolean;
+    allow_registration: boolean;
+}
+
 export interface ListBooksParams {
     search?: string;
     status?: 'not_started' | 'reading' | 'finished';

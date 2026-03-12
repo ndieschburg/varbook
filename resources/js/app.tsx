@@ -9,6 +9,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Layout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import {
+    LandingPage,
     LoginPage,
     RegisterPage,
     VerifyEmailPage,
@@ -22,6 +23,9 @@ import {
     AdminSettingsPage,
     ProgressLogsPage,
 } from '@/pages';
+import { usePublicConfig } from '@/api/hooks';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoadingSpinner } from '@/components/ui';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -31,6 +35,33 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+function RootRoute() {
+    const { isAuthenticated, isLoading: authLoading } = useAuth();
+    const { data: publicConfig, isLoading: configLoading } = usePublicConfig();
+
+    // Show loading while checking auth state and config
+    if (authLoading || configLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900">
+                <LoadingSpinner size="lg" />
+            </div>
+        );
+    }
+
+    // If authenticated, go to library
+    if (isAuthenticated) {
+        return <Navigate to="/library" replace />;
+    }
+
+    // If landing page is enabled, show it
+    if (publicConfig?.show_landing_page) {
+        return <LandingPage />;
+    }
+
+    // Otherwise, redirect to login
+    return <Navigate to="/login" replace />;
+}
 
 function App() {
     return (
@@ -101,8 +132,8 @@ function App() {
                             }
                         />
 
-                        {/* Redirect root to library */}
-                        <Route path="/" element={<Navigate to="/library" replace />} />
+                        {/* Root route - shows landing page or redirects */}
+                        <Route path="/" element={<RootRoute />} />
                         <Route path="*" element={<Navigate to="/library" replace />} />
                     </Routes>
 

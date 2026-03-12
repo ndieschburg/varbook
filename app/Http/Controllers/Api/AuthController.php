@@ -30,6 +30,18 @@ class AuthController extends Controller
     }
 
     /**
+     * GET /api/public-config
+     * Get public configuration for unauthenticated users
+     */
+    public function publicConfig(): JsonResponse
+    {
+        return response()->json([
+            'show_landing_page' => (bool) Settings::get('general.show_landing_page'),
+            'allow_registration' => (bool) Settings::get('general.allow_registration'),
+        ]);
+    }
+
+    /**
      * POST /api/register
      * Register a new user
      */
