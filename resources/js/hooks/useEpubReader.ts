@@ -334,6 +334,31 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 book.locations.generate(1024).then(() => {
                     locationsReadyRef.current = true;
                     debug(`Locations generated: ${book.locations.length()} total locations`);
+
+                    // Recalculate and update progress now that locations are ready
+                    const currentLocation = rendition.currentLocation() as any;
+                    if (currentLocation?.start?.cfi) {
+                        const accurateProgress = book.locations.percentageFromCfi(currentLocation.start.cfi) * 100;
+                        const currentPage = Number(book.locations.locationFromCfi(currentLocation.start.cfi)) || 0;
+                        const totalPages = book.locations.length();
+
+                        debug('Updating progress after locations ready', {
+                            previousProgress: progressRef.current.toFixed(5) + '%',
+                            newProgress: accurateProgress.toFixed(5) + '%',
+                            page: `${currentPage}/${totalPages}`,
+                        });
+
+                        progressRef.current = accurateProgress;
+                        setState(prev => ({
+                            ...prev,
+                            progress: accurateProgress,
+                            locationInfo: {
+                                ...prev.locationInfo,
+                                currentPage,
+                                totalPages,
+                            },
+                        }));
+                    }
                 });
 
                 // Mark as loaded - user can start reading

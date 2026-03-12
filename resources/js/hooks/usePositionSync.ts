@@ -49,6 +49,12 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
     }, [bookId]);
 
     const savePosition = useCallback(async (cfi: string, progress: number) => {
+        // Never save 0% progress - it's meaningless and would overwrite real progress
+        if (progress === 0) {
+            debugLog('PositionSync', 'Ignoring 0% progress save');
+            return;
+        }
+
         // Debounce saves
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
@@ -102,6 +108,12 @@ export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptio
     const flushSync = useCallback((cfi: string | null, progress: number) => {
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
+        }
+
+        // Never save 0% progress - it's meaningless and would overwrite real progress
+        if (progress === 0) {
+            debugLog('PositionSync', 'flushSync - Ignoring 0% progress');
+            return;
         }
 
         if (!cfi || cfi === lastSavedCfiRef.current) return;
