@@ -124,9 +124,12 @@ export function VerifyEmailPage() {
                                 </svg>
                             </div>
 
-                            <h2 className="text-xl font-semibold text-white mb-4 text-center">
-                                {t('Verify Your Email')}
+                            <h2 className="text-xl font-semibold text-white mb-2 text-center">
+                                {t('Welcome')}
                             </h2>
+                            <h3 className="text-lg text-gray-300 mb-4 text-center">
+                                {t('Verify Your Email')}
+                            </h3>
 
                             <p className="text-gray-300 text-center mb-4 text-sm leading-relaxed">
                                 {t('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you?')}
