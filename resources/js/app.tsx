@@ -23,7 +23,7 @@ import {
     AdminSettingsPage,
     ProgressLogsPage,
 } from '@/pages';
-import { usePublicConfig } from '@/api/hooks';
+import { usePublicConfig, useUser } from '@/api/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -40,8 +40,12 @@ function RootRoute() {
     const { isAuthenticated, isLoading: authLoading } = useAuth();
     const { data: publicConfig, isLoading: configLoading } = usePublicConfig();
 
-    // Show loading while checking auth state and config
-    if (authLoading || configLoading) {
+    // Import useUser to check if auth verification is in progress
+    const { isFetching: authFetching } = useUser();
+
+    // Show loading while checking auth state, config, or verifying auth
+    // We wait for authFetching to complete to avoid using stale cached data
+    if (authLoading || configLoading || authFetching) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-900">
                 <LoadingSpinner size="lg" />
