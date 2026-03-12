@@ -269,5 +269,10 @@
     "Regards,": "Saludos,",
 
     "settings.general.allow_registration": "Permitir registro público",
-    "settings.general.allow_registration_description": "Cuando está activado, los usuarios pueden crear cuentas desde la página de inicio de sesión"
+    "settings.general.allow_registration_description": "Cuando está activado, los usuarios pueden crear cuentas desde la página de inicio de sesión",
+
+    "Your personal EPUB library": "Tu biblioteca EPUB personal",
+    "Welcome back": "Bienvenido de nuevo",
+    "Your books, everywhere": "Tus libros, en todas partes",
+    "Your name": "Tu nombre"
 }

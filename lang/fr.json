@@ -269,5 +269,10 @@
     "Regards,": "Cordialement,",
 
     "settings.general.allow_registration": "Autoriser l'inscription publique",
-    "settings.general.allow_registration_description": "Lorsque activé, les utilisateurs peuvent créer des comptes depuis la page de connexion"
+    "settings.general.allow_registration_description": "Lorsque activé, les utilisateurs peuvent créer des comptes depuis la page de connexion",
+
+    "Your personal EPUB library": "Votre bibliothèque EPUB personnelle",
+    "Welcome back": "Bon retour",
+    "Your books, everywhere": "Vos livres, partout",
+    "Your name": "Votre nom"
 }

@@ -257,5 +257,10 @@
     "Regards,": "Regards,",
 
     "settings.general.allow_registration": "Allow public registration",
-    "settings.general.allow_registration_description": "When enabled, users can register accounts on the login page"
+    "settings.general.allow_registration_description": "When enabled, users can register accounts on the login page",
+
+    "Your personal EPUB library": "Your personal EPUB library",
+    "Welcome back": "Welcome back",
+    "Your books, everywhere": "Your books, everywhere",
+    "Your name": "Your name"
 }
