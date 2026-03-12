@@ -35,6 +35,7 @@ interface EpubReaderState {
     isLoading: boolean;
     error: string | null;
     progress: number;
+    locationsReady: boolean;
     toc: NavItem[];
     locationInfo: LocationInfo;
     searchResults: SearchResult[];
@@ -66,6 +67,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         isLoading: true,
         error: null,
         progress: 0,
+        locationsReady: false,
         toc: [],
         locationInfo: {
             currentPage: 0,
@@ -352,12 +354,16 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                         setState(prev => ({
                             ...prev,
                             progress: accurateProgress,
+                            locationsReady: true,
                             locationInfo: {
                                 ...prev.locationInfo,
                                 currentPage,
                                 totalPages,
                             },
                         }));
+                    } else {
+                        // No current location yet, just mark locations as ready
+                        setState(prev => ({ ...prev, locationsReady: true }));
                     }
                 });
 
