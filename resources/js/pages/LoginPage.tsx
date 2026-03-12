@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRegistrationStatus } from '@/api/hooks';
 import { Button } from '@/components/ui';
 import { AxiosError } from 'axios';
 
@@ -10,6 +11,7 @@ export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { login, isAuthenticated } = useAuth();
+    const { data: registrationStatus } = useRegistrationStatus();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -95,6 +97,17 @@ export function LoginPage() {
                             {t('Log in')}
                         </Button>
                     </form>
+
+                    {registrationStatus?.enabled && (
+                        <div className="mt-6 text-center">
+                            <p className="text-gray-400">
+                                {t("Don't have an account?")}{' '}
+                                <Link to="/register" className="text-blue-400 hover:text-blue-300">
+                                    {t('Register')}
+                                </Link>
+                            </p>
+                        </div>
+                    )}
 
                     {/* Language selector */}
                     <div className="mt-6 flex justify-center gap-2">

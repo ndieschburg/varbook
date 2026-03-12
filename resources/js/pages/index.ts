@@ -1,4 +1,6 @@
 export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { VerifyEmailPage } from './VerifyEmailPage';
 export { LibraryPage } from './LibraryPage';
 export { BookDetailPage } from './BookDetailPage';
 export { ReaderPage } from './ReaderPage';

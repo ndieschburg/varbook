@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Facades\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\RegisterRequest;
 use App\Http\Requests\Api\UpdateLocaleRequest;
 use App\Http\Resources\UserResource;
+use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +18,46 @@ use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    /**
+     * GET /api/registration-status
+     * Check if registration is enabled (public endpoint)
+     */
+    public function registrationStatus(): JsonResponse
+    {
+        return response()->json([
+            'enabled' => (bool) Settings::get('general.allow_registration'),
+        ]);
+    }
+
+    /**
+     * POST /api/register
+     * Register a new user
+     */
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        event(new Registered($user));
+
+        Auth::login($user);
+
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        return response()->json([
+            'message' => __('Registration successful. Please check your email to verify your account.'),
+            'user' => new UserResource($user),
+            'requires_verification' => true,
+        ], 201);
+    }
+
     /**
      * POST /api/login
      * Authenticate user and return user data (SPA mode uses cookies)

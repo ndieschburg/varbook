@@ -3,6 +3,7 @@ export interface User {
     name: string;
     email: string;
     is_admin: boolean;
+    email_verified?: boolean;
     locale?: string;
     timezone?: string;
     created_at: string;

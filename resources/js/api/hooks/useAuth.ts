@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api, { initCsrf } from '../client';
-import type { User, LoginCredentials, LoginResponse } from '@/types';
+import type { User, LoginCredentials, LoginResponse, RegisterCredentials, RegisterResponse, RegistrationStatus } from '@/types';
 
 export function useUser() {
     return useQuery({
@@ -53,6 +53,41 @@ export function useUpdateLocale() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    });
+}
+
+export function useRegistrationStatus() {
+    return useQuery({
+        queryKey: ['registration-status'],
+        queryFn: async (): Promise<RegistrationStatus> => {
+            const { data } = await api.get('/registration-status');
+            return data;
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+}
+
+export function useRegister() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (credentials: RegisterCredentials): Promise<RegisterResponse> => {
+            await initCsrf();
+            const { data } = await api.post('/register', credentials);
+            return data;
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['user'], data.user);
+        },
+    });
+}
+
+export function useResendVerification() {
+    return useMutation({
+        mutationFn: async (): Promise<{ message: string }> => {
+            const { data } = await api.post('/email/verification-notification');
+            return data;
         },
     });
 }

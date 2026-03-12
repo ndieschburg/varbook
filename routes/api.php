@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\Admin\ProgressLogsController as AdminProgressLogsController;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Route;
 
 // Public auth routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/registration-status', [AuthController::class, 'registrationStatus']);
+Route::post('/register', [AuthController::class, 'register']);
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -31,6 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user/locale', [AuthController::class, 'updateLocale']);
     Route::put('/user/profile-information', [AuthController::class, 'updateProfile']);
     Route::put('/user/password', [AuthController::class, 'updatePassword']);
+
+    // Email verification
+    Route::get('/email/verification-status', [EmailVerificationController::class, 'status']);
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:6,1');
 
     // User Stats
     Route::get('/stats', [StatsController::class, 'index'])->name('api.stats');

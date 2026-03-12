@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'basic.auth' => \App\Http\Middleware\BasicAuthMiddleware::class,
             'kosync.auth' => \App\Http\Middleware\KosyncAuthMiddleware::class,
+            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
 
         $middleware->web(append: [

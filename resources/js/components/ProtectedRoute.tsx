@@ -5,9 +5,10 @@ import { LoadingSpinner } from '@/components/ui';
 interface ProtectedRouteProps {
     children: React.ReactNode;
     requireAdmin?: boolean;
+    requireVerified?: boolean;
 }
 
-export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, requireAdmin = false, requireVerified = true }: ProtectedRouteProps) {
     const { user, isLoading, isAuthenticated } = useAuth();
     const location = useLocation();
 
@@ -21,6 +22,11 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // Redirect unverified users to verification page
+    if (requireVerified && user && user.email_verified === false) {
+        return <Navigate to="/verify-email" replace />;
     }
 
     if (requireAdmin && !user?.is_admin) {

@@ -241,5 +241,33 @@
     "14 days": "14 jours",
     "30 days": "30 jours",
     "Deleted {{count}} old log entries": "{{count}} anciens logs supprimés",
-    "Failed to clear logs": "Échec de la suppression des logs"
+    "Failed to clear logs": "Échec de la suppression des logs",
+
+    "Register": "S'inscrire",
+    "Create Account": "Créer un compte",
+    "Confirm Password": "Confirmer le mot de passe",
+    "Already registered?": "Déjà inscrit ?",
+    "Don't have an account?": "Pas encore de compte ?",
+    "Registration is currently disabled": "L'inscription est actuellement désactivée",
+    "Registration successful. Please check your email to verify your account.": "Inscription réussie. Veuillez vérifier votre e-mail pour confirmer votre compte.",
+    "Verify Your Email": "Vérifiez votre e-mail",
+    "Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you?": "Merci de votre inscription ! Avant de commencer, pourriez-vous vérifier votre adresse e-mail en cliquant sur le lien que nous venons de vous envoyer ?",
+    "Resend Verification Email": "Renvoyer l'e-mail de vérification",
+    "Your email address is not verified.": "Votre adresse e-mail n'est pas vérifiée.",
+    "Email already verified": "E-mail déjà vérifié",
+    "Verification link sent": "Lien de vérification envoyé",
+    "Email Verified Successfully": "E-mail vérifié avec succès",
+    "Your email has been verified. You can now access all features.": "Votre e-mail a été vérifié. Vous pouvez maintenant accéder à toutes les fonctionnalités.",
+    "Redirecting...": "Redirection...",
+    "Log out": "Se déconnecter",
+    "An error occurred. Please try again.": "Une erreur s'est produite. Veuillez réessayer.",
+
+    "Verify Email Address": "Vérifier l'adresse e-mail",
+    "Please click the button below to verify your email address.": "Veuillez cliquer sur le bouton ci-dessous pour vérifier votre adresse e-mail.",
+    "If you did not create an account, no further action is required.": "Si vous n'avez pas créé de compte, aucune action n'est requise.",
+    "Hello!": "Bonjour !",
+    "Regards,": "Cordialement,",
+
+    "settings.general.allow_registration": "Autoriser l'inscription publique",
+    "settings.general.allow_registration_description": "Lorsque activé, les utilisateurs peuvent créer des comptes depuis la page de connexion"
 }

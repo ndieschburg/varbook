@@ -10,6 +10,8 @@ import { Layout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import {
     LoginPage,
+    RegisterPage,
+    VerifyEmailPage,
     LibraryPage,
     BookDetailPage,
     ReaderPage,
@@ -38,6 +40,17 @@ function App() {
                     <Routes>
                         {/* Public routes */}
                         <Route path="/login" element={<LoginPage />} />
+                        <Route path="/register" element={<RegisterPage />} />
+
+                        {/* Email verification (auth required but not verified) */}
+                        <Route
+                            path="/verify-email"
+                            element={
+                                <ProtectedRoute requireVerified={false}>
+                                    <VerifyEmailPage />
+                                </ProtectedRoute>
+                            }
+                        />
 
                         {/* Protected routes with layout */}
                         <Route

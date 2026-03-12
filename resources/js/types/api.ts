@@ -23,6 +23,23 @@ export interface LoginResponse {
     user: import('./user').User;
 }
 
+export interface RegisterCredentials {
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+}
+
+export interface RegisterResponse {
+    message: string;
+    user: import('./user').User;
+    requires_verification: boolean;
+}
+
+export interface RegistrationStatus {
+    enabled: boolean;
+}
+
 export interface ListBooksParams {
     search?: string;
     status?: 'not_started' | 'reading' | 'finished';
