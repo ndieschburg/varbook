@@ -1,55 +1,63 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRegistrationStatus } from '@/api/hooks';
+import { useResetPassword } from '@/api/hooks';
 import { Button } from '@/components/ui';
 import { AxiosError } from 'axios';
 
-export function LoginPage() {
+export function ResetPasswordPage() {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
-    const location = useLocation();
+    const { token } = useParams<{ token: string }>();
     const [searchParams] = useSearchParams();
-    const { login, isAuthenticated } = useAuth();
-    const { data: registrationStatus } = useRegistrationStatus();
+    const resetPasswordMutation = useResetPassword();
 
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(searchParams.get('email') || '');
     const [password, setPassword] = useState('');
-    const [remember, setRemember] = useState(true);
+    const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [error, setError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-    const from = (location.state as { from?: Location })?.from?.pathname || '/library';
-    const passwordReset = searchParams.get('reset') === '1';
-
-    // Redirect if already authenticated
-    if (isAuthenticated) {
-        navigate(from, { replace: true });
+    if (!token) {
+        navigate('/login', { replace: true });
         return null;
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setIsLoading(true);
+        setFieldErrors({});
 
         try {
-            await login({ email, password, remember });
-            navigate(from, { replace: true });
+            await resetPasswordMutation.mutateAsync({
+                token,
+                email,
+                password,
+                password_confirmation: passwordConfirmation,
+            });
+
+            // Redirect to login with success message
+            navigate('/login?reset=1', { replace: true });
         } catch (err) {
-            if (err instanceof AxiosError && err.response?.data?.message) {
-                setError(err.response.data.message);
+            if (err instanceof AxiosError && err.response?.data) {
+                if (err.response.data.message) {
+                    setError(err.response.data.message);
+                }
+                if (err.response.data.errors) {
+                    setFieldErrors(err.response.data.errors);
+                }
             } else {
                 setError(t('An error occurred. Please try again.'));
             }
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const handleLanguageChange = (locale: string) => {
         i18n.changeLanguage(locale);
+    };
+
+    const getFieldError = (field: string): string | undefined => {
+        return fieldErrors[field]?.[0];
     };
 
     return (
@@ -63,11 +71,11 @@ export function LoginPage() {
             <div className="relative z-10 w-full max-w-md">
                 {/* Logo and branding */}
                 <div className="text-center mb-8">
-                    <div className="inline-block mb-4 animate-[bounce-slow_3s_ease-in-out_infinite]">
+                    <div className="inline-block mb-4">
                         <img
                             src="/pwa-icons/logo.svg"
                             alt="Varbook"
-                            className="w-24 h-24 mx-auto drop-shadow-2xl"
+                            className="w-20 h-20 mx-auto drop-shadow-2xl"
                         />
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2">Varbook</h1>
@@ -76,22 +84,16 @@ export function LoginPage() {
                     </p>
                 </div>
 
-                {/* Login card */}
+                {/* Reset password card */}
                 <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-700/50 p-8">
                     <h2 className="text-xl font-semibold text-white mb-6 text-center">
-                        {t('Welcome back')}
+                        {t('Reset Password')}
                     </h2>
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         {error && (
                             <div className="bg-red-500/10 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl text-sm">
                                 {error}
-                            </div>
-                        )}
-
-                        {passwordReset && (
-                            <div className="bg-green-500/10 border border-green-500/50 text-green-300 px-4 py-3 rounded-xl text-sm">
-                                {t('Your password has been reset. You can now log in with your new password.')}
                             </div>
                         )}
 
@@ -108,20 +110,15 @@ export function LoginPage() {
                                 placeholder="you@example.com"
                                 className="w-full px-4 py-3 rounded-xl bg-gray-700/50 border border-gray-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                             />
+                            {getFieldError('email') && (
+                                <p className="mt-1.5 text-sm text-red-400">{getFieldError('email')}</p>
+                            )}
                         </div>
 
                         <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                                    {t('Password')}
-                                </label>
-                                <Link
-                                    to="/forgot-password"
-                                    className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
-                                >
-                                    {t('Forgot password?')}
-                                </Link>
-                            </div>
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1.5">
+                                {t('Password')}
+                            </label>
                             <input
                                 type="password"
                                 id="password"
@@ -131,43 +128,34 @@ export function LoginPage() {
                                 placeholder="••••••••"
                                 className="w-full px-4 py-3 rounded-xl bg-gray-700/50 border border-gray-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                             />
+                            {getFieldError('password') && (
+                                <p className="mt-1.5 text-sm text-red-400">{getFieldError('password')}</p>
+                            )}
                         </div>
 
-                        <div className="flex items-center">
-                            <input
-                                type="checkbox"
-                                id="remember"
-                                checked={remember}
-                                onChange={(e) => setRemember(e.target.checked)}
-                                className="w-4 h-4 rounded border-gray-600 bg-gray-700/50 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0"
-                            />
-                            <label htmlFor="remember" className="ml-2 text-sm text-gray-300">
-                                {t('Remember me')}
+                        <div>
+                            <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-300 mb-1.5">
+                                {t('Confirm Password')}
                             </label>
+                            <input
+                                type="password"
+                                id="password_confirmation"
+                                value={passwordConfirmation}
+                                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                                required
+                                placeholder="••••••••"
+                                className="w-full px-4 py-3 rounded-xl bg-gray-700/50 border border-gray-600/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            />
                         </div>
 
                         <Button
                             type="submit"
-                            className="w-full !bg-indigo-600 hover:!bg-indigo-500 !py-3 !text-base font-medium transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/25 !rounded-xl"
-                            isLoading={isLoading}
+                            className="w-full !bg-indigo-600 hover:!bg-indigo-500 !py-3 !text-base font-medium transition-all duration-200 hover:shadow-lg hover:shadow-indigo-500/25 !rounded-xl !mt-6"
+                            isLoading={resetPasswordMutation.isPending}
                         >
-                            {t('Log in')}
+                            {t('Reset Password')}
                         </Button>
                     </form>
-
-                    {registrationStatus?.enabled && (
-                        <div className="mt-6 pt-6 border-t border-gray-700/50 text-center">
-                            <p className="text-gray-400 text-sm">
-                                {t("Don't have an account?")}{' '}
-                                <Link
-                                    to="/register"
-                                    className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
-                                >
-                                    {t('Register')}
-                                </Link>
-                            </p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Language selector */}
@@ -186,11 +174,6 @@ export function LoginPage() {
                         </button>
                     ))}
                 </div>
-
-                {/* Footer */}
-                <p className="mt-8 text-center text-gray-500 text-xs">
-                    {t('Your books, everywhere')}
-                </p>
             </div>
         </div>
     );

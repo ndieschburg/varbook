@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\Admin\ProgressLogsController as AdminProgressLogsController;
@@ -26,6 +27,14 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/registration-status', [AuthController::class, 'registrationStatus']);
 Route::get('/public-config', [AuthController::class, 'publicConfig']);
 Route::post('/register', [AuthController::class, 'register']);
+
+// Password reset routes (public)
+Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
+    ->middleware('guest')
+    ->name('password.email');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+    ->middleware('guest')
+    ->name('password.store');
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {

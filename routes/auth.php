@@ -9,12 +9,8 @@ Route::middleware('guest')->group(function () {
     // React SPA routes
     Route::view('register', 'spa')->name('register');
     Route::view('login', 'spa')->name('login');
-
-    // Volt routes (no React implementation yet)
-    Volt::route('forgot-password', 'pages.auth.forgot-password')
-        ->name('password.request');
-    Volt::route('reset-password/{token}', 'pages.auth.reset-password')
-        ->name('password.reset');
+    Route::view('forgot-password', 'spa')->name('password.request');
+    Route::view('reset-password/{token}', 'spa')->name('password.reset');
 });
 
 // Email verification route (accessible to both guests and authenticated users)

@@ -106,3 +106,28 @@ export function useResendVerification() {
         },
     });
 }
+
+export function useForgotPassword() {
+    return useMutation({
+        mutationFn: async (email: string): Promise<{ message: string }> => {
+            await initCsrf();
+            const { data } = await api.post('/forgot-password', { email });
+            return data;
+        },
+    });
+}
+
+export function useResetPassword() {
+    return useMutation({
+        mutationFn: async (credentials: {
+            token: string;
+            email: string;
+            password: string;
+            password_confirmation: string;
+        }): Promise<{ message: string }> => {
+            await initCsrf();
+            const { data } = await api.post('/reset-password', credentials);
+            return data;
+        },
+    });
+}

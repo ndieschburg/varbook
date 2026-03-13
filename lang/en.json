@@ -281,5 +281,14 @@
     "Welcome back": "Welcome back",
     "Welcome": "Welcome",
     "Your books, everywhere": "Your books, everywhere",
-    "Your name": "Your name"
+    "Your name": "Your name",
+
+    "Forgot Password": "Forgot Password",
+    "Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.": "Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.",
+    "Email Password Reset Link": "Email Password Reset Link",
+    "Back to login": "Back to login",
+    "We have emailed your password reset link!": "We have emailed your password reset link!",
+    "Reset Password": "Reset Password",
+    "Forgot password?": "Forgot password?",
+    "Your password has been reset. You can now log in with your new password.": "Your password has been reset. You can now log in with your new password."
 }

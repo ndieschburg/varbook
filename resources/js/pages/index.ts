@@ -2,6 +2,8 @@ export { LandingPage } from './LandingPage';
 export { LoginPage } from './LoginPage';
 export { RegisterPage } from './RegisterPage';
 export { VerifyEmailPage } from './VerifyEmailPage';
+export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { ResetPasswordPage } from './ResetPasswordPage';
 export { LibraryPage } from './LibraryPage';
 export { BookDetailPage } from './BookDetailPage';
 export { ReaderPage } from './ReaderPage';

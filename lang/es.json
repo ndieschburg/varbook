@@ -293,5 +293,14 @@
     "Welcome back": "Bienvenido de nuevo",
     "Welcome": "Bienvenido",
     "Your books, everywhere": "Tus libros, en todas partes",
-    "Your name": "Tu nombre"
+    "Your name": "Tu nombre",
+
+    "Forgot Password": "Contraseña olvidada",
+    "Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.": "¿Olvidaste tu contraseña? No hay problema. Solo indícanos tu dirección de correo electrónico y te enviaremos un enlace de restablecimiento que te permitirá elegir una nueva.",
+    "Email Password Reset Link": "Enviar enlace de restablecimiento",
+    "Back to login": "Volver al inicio de sesión",
+    "We have emailed your password reset link!": "¡Te hemos enviado el enlace de restablecimiento por correo electrónico!",
+    "Reset Password": "Restablecer contraseña",
+    "Forgot password?": "¿Olvidaste tu contraseña?",
+    "Your password has been reset. You can now log in with your new password.": "Tu contraseña ha sido restablecida. Ahora puedes iniciar sesión con tu nueva contraseña."
 }
