@@ -17,14 +17,15 @@ Route::middleware('guest')->group(function () {
         ->name('password.reset');
 });
 
+// Email verification route (accessible to both guests and authenticated users)
+Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
+
 // Auth routes
 Route::middleware('auth')->group(function () {
     // React SPA route
     Route::view('verify-email', 'spa')->name('verification.notice');
-
-    Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
 
     // Volt route (no React implementation yet)
     Volt::route('confirm-password', 'pages.auth.confirm-password')
