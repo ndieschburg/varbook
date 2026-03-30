@@ -95,6 +95,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
 
         try {
+            // On Android, screen.orientation.lock() requires fullscreen mode
+            // Check if we need to enter fullscreen first
+            if (!document.fullscreenElement) {
+                try {
+                    await document.documentElement.requestFullscreen();
+                    // Wait a bit for fullscreen to be fully active
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                } catch (fsError: any) {
+                    // Fullscreen failed, but try orientation lock anyway (might work on some browsers)
+                    debug('Fullscreen request failed', fsError);
+                }
+            }
+
             if (screen.orientation?.lock) {
                 await screen.orientation.lock('portrait');
                 orientationLockedRef.current = true;
@@ -108,7 +121,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             toast.error(`❌ ${error?.name}: ${error?.message}`);
             return false;
         }
-    }, []);
+    }, [debug]);
 
     // Cleanup on unmount
     useEffect(() => {
