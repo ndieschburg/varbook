@@ -84,6 +84,33 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     // Prevent screen from sleeping while reading
     useWakeLock();
 
+    // Lock screen orientation to portrait while reading (prevents epub.js position issues on rotation)
+    useEffect(() => {
+        const lockOrientation = async () => {
+            try {
+                // Screen Orientation API - works on Android Chrome/PWA
+                if (screen.orientation?.lock) {
+                    await screen.orientation.lock('portrait');
+                    debug('Screen orientation locked to portrait');
+                }
+            } catch (error) {
+                // Silently fail - not all browsers/contexts support this
+                debug('Could not lock screen orientation', error);
+            }
+        };
+
+        lockOrientation();
+
+        return () => {
+            // Unlock orientation when leaving reader
+            try {
+                screen.orientation?.unlock?.();
+            } catch {
+                // Ignore errors on cleanup
+            }
+        };
+    }, [debug]);
+
     // Apply theme to rendition
     const applyTheme = useCallback(() => {
         if (!renditionRef.current) return;
