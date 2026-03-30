@@ -138,39 +138,73 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     }, []);
 
     // Auto-apply fullscreen + orientation lock based on setting
+    // Also re-apply when returning from sleep (visibility change) or when fullscreen is lost
     useEffect(() => {
         const applyFullscreenLock = async () => {
-            if (settings.fullscreenLock && !orientationLockedRef.current) {
-                // Apply fullscreen + orientation lock
-                try {
-                    if (!document.fullscreenElement) {
-                        await document.documentElement.requestFullscreen();
-                        await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!settings.fullscreenLock) {
+                // Setting disabled - remove locks if active
+                if (orientationLockedRef.current) {
+                    try {
+                        screen.orientation?.unlock?.();
+                        orientationLockedRef.current = false;
+                        if (document.fullscreenElement) {
+                            await document.exitFullscreen();
+                        }
+                        debug('Fullscreen lock removed');
+                    } catch {
+                        // Ignore
                     }
-                    if (screen.orientation?.lock) {
-                        await screen.orientation.lock('portrait');
-                        orientationLockedRef.current = true;
-                        debug('Auto fullscreen lock applied');
-                    }
-                } catch (error: any) {
-                    debug('Auto fullscreen lock failed', error);
                 }
-            } else if (!settings.fullscreenLock && orientationLockedRef.current) {
-                // Remove fullscreen + orientation lock
-                try {
-                    screen.orientation?.unlock?.();
-                    orientationLockedRef.current = false;
-                    if (document.fullscreenElement) {
-                        await document.exitFullscreen();
-                    }
-                    debug('Fullscreen lock removed');
-                } catch {
-                    // Ignore
+                return;
+            }
+
+            // Setting enabled - apply fullscreen + orientation lock
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                    await new Promise((resolve) => setTimeout(resolve, 100));
                 }
+                if (screen.orientation?.lock) {
+                    await screen.orientation.lock('portrait');
+                    orientationLockedRef.current = true;
+                    debug('Auto fullscreen lock applied');
+                }
+            } catch (error: any) {
+                debug('Auto fullscreen lock failed', error);
+                // Reset ref if lock failed
+                orientationLockedRef.current = false;
             }
         };
 
+        // Re-apply when app becomes visible (after sleep)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && settings.fullscreenLock) {
+                debug('Visibility changed to visible, re-applying fullscreen lock');
+                // Small delay to let the system settle
+                setTimeout(applyFullscreenLock, 300);
+            }
+        };
+
+        // Re-apply when fullscreen is lost (system exit)
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement && settings.fullscreenLock) {
+                debug('Fullscreen lost, re-applying');
+                orientationLockedRef.current = false;
+                // Small delay before re-applying
+                setTimeout(applyFullscreenLock, 300);
+            }
+        };
+
+        // Initial apply
         applyFullscreenLock();
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
     }, [settings.fullscreenLock, debug]);
 
     // Apply theme to rendition
