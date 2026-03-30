@@ -85,46 +85,38 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     // Prevent screen from sleeping while reading
     useWakeLock();
 
-    // Lock screen orientation to portrait on first user interaction
-    // (SecurityError if called without user gesture)
+    // Lock screen orientation - must be called from user gesture (click handler)
     const orientationLockedRef = useRef(false);
 
+    const lockOrientation = useCallback(async () => {
+        if (orientationLockedRef.current) {
+            toast('🔒 Déjà verrouillé');
+            return true;
+        }
+
+        try {
+            if (screen.orientation?.lock) {
+                await screen.orientation.lock('portrait');
+                orientationLockedRef.current = true;
+                toast.success('🔒 Orientation verrouillée');
+                return true;
+            } else {
+                toast.error('❌ API non disponible');
+                return false;
+            }
+        } catch (error: any) {
+            toast.error(`❌ ${error?.name}: ${error?.message}`);
+            return false;
+        }
+    }, []);
+
+    // Cleanup on unmount
     useEffect(() => {
-        const lockOrientation = async () => {
-            if (orientationLockedRef.current) return;
-
-            try {
-                if (screen.orientation?.lock) {
-                    await screen.orientation.lock('portrait');
-                    orientationLockedRef.current = true;
-                    toast.success('🔒 Orientation verrouillée');
-                }
-            } catch (error: any) {
-                // Only show error if it's not a SecurityError (expected on first try)
-                if (error?.name !== 'SecurityError') {
-                    toast.error(`❌ Lock failed: ${error?.name}`);
-                }
-            }
-        };
-
-        // Listen for user interactions to trigger orientation lock
-        const handleInteraction = () => {
-            if (!orientationLockedRef.current) {
-                lockOrientation();
-            }
-        };
-
-        // Add listeners for various user interactions
-        document.addEventListener('click', handleInteraction, { once: true });
-        document.addEventListener('touchstart', handleInteraction, { once: true });
-
         return () => {
-            document.removeEventListener('click', handleInteraction);
-            document.removeEventListener('touchstart', handleInteraction);
             try {
                 screen.orientation?.unlock?.();
             } catch {
-                // Ignore errors on cleanup
+                // Ignore
             }
         };
     }, []);
@@ -760,6 +752,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         search,
         clearSearch,
         goToSearchResult,
+        lockOrientation,
     };
 }
 

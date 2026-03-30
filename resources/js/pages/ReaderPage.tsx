@@ -56,6 +56,7 @@ export function ReaderPage() {
         search,
         clearSearch,
         goToSearchResult,
+        lockOrientation,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -480,6 +481,19 @@ export function ReaderPage() {
                                         }`}
                                     />
                                 </button>
+                            </div>
+
+                            {/* Orientation Lock (mobile) */}
+                            <div className="pt-4 border-t border-gray-700">
+                                <button
+                                    onClick={lockOrientation}
+                                    className="w-full py-3 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                                >
+                                    🔒 {t('Lock Portrait')}
+                                </button>
+                                <p className="text-xs text-gray-400 mt-2 text-center">
+                                    {t('Tap to prevent screen rotation')}
+                                </p>
                             </div>
                         </div>
                     </div>
