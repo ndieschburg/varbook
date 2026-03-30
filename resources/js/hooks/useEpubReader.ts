@@ -79,7 +79,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         isSearching: false,
     });
 
-    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection } = useReaderSettings();
+    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection, setFullscreenLock } = useReaderSettings();
     const { loadPosition, savePosition, flushSync } = usePositionSync({ bookId });
 
     // Prevent screen from sleeping while reading
@@ -128,11 +128,50 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         return () => {
             try {
                 screen.orientation?.unlock?.();
+                if (document.fullscreenElement) {
+                    document.exitFullscreen?.();
+                }
             } catch {
                 // Ignore
             }
         };
     }, []);
+
+    // Auto-apply fullscreen + orientation lock based on setting
+    useEffect(() => {
+        const applyFullscreenLock = async () => {
+            if (settings.fullscreenLock && !orientationLockedRef.current) {
+                // Apply fullscreen + orientation lock
+                try {
+                    if (!document.fullscreenElement) {
+                        await document.documentElement.requestFullscreen();
+                        await new Promise((resolve) => setTimeout(resolve, 100));
+                    }
+                    if (screen.orientation?.lock) {
+                        await screen.orientation.lock('portrait');
+                        orientationLockedRef.current = true;
+                        debug('Auto fullscreen lock applied');
+                    }
+                } catch (error: any) {
+                    debug('Auto fullscreen lock failed', error);
+                }
+            } else if (!settings.fullscreenLock && orientationLockedRef.current) {
+                // Remove fullscreen + orientation lock
+                try {
+                    screen.orientation?.unlock?.();
+                    orientationLockedRef.current = false;
+                    if (document.fullscreenElement) {
+                        await document.exitFullscreen();
+                    }
+                    debug('Fullscreen lock removed');
+                } catch {
+                    // Ignore
+                }
+            }
+        };
+
+        applyFullscreenLock();
+    }, [settings.fullscreenLock, debug]);
 
     // Apply theme to rendition
     const applyTheme = useCallback(() => {
@@ -758,6 +797,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         setMargins,
         setFlowMode,
         setTextSelection,
+        setFullscreenLock,
         nextPage,
         prevPage,
         goTo,

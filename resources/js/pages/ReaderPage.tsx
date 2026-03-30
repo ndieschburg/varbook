@@ -49,6 +49,7 @@ export function ReaderPage() {
         setMargins,
         setFlowMode,
         setTextSelection,
+        setFullscreenLock,
         nextPage,
         prevPage,
         goTo,
@@ -56,7 +57,6 @@ export function ReaderPage() {
         search,
         clearSearch,
         goToSearchResult,
-        lockOrientation,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -74,6 +74,12 @@ export function ReaderPage() {
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showControls, setShowControls] = useState(true);
+
+    // Detect iOS - Screen Orientation API not supported
+    const isIOS = useMemo(() => {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }, []);
 
     const themeColors: Record<Theme, string> = {
         light: 'bg-white',
@@ -483,18 +489,31 @@ export function ReaderPage() {
                                 </button>
                             </div>
 
-                            {/* Orientation Lock (mobile) */}
-                            <div className="pt-4 border-t border-gray-700">
-                                <button
-                                    onClick={lockOrientation}
-                                    className="w-full py-3 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                                >
-                                    🔒 {t('Lock Portrait')}
-                                </button>
-                                <p className="text-xs text-gray-400 mt-2 text-center">
-                                    {t('Tap to prevent screen rotation')}
-                                </p>
-                            </div>
+                            {/* Fullscreen & Orientation Lock (Android only - not supported on iOS) */}
+                            {!isIOS && (
+                                <div className="pt-4 border-t border-gray-700">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="text-sm font-medium text-gray-300">{t('Fullscreen Lock')}</label>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {t('Lock portrait orientation in fullscreen')}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setFullscreenLock(!settings.fullscreenLock)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                                settings.fullscreenLock ? 'bg-indigo-600' : 'bg-gray-600'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                    settings.fullscreenLock ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

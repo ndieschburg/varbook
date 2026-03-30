@@ -13,6 +13,7 @@ interface ReaderSettings {
     margins: Margins;
     flowMode: FlowMode;
     textSelection: boolean;
+    fullscreenLock: boolean;
 }
 
 const defaultSettings: ReaderSettings = {
@@ -23,10 +24,12 @@ const defaultSettings: ReaderSettings = {
     margins: 'normal',
     flowMode: 'paginated',
     textSelection: false,
+    fullscreenLock: false,
 };
 
 function loadSettings(): ReaderSettings {
     const textSelectionStored = localStorage.getItem('reader-text-selection');
+    const fullscreenLockStored = localStorage.getItem('reader-fullscreen-lock');
     return {
         theme: (localStorage.getItem('reader-theme') as Theme) || defaultSettings.theme,
         fontSize: parseInt(localStorage.getItem('reader-font-size') || '') || defaultSettings.fontSize,
@@ -35,6 +38,7 @@ function loadSettings(): ReaderSettings {
         margins: (localStorage.getItem('reader-margins') as Margins) || defaultSettings.margins,
         flowMode: (localStorage.getItem('reader-flow') as FlowMode) || defaultSettings.flowMode,
         textSelection: textSelectionStored !== null ? textSelectionStored === 'true' : defaultSettings.textSelection,
+        fullscreenLock: fullscreenLockStored !== null ? fullscreenLockStored === 'true' : defaultSettings.fullscreenLock,
     };
 }
 
@@ -78,6 +82,11 @@ export function useReaderSettings() {
         setSettings(prev => ({ ...prev, textSelection }));
     }, []);
 
+    const setFullscreenLock = useCallback((fullscreenLock: boolean) => {
+        localStorage.setItem('reader-fullscreen-lock', String(fullscreenLock));
+        setSettings(prev => ({ ...prev, fullscreenLock }));
+    }, []);
+
     return {
         settings,
         setTheme,
@@ -87,6 +96,7 @@ export function useReaderSettings() {
         setMargins,
         setFlowMode,
         setTextSelection,
+        setFullscreenLock,
     };
 }
 
