@@ -85,47 +85,42 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     // Prevent screen from sleeping while reading
     useWakeLock();
 
-    // Lock screen orientation to portrait while reading (prevents epub.js position issues on rotation)
+    // Lock screen orientation to portrait on first user interaction
+    // (SecurityError if called without user gesture)
+    const orientationLockedRef = useRef(false);
+
     useEffect(() => {
         const lockOrientation = async () => {
-            // Try multiple orientation types for maximum compatibility
-            const orientations = ['portrait', 'portrait-primary'] as OrientationLockType[];
+            if (orientationLockedRef.current) return;
 
-            for (const orientation of orientations) {
-                try {
-                    if (screen.orientation?.lock) {
-                        await screen.orientation.lock(orientation);
-                        toast.success(`🔒 Orientation: ${orientation}`);
-                        return; // Success
-                    }
-                } catch (error: any) {
-                    toast.error(`❌ ${orientation}: ${error?.name || error}`);
-                }
-            }
-
-            // Fallback: try deprecated APIs (older Android/browsers)
             try {
-                const screenAny = screen as any;
-                if (screenAny.lockOrientation) {
-                    screenAny.lockOrientation('portrait');
-                    toast.success('🔒 lockOrientation (legacy)');
-                } else if (screenAny.mozLockOrientation) {
-                    screenAny.mozLockOrientation('portrait');
-                    toast.success('🔒 mozLockOrientation');
-                } else if (screenAny.msLockOrientation) {
-                    screenAny.msLockOrientation('portrait');
-                    toast.success('🔒 msLockOrientation');
-                } else {
-                    toast.error('❌ No orientation API');
+                if (screen.orientation?.lock) {
+                    await screen.orientation.lock('portrait');
+                    orientationLockedRef.current = true;
+                    toast.success('🔒 Orientation verrouillée');
                 }
             } catch (error: any) {
-                toast.error(`❌ Legacy: ${error?.name || error}`);
+                // Only show error if it's not a SecurityError (expected on first try)
+                if (error?.name !== 'SecurityError') {
+                    toast.error(`❌ Lock failed: ${error?.name}`);
+                }
             }
         };
 
-        lockOrientation();
+        // Listen for user interactions to trigger orientation lock
+        const handleInteraction = () => {
+            if (!orientationLockedRef.current) {
+                lockOrientation();
+            }
+        };
+
+        // Add listeners for various user interactions
+        document.addEventListener('click', handleInteraction, { once: true });
+        document.addEventListener('touchstart', handleInteraction, { once: true });
 
         return () => {
+            document.removeEventListener('click', handleInteraction);
+            document.removeEventListener('touchstart', handleInteraction);
             try {
                 screen.orientation?.unlock?.();
             } catch {
