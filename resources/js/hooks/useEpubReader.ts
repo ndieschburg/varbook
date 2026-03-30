@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
+import toast from 'react-hot-toast';
 import { usePositionSync } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
 import { useWakeLock } from './useWakeLock';
@@ -94,11 +95,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 try {
                     if (screen.orientation?.lock) {
                         await screen.orientation.lock(orientation);
-                        console.log(`[Varbook] Screen orientation locked to ${orientation}`);
+                        toast.success(`🔒 Orientation: ${orientation}`);
                         return; // Success
                     }
-                } catch (error) {
-                    console.warn(`[Varbook] Could not lock to ${orientation}:`, error);
+                } catch (error: any) {
+                    toast.error(`❌ ${orientation}: ${error?.name || error}`);
                 }
             }
 
@@ -107,18 +108,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 const screenAny = screen as any;
                 if (screenAny.lockOrientation) {
                     screenAny.lockOrientation('portrait');
-                    console.log('[Varbook] Screen locked via deprecated lockOrientation API');
+                    toast.success('🔒 lockOrientation (legacy)');
                 } else if (screenAny.mozLockOrientation) {
                     screenAny.mozLockOrientation('portrait');
-                    console.log('[Varbook] Screen locked via mozLockOrientation API');
+                    toast.success('🔒 mozLockOrientation');
                 } else if (screenAny.msLockOrientation) {
                     screenAny.msLockOrientation('portrait');
-                    console.log('[Varbook] Screen locked via msLockOrientation API');
+                    toast.success('🔒 msLockOrientation');
                 } else {
-                    console.warn('[Varbook] No screen orientation lock API available');
+                    toast.error('❌ No orientation API');
                 }
-            } catch (error) {
-                console.warn('[Varbook] Deprecated orientation lock failed:', error);
+            } catch (error: any) {
+                toast.error(`❌ Legacy: ${error?.name || error}`);
             }
         };
 
