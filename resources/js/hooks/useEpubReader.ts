@@ -180,6 +180,28 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             return;
         }
 
+        // Initial apply on mount or when setting is toggled ON
+        // This works because opening a book or toggling the setting is a user gesture
+        const applyInitial = async () => {
+            if (!document.fullscreenElement) {
+                try {
+                    await document.documentElement.requestFullscreen();
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                    if (screen.orientation?.lock) {
+                        await screen.orientation.lock('portrait');
+                        orientationLockedRef.current = true;
+                        debug('Initial fullscreen lock applied');
+                    }
+                    setState(prev => ({ ...prev, needsFullscreenRestore: false }));
+                } catch (error: any) {
+                    debug('Initial fullscreen lock failed', error);
+                    // If it fails (e.g., no user gesture), show restore overlay
+                    setState(prev => ({ ...prev, needsFullscreenRestore: true }));
+                }
+            }
+        };
+        applyInitial();
+
         // Detect when fullscreen is lost (system exit, after sleep, etc.)
         const handleFullscreenChange = () => {
             if (!document.fullscreenElement && settings.fullscreenLock) {
