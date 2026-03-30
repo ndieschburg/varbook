@@ -87,29 +87,51 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     // Lock screen orientation to portrait while reading (prevents epub.js position issues on rotation)
     useEffect(() => {
         const lockOrientation = async () => {
+            // Try multiple orientation types for maximum compatibility
+            const orientations = ['portrait', 'portrait-primary'] as OrientationLockType[];
+
+            for (const orientation of orientations) {
+                try {
+                    if (screen.orientation?.lock) {
+                        await screen.orientation.lock(orientation);
+                        console.log(`[Varbook] Screen orientation locked to ${orientation}`);
+                        return; // Success
+                    }
+                } catch (error) {
+                    console.warn(`[Varbook] Could not lock to ${orientation}:`, error);
+                }
+            }
+
+            // Fallback: try deprecated APIs (older Android/browsers)
             try {
-                // Screen Orientation API - works on Android Chrome/PWA
-                if (screen.orientation?.lock) {
-                    await screen.orientation.lock('portrait');
-                    debug('Screen orientation locked to portrait');
+                const screenAny = screen as any;
+                if (screenAny.lockOrientation) {
+                    screenAny.lockOrientation('portrait');
+                    console.log('[Varbook] Screen locked via deprecated lockOrientation API');
+                } else if (screenAny.mozLockOrientation) {
+                    screenAny.mozLockOrientation('portrait');
+                    console.log('[Varbook] Screen locked via mozLockOrientation API');
+                } else if (screenAny.msLockOrientation) {
+                    screenAny.msLockOrientation('portrait');
+                    console.log('[Varbook] Screen locked via msLockOrientation API');
+                } else {
+                    console.warn('[Varbook] No screen orientation lock API available');
                 }
             } catch (error) {
-                // Silently fail - not all browsers/contexts support this
-                debug('Could not lock screen orientation', error);
+                console.warn('[Varbook] Deprecated orientation lock failed:', error);
             }
         };
 
         lockOrientation();
 
         return () => {
-            // Unlock orientation when leaving reader
             try {
                 screen.orientation?.unlock?.();
             } catch {
                 // Ignore errors on cleanup
             }
         };
-    }, [debug]);
+    }, []);
 
     // Apply theme to rendition
     const applyTheme = useCallback(() => {
