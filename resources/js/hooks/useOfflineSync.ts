@@ -6,8 +6,8 @@ import api from '@/api/client';
 import {
     getUnsyncedPositions,
     markPositionsSynced,
-    clearSyncedPositions,
-    type OfflinePosition,
+    cleanupOldPositions,
+    type LocalPosition,
 } from '@/services/offlineDb';
 import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
 import { debugLog, debugError } from '@/services/debugLogger';
@@ -46,6 +46,8 @@ export function useOfflineSync() {
         try {
             const positions = await getUnsyncedPositions();
             if (positions.length === 0) {
+                // No positions to sync, but still cleanup old records periodically
+                await cleanupOldPositions();
                 syncingRef.current = false;
                 return;
             }
@@ -61,7 +63,7 @@ export function useOfflineSync() {
                     acc[pos.bookId].push(pos);
                     return acc;
                 },
-                {} as Record<number, OfflinePosition[]>
+                {} as Record<number, LocalPosition[]>
             );
 
             // Prepare batch updates with position IDs for tracking
@@ -102,7 +104,8 @@ export function useOfflineSync() {
 
             if (successfulIds.length > 0) {
                 await markPositionsSynced(successfulIds);
-                await clearSyncedPositions();
+                // Cleanup old synced positions (> 7 days old)
+                await cleanupOldPositions();
                 queryClient.invalidateQueries({ queryKey: ['books'] });
                 debugLog('OfflineSync', `Successfully synced ${successfulIds.length} positions`);
                 toast.success(t('Reading progress synced'));

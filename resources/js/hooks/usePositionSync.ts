@@ -1,7 +1,18 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import api from '@/api/client';
-import { queuePositionSync, getLatestUnsyncedPosition } from '@/services/offlineDb';
-import { isEffectivelyOffline, isNetworkError, markAsOffline, markAsOnline } from '@/services/networkState';
+import {
+    saveLocalPosition,
+    getBookSyncState,
+    updateServerState,
+    getUnsyncedPositions,
+    markPositionsSynced,
+} from '@/services/offlineDb';
+import {
+    isEffectivelyOffline,
+    isNetworkError,
+    markAsOffline,
+    markAsOnline,
+} from '@/services/networkState';
 import { debugLog, debugWarn, debugError } from '@/services/debugLogger';
 
 interface PositionSyncOptions {
@@ -9,153 +20,291 @@ interface PositionSyncOptions {
     debounceMs?: number;
 }
 
-export function usePositionSync({ bookId, debounceMs = 2000 }: PositionSyncOptions) {
+export interface LoadedPosition {
+    cfi: string | null;
+    progress: number;
+    source: 'local' | 'server';
+}
+
+// Threshold for considering server position as "newer" (from another device)
+const MULTI_DEVICE_THRESHOLD_MS = 5000;
+
+/**
+ * Local-first position synchronization hook
+ *
+ * Strategy:
+ * - Always save to IndexedDB first (guaranteed persistence)
+ * - Sync to server in background (best effort)
+ * - On load: use local position immediately, check server in background
+ * - Detect multi-device sync via timestamp comparison
+ */
+export function usePositionSync({ bookId, debounceMs = 500 }: PositionSyncOptions) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastSavedCfiRef = useRef<string | null>(null);
+    const lastSavedRef = useRef<{ cfi: string; timestamp: number } | null>(null);
+    const isMountedRef = useRef(true);
 
-    const loadPosition = useCallback(async (): Promise<{ cfi: string | null; progress: number } | null> => {
-        // First check for unsynced local positions - they take priority over server
-        // This prevents overwriting recent offline reading with old server position
-        try {
-            const localPosition = await getLatestUnsyncedPosition(bookId);
-            if (localPosition) {
-                debugLog('PositionSync', 'Using local unsynced position instead of server');
-                // Still try to trigger online detection for sync, but don't use the result
-                api.get(`/books/${bookId}/progress`).then(() => markAsOnline()).catch(() => {});
-                return { cfi: localPosition.cfi, progress: localPosition.progress };
-            }
-        } catch (e) {
-            debugError('PositionSync', 'Failed to check local positions', e);
+    // Track mount state to avoid state updates after unmount
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    /**
+     * Load position with local-first strategy:
+     * 1. Return local position immediately if available
+     * 2. Fetch server position in background
+     * 3. If server is significantly newer, dispatch event for reader to handle
+     */
+    const loadPosition = useCallback(async (): Promise<LoadedPosition | null> => {
+        debugLog('PositionSync', 'Loading position for book', bookId);
+
+        // Step 1: Get local sync state
+        const localState = await getBookSyncState(bookId);
+
+        // Step 2: Start server fetch (non-blocking)
+        const serverPromise = fetchServerPosition(bookId);
+
+        // Step 3: If we have local data, use it immediately for fast UX
+        if (localState?.lastLocalCfi) {
+            debugLog('PositionSync', 'Using local position', {
+                cfi: localState.lastLocalCfi,
+                progress: localState.lastLocalProgress,
+            });
+
+            // Check server in background for multi-device sync
+            serverPromise
+                .then((serverPos) => {
+                    if (!serverPos || !isMountedRef.current) return;
+
+                    const serverTime = serverPos.timestamp?.getTime() || 0;
+                    const localTime = localState.lastLocalTimestamp?.getTime() || 0;
+
+                    // Check if server position is significantly ahead (another device read further)
+                    if (
+                        serverTime > localTime + MULTI_DEVICE_THRESHOLD_MS &&
+                        serverPos.progress > localState.lastLocalProgress
+                    ) {
+                        debugLog('PositionSync', 'Server position is newer (another device)', {
+                            serverProgress: serverPos.progress,
+                            localProgress: localState.lastLocalProgress,
+                            timeDiff: serverTime - localTime,
+                        });
+
+                        // Dispatch event for reader to handle multi-device sync
+                        window.dispatchEvent(
+                            new CustomEvent('position-sync-available', {
+                                detail: { bookId, serverPosition: serverPos },
+                            })
+                        );
+                    }
+
+                    // Update server state cache regardless
+                    updateServerState(
+                        bookId,
+                        serverPos.cfi,
+                        serverPos.progress,
+                        serverPos.timestamp || new Date()
+                    );
+                })
+                .catch((err) => {
+                    debugWarn('PositionSync', 'Failed to fetch server position in background', err);
+                });
+
+            return {
+                cfi: localState.lastLocalCfi,
+                progress: localState.lastLocalProgress,
+                source: 'local',
+            };
         }
 
-        // No local positions, fetch from server
+        // Step 4: No local data, wait for server response
         try {
-            const response = await api.get(`/books/${bookId}/progress`);
-            // API request succeeded - we're online
-            markAsOnline();
-            const data = response.data.data;
-            if (data) {
-                // Return progress even if CFI is null (allows percentage fallback)
-                return { cfi: data.position || null, progress: data.progress || 0 };
+            const serverPos = await serverPromise;
+            if (serverPos) {
+                debugLog('PositionSync', 'Using server position (no local)', serverPos);
+                await updateServerState(
+                    bookId,
+                    serverPos.cfi,
+                    serverPos.progress,
+                    serverPos.timestamp || new Date()
+                );
+                return {
+                    cfi: serverPos.cfi,
+                    progress: serverPos.progress,
+                    source: 'server',
+                };
             }
-            return null;
         } catch (error) {
-            debugError('PositionSync', 'Failed to load position', error);
-            if (isNetworkError(error)) {
-                markAsOffline();
-            }
-            return null;
+            debugError('PositionSync', 'Failed to load position from server', error);
         }
+
+        return null;
     }, [bookId]);
 
-    const savePosition = useCallback(async (cfi: string, progress: number) => {
-        // Never save 0% progress - it's meaningless and would overwrite real progress
-        if (progress === 0) {
-            debugLog('PositionSync', 'Ignoring 0% progress save');
-            return;
-        }
-
-        // Debounce saves
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-        }
-
-        timeoutRef.current = setTimeout(async () => {
-            if (cfi === lastSavedCfiRef.current) return;
-
-            // If offline (browser says so, or we detected network errors), queue immediately
-            if (isEffectivelyOffline()) {
-                debugLog('PositionSync', 'Offline - queuing position for sync');
-                try {
-                    await queuePositionSync(bookId, cfi, progress);
-                    lastSavedCfiRef.current = cfi;
-                } catch (queueError) {
-                    debugError('PositionSync', 'Failed to queue position for offline sync', queueError);
-                }
+    /**
+     * Save position with local-first strategy:
+     * 1. Always write to IndexedDB first (guaranteed)
+     * 2. Attempt server sync (best effort)
+     */
+    const savePosition = useCallback(
+        (cfi: string, progress: number) => {
+            // Skip 0% progress - meaningless and would overwrite real progress
+            if (progress === 0) {
+                debugLog('PositionSync', 'Ignoring 0% progress');
                 return;
             }
 
-            // Try API call (single attempt when effectively offline was recently reset)
-            try {
-                await api.put(`/books/${bookId}/progress`, {
+            // Skip duplicate saves within 1 second
+            const now = Date.now();
+            if (lastSavedRef.current?.cfi === cfi && now - lastSavedRef.current.timestamp < 1000) {
+                debugLog('PositionSync', 'Skipping duplicate save');
+                return;
+            }
+
+            // Clear existing debounce timer
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+
+            timeoutRef.current = setTimeout(async () => {
+                try {
+                    // STEP 1: Always save locally first (guaranteed persistence)
+                    debugLog('PositionSync', 'Saving to IndexedDB', { cfi, progress });
+                    await saveLocalPosition(bookId, cfi, progress);
+                    lastSavedRef.current = { cfi, timestamp: Date.now() };
+
+                    // STEP 2: Attempt server sync (best effort, non-blocking)
+                    if (!isEffectivelyOffline()) {
+                        syncToServer(bookId, cfi, progress);
+                    } else {
+                        debugLog('PositionSync', 'Offline - skipping server sync');
+                    }
+                } catch (error) {
+                    debugError('PositionSync', 'Failed to save position locally', error);
+                }
+            }, debounceMs);
+        },
+        [bookId, debounceMs]
+    );
+
+    /**
+     * Immediate flush for visibility change / page unload
+     * Critical: saves to IndexedDB synchronously, sendBeacon as backup
+     */
+    const flushSync = useCallback(
+        (cfi: string | null, progress: number) => {
+            // Clear pending debounce
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+
+            // Skip invalid saves
+            if (!cfi || progress === 0) {
+                debugLog('PositionSync', 'flushSync - skipping (no cfi or 0%)');
+                return;
+            }
+
+            // Skip duplicate saves
+            if (lastSavedRef.current?.cfi === cfi) {
+                debugLog('PositionSync', 'flushSync - skipping (already saved)');
+                return;
+            }
+
+            debugLog('PositionSync', 'flushSync - saving position', { cfi, progress });
+
+            // CRITICAL: Save to IndexedDB first (this is the guaranteed save)
+            // In pagehide/visibilitychange, browser gives a short window for async work
+            saveLocalPosition(bookId, cfi, progress)
+                .then(() => {
+                    debugLog('PositionSync', 'flushSync - IndexedDB save complete');
+                })
+                .catch((err) => {
+                    debugError('PositionSync', 'flushSync - IndexedDB save failed', err);
+                });
+
+            lastSavedRef.current = { cfi, timestamp: Date.now() };
+
+            // Also try sendBeacon as backup (may or may not succeed)
+            if (!isEffectivelyOffline()) {
+                const url = `/api/books/${bookId}/progress`;
+                const data = JSON.stringify({
                     progress,
                     position: cfi,
                     client: 'web',
+                    timestamp: new Date().toISOString(),
                 });
-                lastSavedCfiRef.current = cfi;
-                // Success - clear offline state
-                markAsOnline();
-                return;
-            } catch (error) {
-                // Check if it's a network error
-                if (isNetworkError(error)) {
-                    markAsOffline();
-                }
-
-                // Queue for offline sync
-                debugWarn('PositionSync', 'API failed, queueing for offline sync');
-                try {
-                    await queuePositionSync(bookId, cfi, progress);
-                    lastSavedCfiRef.current = cfi;
-                } catch (queueError) {
-                    debugError('PositionSync', 'Failed to queue position for offline sync', queueError);
-                }
+                const blob = new Blob([data], { type: 'application/json' });
+                const sent = navigator.sendBeacon?.(url, blob) ?? false;
+                debugLog('PositionSync', `flushSync - sendBeacon ${sent ? 'queued' : 'failed'}`);
             }
-        }, debounceMs);
-    }, [bookId, debounceMs]);
-
-    // Synchronous flush using sendBeacon - guaranteed to send even during page unload
-    const flushSync = useCallback((cfi: string | null, progress: number) => {
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-        }
-
-        // Never save 0% progress - it's meaningless and would overwrite real progress
-        if (progress === 0) {
-            debugLog('PositionSync', 'flushSync - Ignoring 0% progress');
-            return;
-        }
-
-        if (!cfi || cfi === lastSavedCfiRef.current) return;
-
-        // If offline (browser says so, or we detected network errors), queue for later sync
-        if (isEffectivelyOffline()) {
-            debugLog('PositionSync', 'flushSync - Offline, queuing position');
-            queuePositionSync(bookId, cfi, progress).catch(err => {
-                debugError('PositionSync', 'Failed to queue position for offline sync', err);
-            });
-            lastSavedCfiRef.current = cfi;
-            return;
-        }
-
-        // Use sendBeacon for reliable delivery during page unload
-        // sendBeacon is fire-and-forget but guaranteed to be sent
-        const url = `/api/books/${bookId}/progress`;
-        const data = JSON.stringify({
-            progress,
-            position: cfi,
-            client: 'web',
-        });
-        const blob = new Blob([data], { type: 'application/json' });
-
-        // Try sendBeacon (works during unload, CSRF disabled for this route)
-        const sent = navigator.sendBeacon?.(url, blob) ?? false;
-
-        if (sent) {
-            lastSavedCfiRef.current = cfi;
-        } else {
-            // Fallback: queue for offline sync if sendBeacon fails
-            debugWarn('PositionSync', 'sendBeacon failed, queueing for offline sync');
-            queuePositionSync(bookId, cfi, progress).catch(err => {
-                debugError('PositionSync', 'Failed to queue position for offline sync', err);
-            });
-            lastSavedCfiRef.current = cfi;
-        }
-    }, [bookId]);
+        },
+        [bookId]
+    );
 
     return {
         loadPosition,
         savePosition,
         flushSync,
     };
+}
+
+/**
+ * Fetch position from server
+ */
+async function fetchServerPosition(bookId: number): Promise<{
+    cfi: string | null;
+    progress: number;
+    timestamp: Date | null;
+} | null> {
+    try {
+        const response = await api.get(`/books/${bookId}/progress`);
+        markAsOnline();
+        const data = response.data.data;
+        if (data) {
+            return {
+                cfi: data.position || null,
+                progress: data.progress || 0,
+                timestamp: data.last_sync_at ? new Date(data.last_sync_at) : null,
+            };
+        }
+    } catch (error) {
+        if (isNetworkError(error)) {
+            markAsOffline();
+        }
+        throw error;
+    }
+    return null;
+}
+
+/**
+ * Sync position to server (fire-and-forget)
+ */
+async function syncToServer(bookId: number, cfi: string, progress: number): Promise<void> {
+    try {
+        await api.put(`/books/${bookId}/progress`, {
+            progress,
+            position: cfi,
+            client: 'web',
+            timestamp: new Date().toISOString(),
+        });
+        markAsOnline();
+        debugLog('PositionSync', 'Server sync successful');
+
+        // Mark local positions as synced
+        const positions = await getUnsyncedPositions();
+        const bookPositions = positions.filter((p) => p.bookId === bookId);
+        if (bookPositions.length > 0) {
+            const ids = bookPositions.map((p) => p.id).filter((id): id is number => id !== undefined);
+            await markPositionsSynced(ids);
+        }
+    } catch (error) {
+        if (isNetworkError(error)) {
+            markAsOffline();
+        }
+        debugWarn('PositionSync', 'Server sync failed, will retry later', error);
+        // Position is already saved locally, so this is OK
+    }
 }

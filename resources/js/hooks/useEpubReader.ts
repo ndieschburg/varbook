@@ -511,9 +511,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debugMode]);
 
-    // Sync position when app returns to foreground or save when going to background
+    // Save position when app goes to background
     useEffect(() => {
-        const handleVisibilityChange = async () => {
+        const handleVisibilityChange = () => {
             if (!renditionRef.current || !bookRef.current) return;
 
             if (document.visibilityState === 'hidden') {
@@ -526,51 +526,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     });
                     flushSync(location.start.cfi, progressRef.current);
                 }
-                return;
             }
-
-            // Page becoming visible - check if server has newer position
-            if (document.visibilityState === 'visible' && navigator.onLine && locationsReadyRef.current) {
-                debug('Page visible - checking server for newer position...');
-                try {
-                    const serverPosition = await loadPosition();
-                    if (!serverPosition) {
-                        debug('No server position found');
-                        return;
-                    }
-
-                    const currentProgress = progressRef.current;
-                    debug('Comparing positions', {
-                        server: serverPosition.progress?.toFixed(5) + '%',
-                        local: currentProgress.toFixed(5) + '%',
-                        diff: ((serverPosition.progress || 0) - currentProgress).toFixed(5) + '%',
-                    });
-
-                    // Only sync if server progress is significantly ahead (avoid micro-jumps)
-                    if (serverPosition.progress > currentProgress + 0.001) {
-                        debug('Server is ahead - syncing position', { serverCfi: serverPosition.cfi });
-                        skipSaveCountRef.current = 1; // Skip next save
-                        if (serverPosition.cfi) {
-                            renditionRef.current.display(serverPosition.cfi);
-                        } else if (locationsReadyRef.current) {
-                            const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
-                            if (cfi) {
-                                debug('Generated CFI from percentage', { cfi });
-                                renditionRef.current.display(cfi);
-                            }
-                        }
-                    } else {
-                        debug('Local position is current or ahead - no sync needed');
-                    }
-                } catch (error) {
-                    console.error('Failed to sync position on visibility change:', error);
-                }
-            }
+            // Note: server sync on visibility=visible is now handled via
+            // the 'position-sync-available' event dispatched by usePositionSync
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [loadPosition, flushSync, debug]);
+    }, [flushSync, debug]);
 
     // Save progress on page unload (pagehide is more reliable than beforeunload on mobile)
     useEffect(() => {
@@ -589,6 +552,41 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         window.addEventListener('pagehide', handlePageHide);
         return () => window.removeEventListener('pagehide', handlePageHide);
     }, [flushSync, debug]);
+
+    // Handle multi-device sync: when server has newer position from another device
+    useEffect(() => {
+        const handleSyncAvailable = (event: Event) => {
+            const customEvent = event as CustomEvent<{
+                bookId: number;
+                serverPosition: { cfi: string | null; progress: number };
+            }>;
+
+            // Ignore events for other books
+            if (customEvent.detail.bookId !== bookId) return;
+
+            const { serverPosition } = customEvent.detail;
+            debug('Multi-device sync available', serverPosition);
+
+            // Navigate to server position if valid
+            if (!renditionRef.current || !bookRef.current) return;
+
+            skipSaveCountRef.current = 1; // Skip next save to avoid overwriting
+
+            if (serverPosition.cfi) {
+                debug('Navigating to server CFI', serverPosition.cfi);
+                renditionRef.current.display(serverPosition.cfi);
+            } else if (locationsReadyRef.current && serverPosition.progress > 0) {
+                const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+                if (cfi) {
+                    debug('Navigating to server percentage', { progress: serverPosition.progress, cfi });
+                    renditionRef.current.display(cfi);
+                }
+            }
+        };
+
+        window.addEventListener('position-sync-available', handleSyncAvailable);
+        return () => window.removeEventListener('position-sync-available', handleSyncAvailable);
+    }, [bookId, debug]);
 
     // Navigation functions
     const nextPage = useCallback(() => {
