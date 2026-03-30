@@ -41,6 +41,7 @@ interface EpubReaderState {
     locationInfo: LocationInfo;
     searchResults: SearchResult[];
     isSearching: boolean;
+    needsFullscreenRestore: boolean;
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
@@ -77,6 +78,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         },
         searchResults: [],
         isSearching: false,
+        needsFullscreenRestore: false,
     });
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection, setFullscreenLock } = useReaderSettings();
@@ -137,73 +139,73 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         };
     }, []);
 
-    // Auto-apply fullscreen + orientation lock based on setting
-    // Also re-apply when returning from sleep (visibility change) or when fullscreen is lost
+    // Restore fullscreen + orientation lock (must be called from user gesture)
+    const restoreFullscreen = useCallback(async () => {
+        if (!settings.fullscreenLock) return;
+
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+            if (screen.orientation?.lock) {
+                await screen.orientation.lock('portrait');
+                orientationLockedRef.current = true;
+                debug('Fullscreen lock restored');
+            }
+            setState(prev => ({ ...prev, needsFullscreenRestore: false }));
+        } catch (error: any) {
+            debug('Fullscreen restore failed', error);
+            orientationLockedRef.current = false;
+        }
+    }, [settings.fullscreenLock, debug]);
+
+    // Detect when fullscreen is lost and needs user interaction to restore
     useEffect(() => {
-        const applyFullscreenLock = async () => {
-            if (!settings.fullscreenLock) {
-                // Setting disabled - remove locks if active
-                if (orientationLockedRef.current) {
-                    try {
-                        screen.orientation?.unlock?.();
-                        orientationLockedRef.current = false;
-                        if (document.fullscreenElement) {
-                            await document.exitFullscreen();
-                        }
-                        debug('Fullscreen lock removed');
-                    } catch {
-                        // Ignore
+        if (!settings.fullscreenLock) {
+            // Setting disabled - remove locks if active and clear restore flag
+            if (orientationLockedRef.current) {
+                try {
+                    screen.orientation?.unlock?.();
+                    orientationLockedRef.current = false;
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
                     }
+                    debug('Fullscreen lock removed');
+                } catch {
+                    // Ignore
                 }
-                return;
             }
+            setState(prev => ({ ...prev, needsFullscreenRestore: false }));
+            return;
+        }
 
-            // Setting enabled - apply fullscreen + orientation lock
-            try {
-                if (!document.fullscreenElement) {
-                    await document.documentElement.requestFullscreen();
-                    await new Promise((resolve) => setTimeout(resolve, 100));
-                }
-                if (screen.orientation?.lock) {
-                    await screen.orientation.lock('portrait');
-                    orientationLockedRef.current = true;
-                    debug('Auto fullscreen lock applied');
-                }
-            } catch (error: any) {
-                debug('Auto fullscreen lock failed', error);
-                // Reset ref if lock failed
-                orientationLockedRef.current = false;
-            }
-        };
-
-        // Re-apply when app becomes visible (after sleep)
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && settings.fullscreenLock) {
-                debug('Visibility changed to visible, re-applying fullscreen lock');
-                // Small delay to let the system settle
-                setTimeout(applyFullscreenLock, 300);
-            }
-        };
-
-        // Re-apply when fullscreen is lost (system exit)
+        // Detect when fullscreen is lost (system exit, after sleep, etc.)
         const handleFullscreenChange = () => {
             if (!document.fullscreenElement && settings.fullscreenLock) {
-                debug('Fullscreen lost, re-applying');
+                debug('Fullscreen lost, needs user gesture to restore');
                 orientationLockedRef.current = false;
-                // Small delay before re-applying
-                setTimeout(applyFullscreenLock, 300);
+                setState(prev => ({ ...prev, needsFullscreenRestore: true }));
+            } else if (document.fullscreenElement && settings.fullscreenLock) {
+                setState(prev => ({ ...prev, needsFullscreenRestore: false }));
             }
         };
 
-        // Initial apply
-        applyFullscreenLock();
+        // Detect when app becomes visible after sleep
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && settings.fullscreenLock && !document.fullscreenElement) {
+                debug('Visibility changed to visible, fullscreen needs restore');
+                orientationLockedRef.current = false;
+                setState(prev => ({ ...prev, needsFullscreenRestore: true }));
+            }
+        };
 
-        document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, [settings.fullscreenLock, debug]);
 
@@ -840,6 +842,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         clearSearch,
         goToSearchResult,
         lockOrientation,
+        restoreFullscreen,
     };
 }
 

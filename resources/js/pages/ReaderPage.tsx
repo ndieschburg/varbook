@@ -57,6 +57,8 @@ export function ReaderPage() {
         search,
         clearSearch,
         goToSearchResult,
+        needsFullscreenRestore,
+        restoreFullscreen,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -227,6 +229,24 @@ export function ReaderPage() {
                             <p className="text-sm mt-2">{error}</p>
                         </div>
                     </div>
+                )}
+
+                {/* Fullscreen restore overlay - shown when returning from sleep/app switch */}
+                {needsFullscreenRestore && (
+                    <button
+                        onClick={restoreFullscreen}
+                        className="absolute inset-0 bg-black/80 flex items-center justify-center z-30 cursor-pointer"
+                    >
+                        <div className="text-center p-6">
+                            <div className="text-4xl mb-4">🔒</div>
+                            <p className="text-white text-lg font-medium mb-2">
+                                {t('Tap to restore fullscreen')}
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                                {t('Fullscreen was interrupted')}
+                            </p>
+                        </div>
+                    </button>
                 )}
 
                 {/* Navigation buttons - hidden on mobile, swipe is used instead */}
