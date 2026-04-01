@@ -65,6 +65,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
     const skipSaveCountRef = useRef<number>(0); // Skip N saves after position restore
+    const savedCfiBeforeSleepRef = useRef<string | null>(null); // CFI saved before sleep for fullscreen restore
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -154,6 +155,37 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 debug('Fullscreen lock restored');
             }
             setState(prev => ({ ...prev, needsFullscreenRestore: false }));
+
+            // Restore reading position after fullscreen is restored
+            // Wait for epub.js to finish re-paginating after the resize
+            if (savedCfiBeforeSleepRef.current && renditionRef.current) {
+                const savedCfi = savedCfiBeforeSleepRef.current;
+                debug('Restoring position after fullscreen restore', savedCfi);
+
+                // Wait for epub.js to resize and re-paginate
+                // Use 'resized' event if available, otherwise timeout
+                await new Promise<void>((resolve) => {
+                    const timeout = setTimeout(() => {
+                        resolve();
+                    }, 500);
+
+                    renditionRef.current?.once('resized', () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    });
+
+                    // Trigger resize to ensure epub.js recalculates
+                    renditionRef.current?.resize();
+                });
+
+                // Skip saving this navigation to avoid overwriting the position
+                skipSaveCountRef.current = 1;
+                await renditionRef.current.display(savedCfi);
+                debug('Position restored after fullscreen', savedCfi);
+
+                // Clear the saved CFI
+                savedCfiBeforeSleepRef.current = null;
+            }
         } catch (error: any) {
             debug('Fullscreen restore failed', error);
             orientationLockedRef.current = false;
@@ -672,6 +704,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                         progress: progressRef.current.toFixed(5) + '%',
                     });
                     flushSync(location.start.cfi, progressRef.current);
+
+                    // Save CFI for fullscreen restore after wake
+                    // This captures the position BEFORE fullscreen is lost
+                    if (settings.fullscreenLock && document.fullscreenElement) {
+                        savedCfiBeforeSleepRef.current = location.start.cfi;
+                        debug('Saved CFI before sleep for fullscreen restore', location.start.cfi);
+                    }
                 }
             }
             // Note: server sync on visibility=visible is now handled via
@@ -680,7 +719,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [flushSync, debug]);
+    }, [flushSync, debug, settings.fullscreenLock]);
 
     // Save progress on page unload (pagehide is more reliable than beforeunload on mobile)
     useEffect(() => {
