@@ -162,24 +162,26 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 const savedCfi = savedCfiBeforeSleepRef.current;
                 debug('Restoring position after fullscreen restore', savedCfi);
 
-                // Wait for epub.js to resize and re-paginate
-                // Use 'resized' event if available, otherwise timeout
+                // Skip saves during the restore process (resize + our navigation)
+                skipSaveCountRef.current = 3;
+
+                // Wait for epub.js to finish its automatic repositioning after fullscreen
+                // The 'relocated' event fires AFTER epub.js has finished processing
                 await new Promise<void>((resolve) => {
                     const timeout = setTimeout(() => {
+                        debug('Timeout waiting for relocated, proceeding anyway');
                         resolve();
-                    }, 500);
+                    }, 800);
 
-                    renditionRef.current?.once('resized', () => {
+                    renditionRef.current?.once('relocated', () => {
+                        debug('epub.js relocated after fullscreen, now restoring position');
                         clearTimeout(timeout);
-                        resolve();
+                        // Small delay to ensure rendering is complete
+                        setTimeout(resolve, 100);
                     });
-
-                    // Trigger resize to ensure epub.js recalculates
-                    renditionRef.current?.resize();
                 });
 
-                // Skip saving this navigation to avoid overwriting the position
-                skipSaveCountRef.current = 1;
+                // Now navigate to the saved position
                 await renditionRef.current.display(savedCfi);
                 debug('Position restored after fullscreen', savedCfi);
 
