@@ -147,9 +147,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         if (!settings.fullscreenLock) return;
 
         try {
-            // First, unfreeze dimensions so container can resize with fullscreen
-            setState(prev => ({ ...prev, frozenDimensions: null }));
-
+            // IMPORTANT: First restore fullscreen, THEN unfreeze dimensions
             if (!document.fullscreenElement) {
                 await document.documentElement.requestFullscreen();
                 await new Promise((resolve) => setTimeout(resolve, 100));
@@ -160,15 +158,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 debug('Fullscreen lock restored');
             }
 
-            // Skip the next relocated event (caused by unfreezing + resize)
+            // Now that fullscreen is active, unfreeze dimensions
+            // Position should stay the same since dimensions are identical to before sleep
+            setState(prev => ({ ...prev, frozenDimensions: null, needsFullscreenRestore: false }));
+
+            // Skip saves caused by any resize events
             skipSaveCountRef.current = 1;
 
-            setState(prev => ({ ...prev, needsFullscreenRestore: false }));
             debug('Fullscreen restored, dimensions unfrozen');
         } catch (error: any) {
             debug('Fullscreen restore failed', error);
             orientationLockedRef.current = false;
-            // Make sure to unfreeze even on error
             setState(prev => ({ ...prev, frozenDimensions: null, needsFullscreenRestore: false }));
         }
     }, [settings.fullscreenLock, debug]);
