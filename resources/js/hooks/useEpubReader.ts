@@ -699,11 +699,20 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     });
                     flushSync(location.start.cfi, progressRef.current);
 
-                    // Save CFI for fullscreen restore after wake
-                    // This captures the position BEFORE fullscreen is lost
-                    if (settings.fullscreenLock && document.fullscreenElement) {
+                    // CRITICAL: Freeze dimensions BEFORE sleep if in fullscreen
+                    // This prevents epub.js resize when fullscreen is lost on wake
+                    if (settings.fullscreenLock && document.fullscreenElement && containerRef.current) {
+                        const rect = containerRef.current.getBoundingClientRect();
                         savedCfiBeforeSleepRef.current = location.start.cfi;
-                        debug('Saved CFI before sleep for fullscreen restore', location.start.cfi);
+                        debug('Freezing dimensions before sleep', {
+                            cfi: location.start.cfi,
+                            width: rect.width,
+                            height: rect.height
+                        });
+                        setState(prev => ({
+                            ...prev,
+                            frozenDimensions: { width: rect.width, height: rect.height },
+                        }));
                     }
                 }
             }
