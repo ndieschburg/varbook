@@ -59,6 +59,7 @@ export function ReaderPage() {
         goToSearchResult,
         needsFullscreenRestore,
         restoreFullscreen,
+        frozenDimensions,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -205,9 +206,14 @@ export function ReaderPage() {
             {/* Main content */}
             <div className="flex-1 relative overflow-hidden">
                 {/* Reader container - always rendered so ref is available */}
+                {/* When frozenDimensions is set, we fix the size to prevent epub.js resize */}
                 <div
                     ref={containerRef}
                     className={`absolute inset-0 ${themeColors[settings.theme]}`}
+                    style={frozenDimensions ? {
+                        width: frozenDimensions.width,
+                        height: frozenDimensions.height,
+                    } : undefined}
                     onClick={() => setShowControls(!showControls)}
                 />
 

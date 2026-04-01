@@ -42,6 +42,7 @@ interface EpubReaderState {
     searchResults: SearchResult[];
     isSearching: boolean;
     needsFullscreenRestore: boolean;
+    frozenDimensions: { width: number; height: number } | null;
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
@@ -80,6 +81,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         searchResults: [],
         isSearching: false,
         needsFullscreenRestore: false,
+        frozenDimensions: null,
     });
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection, setFullscreenLock } = useReaderSettings();
@@ -145,6 +147,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         if (!settings.fullscreenLock) return;
 
         try {
+            // First, unfreeze dimensions so container can resize with fullscreen
+            setState(prev => ({ ...prev, frozenDimensions: null }));
+
             if (!document.fullscreenElement) {
                 await document.documentElement.requestFullscreen();
                 await new Promise((resolve) => setTimeout(resolve, 100));
@@ -154,43 +159,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 orientationLockedRef.current = true;
                 debug('Fullscreen lock restored');
             }
+
+            // Skip the next relocated event (caused by unfreezing + resize)
+            skipSaveCountRef.current = 1;
+
             setState(prev => ({ ...prev, needsFullscreenRestore: false }));
-
-            // Restore reading position after fullscreen is restored
-            // Wait for epub.js to finish re-paginating after the resize
-            if (savedCfiBeforeSleepRef.current && renditionRef.current) {
-                const savedCfi = savedCfiBeforeSleepRef.current;
-                debug('Restoring position after fullscreen restore', savedCfi);
-
-                // Skip saves during the restore process (resize + our navigation)
-                skipSaveCountRef.current = 3;
-
-                // Wait for epub.js to finish its automatic repositioning after fullscreen
-                // The 'relocated' event fires AFTER epub.js has finished processing
-                await new Promise<void>((resolve) => {
-                    const timeout = setTimeout(() => {
-                        debug('Timeout waiting for relocated, proceeding anyway');
-                        resolve();
-                    }, 800);
-
-                    renditionRef.current?.once('relocated', () => {
-                        debug('epub.js relocated after fullscreen, now restoring position');
-                        clearTimeout(timeout);
-                        // Small delay to ensure rendering is complete
-                        setTimeout(resolve, 100);
-                    });
-                });
-
-                // Now navigate to the saved position
-                await renditionRef.current.display(savedCfi);
-                debug('Position restored after fullscreen', savedCfi);
-
-                // Clear the saved CFI
-                savedCfiBeforeSleepRef.current = null;
-            }
+            debug('Fullscreen restored, dimensions unfrozen');
         } catch (error: any) {
             debug('Fullscreen restore failed', error);
             orientationLockedRef.current = false;
+            // Make sure to unfreeze even on error
+            setState(prev => ({ ...prev, frozenDimensions: null, needsFullscreenRestore: false }));
         }
     }, [settings.fullscreenLock, debug]);
 
@@ -241,7 +220,20 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             if (!document.fullscreenElement && settings.fullscreenLock) {
                 debug('Fullscreen lost, needs user gesture to restore');
                 orientationLockedRef.current = false;
-                setState(prev => ({ ...prev, needsFullscreenRestore: true }));
+
+                // CRITICAL: Freeze container dimensions to prevent epub.js resize
+                // This keeps the same pagination until fullscreen is restored
+                if (containerRef.current) {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    debug('Freezing container dimensions', { width: rect.width, height: rect.height });
+                    setState(prev => ({
+                        ...prev,
+                        needsFullscreenRestore: true,
+                        frozenDimensions: { width: rect.width, height: rect.height },
+                    }));
+                } else {
+                    setState(prev => ({ ...prev, needsFullscreenRestore: true }));
+                }
             } else if (document.fullscreenElement && settings.fullscreenLock) {
                 setState(prev => ({ ...prev, needsFullscreenRestore: false }));
             }
