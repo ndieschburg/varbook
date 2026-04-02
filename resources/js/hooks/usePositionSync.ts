@@ -158,8 +158,8 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
 
     /**
      * Save position with local-first strategy:
-     * 1. Always write to IndexedDB first (guaranteed)
-     * 2. Attempt server sync (best effort)
+     * 1. Always write to IndexedDB IMMEDIATELY (guaranteed, no debounce)
+     * 2. Debounce server sync (to avoid hammering the server)
      */
     const savePosition = useCallback(
         (cfi: string, progress: number) => {
@@ -176,26 +176,29 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                 return;
             }
 
-            // Clear existing debounce timer
+            // STEP 1: Save to IndexedDB IMMEDIATELY (no debounce)
+            // This ensures position is persisted even if user switches apps quickly
+            debugLog('PositionSync', 'Saving to IndexedDB immediately', { cfi, progress });
+            saveLocalPosition(bookId, cfi, progress)
+                .then(() => {
+                    lastSavedRef.current = { cfi, timestamp: Date.now() };
+                    debugLog('PositionSync', 'IndexedDB save complete');
+                })
+                .catch((error) => {
+                    debugError('PositionSync', 'Failed to save position locally', error);
+                });
+
+            // STEP 2: Debounce server sync (to avoid too many requests)
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
 
-            timeoutRef.current = setTimeout(async () => {
-                try {
-                    // STEP 1: Always save locally first (guaranteed persistence)
-                    debugLog('PositionSync', 'Saving to IndexedDB', { cfi, progress });
-                    await saveLocalPosition(bookId, cfi, progress);
-                    lastSavedRef.current = { cfi, timestamp: Date.now() };
-
-                    // STEP 2: Attempt server sync (best effort, non-blocking)
-                    if (!isEffectivelyOffline()) {
-                        syncToServer(bookId, cfi, progress);
-                    } else {
-                        debugLog('PositionSync', 'Offline - skipping server sync');
-                    }
-                } catch (error) {
-                    debugError('PositionSync', 'Failed to save position locally', error);
+            timeoutRef.current = setTimeout(() => {
+                if (!isEffectivelyOffline()) {
+                    debugLog('PositionSync', 'Syncing to server', { cfi, progress });
+                    syncToServer(bookId, cfi, progress);
+                } else {
+                    debugLog('PositionSync', 'Offline - skipping server sync');
                 }
             }, debounceMs);
         },
