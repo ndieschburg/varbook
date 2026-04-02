@@ -34,8 +34,6 @@ export interface LoadedPosition {
     source: 'local' | 'server';
 }
 
-// Threshold for considering server position as "newer" (from another device)
-const MULTI_DEVICE_THRESHOLD_MS = 5000;
 
 /**
  * Local-first position synchronization hook
@@ -86,7 +84,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                 progress: localState.lastLocalProgress,
             });
 
-            // Check server in background for multi-device sync
+            // Check server in background for sync
             serverPromise
                 .then((serverPos) => {
                     if (!serverPos || !isMountedRef.current) return;
@@ -94,18 +92,21 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     const serverTime = serverPos.timestamp?.getTime() || 0;
                     const localTime = localState.lastLocalTimestamp?.getTime() || 0;
 
-                    // Check if server position is significantly ahead (another device read further)
-                    if (
-                        serverTime > localTime + MULTI_DEVICE_THRESHOLD_MS &&
-                        serverPos.progress > localState.lastLocalProgress
-                    ) {
-                        debugLog('PositionSync', 'Server position is newer (another device)', {
+                    // Use server position if it's more recent (handles same-device sync issues)
+                    // This fixes the case where IndexedDB wasn't updated due to page close during debounce
+                    const serverIsNewer = serverTime > localTime;
+                    const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
+
+                    if (serverIsNewer && serverHasDifferentPosition) {
+                        debugLog('PositionSync', 'Server position is more recent, syncing', {
                             serverProgress: serverPos.progress,
                             localProgress: localState.lastLocalProgress,
+                            serverCfi: serverPos.cfi,
+                            localCfi: localState.lastLocalCfi,
                             timeDiff: serverTime - localTime,
                         });
 
-                        // Notify reader to handle multi-device sync
+                        // Notify reader to navigate to server position
                         onMultiDeviceSyncRef.current?.({
                             cfi: serverPos.cfi,
                             progress: serverPos.progress,
