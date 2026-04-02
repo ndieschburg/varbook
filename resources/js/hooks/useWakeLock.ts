@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { debugLog, debugWarn } from '@/services/debugLogger';
 
 /**
  * Hook to prevent screen from sleeping using the Screen Wake Lock API.
@@ -16,17 +17,17 @@ export function useWakeLock(enabled: boolean = true) {
 
         try {
             wakeLockRef.current = await navigator.wakeLock.request('screen');
-            console.log('[WakeLock] Screen wake lock acquired');
+            debugLog('WakeLock', 'Screen wake lock acquired');
 
             wakeLockRef.current.addEventListener('release', () => {
-                console.log('[WakeLock] Screen wake lock released');
+                debugLog('WakeLock', 'Screen wake lock released');
             });
         } catch (err) {
             // Wake lock request can fail if:
             // - Document is not visible
             // - System is low on battery
             // - User denied permission
-            console.warn('[WakeLock] Failed to acquire:', err);
+            debugWarn('WakeLock', 'Failed to acquire', err);
         }
     }, [isSupported, enabled]);
 
@@ -36,7 +37,7 @@ export function useWakeLock(enabled: boolean = true) {
                 await wakeLockRef.current.release();
                 wakeLockRef.current = null;
             } catch (err) {
-                console.warn('[WakeLock] Failed to release:', err);
+                debugWarn('WakeLock', 'Failed to release', err);
             }
         }
     }, []);

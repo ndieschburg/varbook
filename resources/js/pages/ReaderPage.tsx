@@ -101,7 +101,7 @@ export function ReaderPage() {
         );
     }
 
-    // Disable browser back/forward swipe gestures while in reader
+    // Disable browser back/forward swipe gestures and intercept back navigation
     useEffect(() => {
         // Apply CSS properties to block browser navigation gestures
         const originalStyles = {
@@ -120,11 +120,9 @@ export function ReaderPage() {
         history.pushState(readerHistoryState, '', window.location.href);
 
         const handlePopState = () => {
-            // If we're still on the reader page, dispatch custom event and restore history
+            // If we're still on the reader page, go to previous page and restore history buffer
             if (window.location.pathname.includes('/read/')) {
-                // Dispatch custom event that will be caught below
-                window.dispatchEvent(new CustomEvent('reader-prev-page'));
-                // Push the state back to maintain the buffer
+                prevPage();
                 history.pushState(readerHistoryState, '', window.location.href);
             }
         };
@@ -136,17 +134,7 @@ export function ReaderPage() {
             document.body.style.touchAction = originalStyles.touchAction;
             window.removeEventListener('popstate', handlePopState);
         };
-    }, [bookId]);
-
-    // Listen for custom event to go to previous page
-    useEffect(() => {
-        const handlePrevPage = () => {
-            prevPage();
-        };
-
-        window.addEventListener('reader-prev-page', handlePrevPage);
-        return () => window.removeEventListener('reader-prev-page', handlePrevPage);
-    }, [prevPage]);
+    }, [bookId, prevPage]);
 
     // Always render the full layout so containerRef is available
     return (

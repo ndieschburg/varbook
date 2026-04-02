@@ -6,6 +6,7 @@ import {
     updateServerState,
     getUnsyncedPositions,
     markPositionsSynced,
+    cleanupOldPositions,
 } from '@/services/offlineDb';
 import {
     isEffectivelyOffline,
@@ -43,9 +44,11 @@ export function usePositionSync({ bookId, debounceMs = 500 }: PositionSyncOption
     const lastSavedRef = useRef<{ cfi: string; timestamp: number } | null>(null);
     const isMountedRef = useRef(true);
 
-    // Track mount state to avoid state updates after unmount
+    // Track mount state and cleanup old positions on mount
     useEffect(() => {
         isMountedRef.current = true;
+        // Cleanup old synced positions to prevent IndexedDB bloat
+        cleanupOldPositions().catch(() => {});
         return () => {
             isMountedRef.current = false;
         };
@@ -189,65 +192,9 @@ export function usePositionSync({ bookId, debounceMs = 500 }: PositionSyncOption
         [bookId, debounceMs]
     );
 
-    /**
-     * Immediate flush for visibility change / page unload
-     * Critical: saves to IndexedDB synchronously, sendBeacon as backup
-     */
-    const flushSync = useCallback(
-        (cfi: string | null, progress: number) => {
-            // Clear pending debounce
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
-            }
-
-            // Skip invalid saves
-            if (!cfi || progress === 0) {
-                debugLog('PositionSync', 'flushSync - skipping (no cfi or 0%)');
-                return;
-            }
-
-            // Skip duplicate saves
-            if (lastSavedRef.current?.cfi === cfi) {
-                debugLog('PositionSync', 'flushSync - skipping (already saved)');
-                return;
-            }
-
-            debugLog('PositionSync', 'flushSync - saving position', { cfi, progress });
-
-            // CRITICAL: Save to IndexedDB first (this is the guaranteed save)
-            // In pagehide/visibilitychange, browser gives a short window for async work
-            saveLocalPosition(bookId, cfi, progress)
-                .then(() => {
-                    debugLog('PositionSync', 'flushSync - IndexedDB save complete');
-                })
-                .catch((err) => {
-                    debugError('PositionSync', 'flushSync - IndexedDB save failed', err);
-                });
-
-            lastSavedRef.current = { cfi, timestamp: Date.now() };
-
-            // Also try sendBeacon as backup (may or may not succeed)
-            if (!isEffectivelyOffline()) {
-                const url = `/api/books/${bookId}/progress`;
-                const data = JSON.stringify({
-                    progress,
-                    position: cfi,
-                    client: 'web',
-                    timestamp: new Date().toISOString(),
-                });
-                const blob = new Blob([data], { type: 'application/json' });
-                const sent = navigator.sendBeacon?.(url, blob) ?? false;
-                debugLog('PositionSync', `flushSync - sendBeacon ${sent ? 'queued' : 'failed'}`);
-            }
-        },
-        [bookId]
-    );
-
     return {
         loadPosition,
         savePosition,
-        flushSync,
     };
 }
 
