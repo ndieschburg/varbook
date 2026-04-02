@@ -95,6 +95,7 @@ export async function saveBookOffline(
     // Remove existing version if any
     await db.books.where('bookId').equals(bookId).delete();
 
+    // Type assertion is safe here because id is auto-increment (++id), so add() always returns a number
     return db.books.add({
         bookId,
         title,
@@ -102,7 +103,7 @@ export async function saveBookOffline(
         coverUrl,
         epubData,
         downloadedAt: new Date(),
-    });
+    }) as Promise<number>;
 }
 
 export async function getOfflineBook(bookId: number): Promise<OfflineBook | undefined> {

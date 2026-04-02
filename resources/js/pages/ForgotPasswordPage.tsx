@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForgotPassword } from '@/api/hooks';
-import { Button, LoadingSpinner } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { AxiosError } from 'axios';
 
 export function ForgotPasswordPage() {

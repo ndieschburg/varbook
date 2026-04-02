@@ -242,9 +242,9 @@ export function ProgressLogsPage() {
                                                         {Number(log.request_data.progress).toFixed(1)}%
                                                     </span>
                                                 )}
-                                                {log.request_data?.position && (
+                                                {typeof log.request_data?.position === 'string' && (
                                                     <span className="text-slate-500 text-xs truncate max-w-[200px]">
-                                                        CFI: {String(log.request_data.position).substring(0, 40)}...
+                                                        CFI: {log.request_data.position.substring(0, 40)}...
                                                     </span>
                                                 )}
                                                 {log.error_message && (

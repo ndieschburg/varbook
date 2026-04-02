@@ -5,7 +5,6 @@ import { useSettings, useUpdateSetting, useResetSetting } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
 import { SettingField } from '@/components/settings/SettingField';
 import { CogIcon, BookOpenIcon, LibraryIcon, PaletteIcon } from '@/components/icons';
-import type { Setting, SettingsCategory } from '@/types';
 
 // Map category icons
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -21,7 +20,7 @@ function useDebouncedCallback<T extends (...args: Parameters<T>) => void>(
     callback: T,
     delay: number
 ) {
-    const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+    const [timeoutId, setTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
     return useCallback(
         (...args: Parameters<T>) => {

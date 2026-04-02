@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useBook, useSettings } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
@@ -11,7 +11,6 @@ import type { Theme, FontFamily, Margins, FlowMode } from '@/hooks/useReaderSett
 export function ReaderPage() {
     const { t } = useTranslation();
     const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
     const bookId = Number(id);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,11 +54,9 @@ export function ReaderPage() {
         goTo,
         goToPercentage,
         search,
-        clearSearch,
         goToSearchResult,
         needsFullscreenRestore,
         restoreFullscreen,
-        frozenDimensions,
     } = useEpubReader({
         bookId,
         epubUrl,
@@ -206,14 +203,9 @@ export function ReaderPage() {
             {/* Main content */}
             <div className="flex-1 relative overflow-hidden">
                 {/* Reader container - always rendered so ref is available */}
-                {/* When frozenDimensions is set, we fix the size to prevent epub.js resize */}
                 <div
                     ref={containerRef}
                     className={`absolute inset-0 ${themeColors[settings.theme]}`}
-                    style={frozenDimensions ? {
-                        width: frozenDimensions.width,
-                        height: frozenDimensions.height,
-                    } : undefined}
                     onClick={() => setShowControls(!showControls)}
                 />
 

@@ -5,4 +5,5 @@ export { useOfflineSync } from './useOfflineSync';
 export { useBookOfflineStatus } from './useBookOfflineStatus';
 export { usePWAInstall } from './usePWAInstall';
 export { useWakeLock } from './useWakeLock';
+export { useFullscreenLock } from './useFullscreenLock';
 export { useAppearance } from './useAppearance';

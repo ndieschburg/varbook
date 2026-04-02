@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
-import toast from 'react-hot-toast';
 import { usePositionSync } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
 import { useWakeLock } from './useWakeLock';
+import { useFullscreenLock } from './useFullscreenLock';
 import { getOfflineBook, saveBookOffline } from '@/services/offlineDb';
 
 interface UseEpubReaderOptions {
     bookId: number;
     epubUrl: string;
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
     /** Book metadata for auto-caching */
     bookMeta?: {
         title: string;
@@ -41,8 +41,6 @@ interface EpubReaderState {
     locationInfo: LocationInfo;
     searchResults: SearchResult[];
     isSearching: boolean;
-    needsFullscreenRestore: boolean;
-    frozenDimensions: { width: number; height: number } | null;
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
@@ -79,182 +77,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         },
         searchResults: [],
         isSearching: false,
-        needsFullscreenRestore: false,
-        frozenDimensions: null,
     });
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection, setFullscreenLock } = useReaderSettings();
-    const { loadPosition, savePosition, flushSync } = usePositionSync({ bookId });
+    const { loadPosition, savePosition } = usePositionSync({ bookId });
 
     // Prevent screen from sleeping while reading
     useWakeLock();
 
-    // Lock screen orientation - must be called from user gesture (click handler)
-    const orientationLockedRef = useRef(false);
-
-    const lockOrientation = useCallback(async () => {
-        if (orientationLockedRef.current) {
-            toast('🔒 Déjà verrouillé');
-            return true;
-        }
-
-        try {
-            // On Android, screen.orientation.lock() requires fullscreen mode
-            // Check if we need to enter fullscreen first
-            if (!document.fullscreenElement) {
-                try {
-                    await document.documentElement.requestFullscreen();
-                    // Wait a bit for fullscreen to be fully active
-                    await new Promise((resolve) => setTimeout(resolve, 100));
-                } catch (fsError: any) {
-                    // Fullscreen failed, but try orientation lock anyway (might work on some browsers)
-                    debug('Fullscreen request failed', fsError);
-                }
-            }
-
-            if (screen.orientation?.lock) {
-                await screen.orientation.lock('portrait');
-                orientationLockedRef.current = true;
-                toast.success('🔒 Orientation verrouillée');
-                return true;
-            } else {
-                toast.error('❌ API non disponible');
-                return false;
-            }
-        } catch (error: any) {
-            toast.error(`❌ ${error?.name}: ${error?.message}`);
-            return false;
-        }
-    }, [debug]);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            try {
-                screen.orientation?.unlock?.();
-                if (document.fullscreenElement) {
-                    document.exitFullscreen?.();
-                }
-            } catch {
-                // Ignore
-            }
-        };
-    }, []);
-
-    // Restore fullscreen + orientation lock (must be called from user gesture)
-    const restoreFullscreen = useCallback(async () => {
-        if (!settings.fullscreenLock) return;
-
-        try {
-            // IMPORTANT: First restore fullscreen, THEN unfreeze dimensions
-            if (!document.fullscreenElement) {
-                await document.documentElement.requestFullscreen();
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-            if (screen.orientation?.lock) {
-                await screen.orientation.lock('portrait');
-                orientationLockedRef.current = true;
-                debug('Fullscreen lock restored');
-            }
-
-            // Now that fullscreen is active, unfreeze dimensions
-            // Position should stay the same since dimensions are identical to before sleep
-            setState(prev => ({ ...prev, frozenDimensions: null, needsFullscreenRestore: false }));
-
-            // Skip saves caused by any resize events
-            skipSaveCountRef.current = 1;
-
-            debug('Fullscreen restored, dimensions unfrozen');
-        } catch (error: any) {
-            debug('Fullscreen restore failed', error);
-            orientationLockedRef.current = false;
-            setState(prev => ({ ...prev, frozenDimensions: null, needsFullscreenRestore: false }));
-        }
-    }, [settings.fullscreenLock, debug]);
-
-    // Detect when fullscreen is lost and needs user interaction to restore
-    useEffect(() => {
-        if (!settings.fullscreenLock) {
-            // Setting disabled - remove locks if active and clear restore flag
-            if (orientationLockedRef.current) {
-                try {
-                    screen.orientation?.unlock?.();
-                    orientationLockedRef.current = false;
-                    if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                    }
-                    debug('Fullscreen lock removed');
-                } catch {
-                    // Ignore
-                }
-            }
-            setState(prev => ({ ...prev, needsFullscreenRestore: false }));
-            return;
-        }
-
-        // Initial apply on mount or when setting is toggled ON
-        // This works because opening a book or toggling the setting is a user gesture
-        const applyInitial = async () => {
-            if (!document.fullscreenElement) {
-                try {
-                    await document.documentElement.requestFullscreen();
-                    await new Promise((resolve) => setTimeout(resolve, 100));
-                    if (screen.orientation?.lock) {
-                        await screen.orientation.lock('portrait');
-                        orientationLockedRef.current = true;
-                        debug('Initial fullscreen lock applied');
-                    }
-                    setState(prev => ({ ...prev, needsFullscreenRestore: false }));
-                } catch (error: any) {
-                    debug('Initial fullscreen lock failed', error);
-                    // If it fails (e.g., no user gesture), show restore overlay
-                    setState(prev => ({ ...prev, needsFullscreenRestore: true }));
-                }
-            }
-        };
-        applyInitial();
-
-        // Detect when fullscreen is lost (system exit, after sleep, etc.)
-        const handleFullscreenChange = () => {
-            if (!document.fullscreenElement && settings.fullscreenLock) {
-                debug('Fullscreen lost, needs user gesture to restore');
-                orientationLockedRef.current = false;
-
-                // CRITICAL: Freeze container dimensions to prevent epub.js resize
-                // This keeps the same pagination until fullscreen is restored
-                if (containerRef.current) {
-                    const rect = containerRef.current.getBoundingClientRect();
-                    debug('Freezing container dimensions', { width: rect.width, height: rect.height });
-                    setState(prev => ({
-                        ...prev,
-                        needsFullscreenRestore: true,
-                        frozenDimensions: { width: rect.width, height: rect.height },
-                    }));
-                } else {
-                    setState(prev => ({ ...prev, needsFullscreenRestore: true }));
-                }
-            } else if (document.fullscreenElement && settings.fullscreenLock) {
-                setState(prev => ({ ...prev, needsFullscreenRestore: false }));
-            }
-        };
-
-        // Detect when app becomes visible after sleep
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && settings.fullscreenLock && !document.fullscreenElement) {
-                debug('Visibility changed to visible, fullscreen needs restore');
-                orientationLockedRef.current = false;
-                setState(prev => ({ ...prev, needsFullscreenRestore: true }));
-            }
-        };
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        return () => {
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, [settings.fullscreenLock, debug]);
+    // Fullscreen + orientation lock for mobile reading
+    const { needsRestore: needsFullscreenRestore, restore: restoreFullscreen } = useFullscreenLock({
+        enabled: settings.fullscreenLock,
+        debug,
+    });
 
     // Apply theme to rendition
     const applyTheme = useCallback(() => {
@@ -360,17 +195,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                         }
                     }, { passive: true });
                 });
-
-                // Expose objects for console debugging when debug mode is enabled
-                if (debugModeRef.current) {
-                    (window as any).epubBook = book;
-                    (window as any).epubRendition = rendition;
-                    console.log('[Varbook Debug] epub.js objects exposed: epubBook, epubRendition');
-                    console.log('[Varbook Debug] Useful commands:');
-                    console.log('  epubRendition.currentLocation().start.cfi  // Get current CFI');
-                    console.log('  epubRendition.display("epubcfi(...)")      // Navigate to CFI');
-                    console.log('  epubBook.locations.percentageFromCfi(cfi)  // CFI to percentage');
-                }
 
                 debug('Book ready, waiting for book.ready promise...');
                 await book.ready;
@@ -626,15 +450,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         // Cleanup
         return () => {
             debug('Cleanup - destroying reader');
-            const location = renditionRef.current?.currentLocation();
-            if (location?.start?.cfi) {
-                debug('Cleanup - flushing final position', {
-                    cfi: location.start.cfi,
-                    progress: progressRef.current.toFixed(5) + '%',
-                });
-                // Use ref to get current progress (avoids stale closure)
-                flushSync(location.start.cfi, progressRef.current);
-            }
+            // NOTE: We do NOT save position here - position is only saved on page turn
+            // This avoids saving incorrect position when fullscreen changes
             bookRef.current?.destroy();
             // Reset refs for next book
             locationsReadyRef.current = false;
@@ -645,27 +462,16 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         };
     }, [bookId, epubUrl, containerRef, debug]); // Don't include bookMeta or debugMode to avoid re-init loops
 
-    // Apply theme when it changes
+    // Apply all visual settings when they change
     useEffect(() => {
         applyTheme();
-    }, [applyTheme]);
-
-    // Apply typography when it changes
-    useEffect(() => {
         applyTypography();
+        applyTextSelection();
         // Force resize to apply margin changes properly (especially on mobile)
         if (renditionRef.current) {
-            // Small delay to ensure styles are applied first
-            setTimeout(() => {
-                renditionRef.current?.resize();
-            }, 50);
+            setTimeout(() => renditionRef.current?.resize(), 50);
         }
-    }, [applyTypography]);
-
-    // Apply text selection when it changes
-    useEffect(() => {
-        applyTextSelection();
-    }, [applyTextSelection]);
+    }, [applyTheme, applyTypography, applyTextSelection]);
 
     // Expose/hide debug objects when debugMode changes
     useEffect(() => {
@@ -683,33 +489,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debugMode]);
 
-    // Freeze dimensions when app goes to background (for fullscreen restore)
-    // NOTE: We do NOT save position here - position is only saved on page turn
-    // This avoids saving incorrect position when fullscreen is lost
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (!renditionRef.current || !bookRef.current) return;
-
-            if (document.visibilityState === 'hidden') {
-                // Freeze dimensions BEFORE sleep if in fullscreen
-                // This prevents epub.js resize when fullscreen is lost on wake
-                if (settings.fullscreenLock && document.fullscreenElement && containerRef.current) {
-                    const rect = containerRef.current.getBoundingClientRect();
-                    debug('Freezing dimensions before sleep', {
-                        width: rect.width,
-                        height: rect.height
-                    });
-                    setState(prev => ({
-                        ...prev,
-                        frozenDimensions: { width: rect.width, height: rect.height },
-                    }));
-                }
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [debug, settings.fullscreenLock]);
 
     // Handle multi-device sync: when server has newer position from another device
     useEffect(() => {
@@ -874,7 +653,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         search,
         clearSearch,
         goToSearchResult,
-        lockOrientation,
+        needsFullscreenRestore,
         restoreFullscreen,
     };
 }
