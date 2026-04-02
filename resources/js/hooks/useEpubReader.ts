@@ -66,7 +66,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
     const skipSaveCountRef = useRef<number>(0); // Skip N saves after position restore
-    const savedCfiBeforeSleepRef = useRef<string | null>(null); // CFI saved before sleep for fullscreen restore
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -684,63 +683,33 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debugMode]);
 
-    // Save position when app goes to background
+    // Freeze dimensions when app goes to background (for fullscreen restore)
+    // NOTE: We do NOT save position here - position is only saved on page turn
+    // This avoids saving incorrect position when fullscreen is lost
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (!renditionRef.current || !bookRef.current) return;
 
             if (document.visibilityState === 'hidden') {
-                // Page going to background - save progress immediately
-                const location = renditionRef.current.currentLocation();
-                if (location?.start?.cfi) {
-                    debug('Page hidden - flushing position', {
-                        cfi: location.start.cfi,
-                        progress: progressRef.current.toFixed(5) + '%',
+                // Freeze dimensions BEFORE sleep if in fullscreen
+                // This prevents epub.js resize when fullscreen is lost on wake
+                if (settings.fullscreenLock && document.fullscreenElement && containerRef.current) {
+                    const rect = containerRef.current.getBoundingClientRect();
+                    debug('Freezing dimensions before sleep', {
+                        width: rect.width,
+                        height: rect.height
                     });
-                    flushSync(location.start.cfi, progressRef.current);
-
-                    // CRITICAL: Freeze dimensions BEFORE sleep if in fullscreen
-                    // This prevents epub.js resize when fullscreen is lost on wake
-                    if (settings.fullscreenLock && document.fullscreenElement && containerRef.current) {
-                        const rect = containerRef.current.getBoundingClientRect();
-                        savedCfiBeforeSleepRef.current = location.start.cfi;
-                        debug('Freezing dimensions before sleep', {
-                            cfi: location.start.cfi,
-                            width: rect.width,
-                            height: rect.height
-                        });
-                        setState(prev => ({
-                            ...prev,
-                            frozenDimensions: { width: rect.width, height: rect.height },
-                        }));
-                    }
+                    setState(prev => ({
+                        ...prev,
+                        frozenDimensions: { width: rect.width, height: rect.height },
+                    }));
                 }
             }
-            // Note: server sync on visibility=visible is now handled via
-            // the 'position-sync-available' event dispatched by usePositionSync
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [flushSync, debug, settings.fullscreenLock]);
-
-    // Save progress on page unload (pagehide is more reliable than beforeunload on mobile)
-    useEffect(() => {
-        const handlePageHide = () => {
-            if (!renditionRef.current) return;
-            const location = renditionRef.current.currentLocation();
-            if (location?.start?.cfi) {
-                debug('pagehide - flushing position', {
-                    cfi: location.start.cfi,
-                    progress: progressRef.current.toFixed(5) + '%',
-                });
-                flushSync(location.start.cfi, progressRef.current);
-            }
-        };
-
-        window.addEventListener('pagehide', handlePageHide);
-        return () => window.removeEventListener('pagehide', handlePageHide);
-    }, [flushSync, debug]);
+    }, [debug, settings.fullscreenLock]);
 
     // Handle multi-device sync: when server has newer position from another device
     useEffect(() => {
