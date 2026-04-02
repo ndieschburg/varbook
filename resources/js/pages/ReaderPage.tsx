@@ -3,10 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useBook, useSettings } from '@/api/hooks';
 import { useEpubReader } from '@/hooks';
+import { themeBackgrounds } from '@/hooks/useReaderSettings';
 import { LoadingSpinner } from '@/components/ui';
+import { TocPanel, SearchPanel, SettingsPanel } from '@/components/reader';
 import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
 import { setDebugMode } from '@/services/debugLogger';
-import type { Theme, FontFamily, Margins, FlowMode } from '@/hooks/useReaderSettings';
+
+type ActivePanel = 'toc' | 'search' | 'settings' | null;
 
 export function ReaderPage() {
     const { t } = useTranslation();
@@ -46,7 +49,6 @@ export function ReaderPage() {
         setFontFamily,
         setLineHeight,
         setMargins,
-        setFlowMode,
         setTextSelection,
         setFullscreenLock,
         nextPage,
@@ -69,23 +71,19 @@ export function ReaderPage() {
         debugMode,
     });
 
-    const [showToc, setShowToc] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [activePanel, setActivePanel] = useState<ActivePanel>(null);
     const [showControls, setShowControls] = useState(true);
+
+    // Toggle panel: close if already open, open and close others if closed
+    const togglePanel = (panel: ActivePanel) => {
+        setActivePanel(current => current === panel ? null : panel);
+    };
 
     // Detect iOS - Screen Orientation API not supported
     const isIOS = useMemo(() => {
         return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }, []);
-
-    const themeColors: Record<Theme, string> = {
-        light: 'bg-white',
-        dark: 'bg-slate-800',
-        sepia: 'bg-[#f4ecd8]',
-    };
 
     // Show error if book not found
     if (bookError || (!bookDataLoading && !bookData)) {
@@ -163,22 +161,22 @@ export function ReaderPage() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <button
-                                onClick={() => { setShowSearch(!showSearch); setShowToc(false); setShowSettings(false); }}
-                                className={`p-2 transition-colors ${showSearch ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                onClick={() => togglePanel('search')}
+                                className={`p-2 transition-colors ${activePanel === 'search' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
                                 title={t('Search')}
                             >
                                 <SearchIcon className="h-5 w-5" />
                             </button>
                             <button
-                                onClick={() => { setShowToc(!showToc); setShowSearch(false); setShowSettings(false); }}
-                                className={`p-2 transition-colors ${showToc ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                onClick={() => togglePanel('toc')}
+                                className={`p-2 transition-colors ${activePanel === 'toc' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
                                 title={t('Table of Contents')}
                             >
                                 <MenuIcon className="h-5 w-5" />
                             </button>
                             <button
-                                onClick={() => { setShowSettings(!showSettings); setShowToc(false); setShowSearch(false); }}
-                                className={`p-2 transition-colors ${showSettings ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                                onClick={() => togglePanel('settings')}
+                                className={`p-2 transition-colors ${activePanel === 'settings' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
                                 title={t('Settings')}
                             >
                                 <CogIcon className="h-5 w-5" />
@@ -193,7 +191,7 @@ export function ReaderPage() {
                 {/* Reader container - always rendered so ref is available */}
                 <div
                     ref={containerRef}
-                    className={`absolute inset-0 ${themeColors[settings.theme]}`}
+                    className={`absolute inset-0 ${themeBackgrounds[settings.theme]}`}
                     onClick={() => setShowControls(!showControls)}
                 />
 
@@ -253,275 +251,37 @@ export function ReaderPage() {
                     </>
                 )}
 
-                {/* TOC sidebar */}
-                {showToc && (
-                    <div className="absolute left-0 top-0 bottom-0 w-80 bg-gray-800 border-r border-gray-700 overflow-y-auto z-20">
-                        <div className="p-4 border-b border-gray-700">
-                            <h2 className="text-lg font-semibold text-white">{t('Table of Contents')}</h2>
-                        </div>
-                        <div className="p-2">
-                            {toc.map((item, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => { goTo(item.href); setShowToc(false); }}
-                                    className="w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition-colors"
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                {/* Panels */}
+                {activePanel === 'toc' && (
+                    <TocPanel
+                        toc={toc}
+                        onNavigate={goTo}
+                        onClose={() => setActivePanel(null)}
+                    />
                 )}
 
-                {/* Search sidebar */}
-                {showSearch && (
-                    <div className="absolute left-0 top-0 bottom-0 w-80 bg-gray-800 border-r border-gray-700 overflow-y-auto z-20">
-                        <div className="p-4 border-b border-gray-700">
-                            <h2 className="text-lg font-semibold text-white mb-3">{t('Search')}</h2>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && searchQuery.trim()) {
-                                            search(searchQuery);
-                                        }
-                                    }}
-                                    placeholder={t('Search in book...')}
-                                    className="flex-1 bg-gray-700 border-gray-600 rounded text-white placeholder-gray-400 text-sm px-3 py-2"
-                                    autoFocus
-                                />
-                                <button
-                                    onClick={() => searchQuery.trim() && search(searchQuery)}
-                                    disabled={isSearching || !searchQuery.trim()}
-                                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded text-sm"
-                                >
-                                    {isSearching ? '...' : t('Go')}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="p-2">
-                            {isSearching && (
-                                <div className="text-center py-8 text-gray-400">
-                                    <LoadingSpinner size="sm" />
-                                    <p className="mt-2 text-sm">{t('Searching...')}</p>
-                                </div>
-                            )}
-                            {!isSearching && searchResults.length === 0 && searchQuery && (
-                                <p className="text-center py-8 text-gray-400 text-sm">
-                                    {t('No results found')}
-                                </p>
-                            )}
-                            {!isSearching && searchResults.length > 0 && (
-                                <>
-                                    <p className="text-xs text-gray-400 px-3 py-2">
-                                        {searchResults.length} {t('results')}
-                                    </p>
-                                    {searchResults.map((result, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => {
-                                                goToSearchResult(result);
-                                                setShowSearch(false);
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-gray-300 hover:bg-gray-700 rounded transition-colors text-sm"
-                                        >
-                                            <span
-                                                dangerouslySetInnerHTML={{
-                                                    __html: result.excerpt.replace(
-                                                        new RegExp(`(${searchQuery})`, 'gi'),
-                                                        '<mark class="bg-yellow-500/30 text-yellow-200">$1</mark>'
-                                                    ),
-                                                }}
-                                            />
-                                        </button>
-                                    ))}
-                                </>
-                            )}
-                        </div>
-                    </div>
+                {activePanel === 'search' && (
+                    <SearchPanel
+                        searchResults={searchResults}
+                        isSearching={isSearching}
+                        onSearch={search}
+                        onResultClick={goToSearchResult}
+                        onClose={() => setActivePanel(null)}
+                    />
                 )}
 
-                {/* Settings sidebar */}
-                {showSettings && (
-                    <div className="absolute right-0 top-0 bottom-0 w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto z-20">
-                        <div className="p-4 border-b border-gray-700">
-                            <h2 className="text-lg font-semibold text-white">{t('Settings')}</h2>
-                        </div>
-                        <div className="p-4 space-y-6">
-                            {/* Theme */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Theme')}</label>
-                                <div className="flex gap-2">
-                                    {(['light', 'dark', 'sepia'] as Theme[]).map(theme => (
-                                        <button
-                                            key={theme}
-                                            onClick={() => setTheme(theme)}
-                                            className={`flex-1 py-2 rounded border ${
-                                                settings.theme === theme
-                                                    ? 'border-indigo-500 bg-indigo-600/20'
-                                                    : 'border-gray-600 hover:border-gray-500'
-                                            }`}
-                                        >
-                                            <span className="text-gray-300 text-sm capitalize">{t(theme.charAt(0).toUpperCase() + theme.slice(1))}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Font Size */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Font Size')}</label>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setFontSize(settings.fontSize - 10)}
-                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                    >
-                                        -
-                                    </button>
-                                    <span className="flex-1 text-center text-gray-300">{settings.fontSize}%</span>
-                                    <button
-                                        onClick={() => setFontSize(settings.fontSize + 10)}
-                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Font Family */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Font')}</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {([
-                                        { key: 'default', label: t('Default') },
-                                        { key: 'literata', label: 'Literata' },
-                                        { key: 'merriweather', label: 'Merriweather' },
-                                        { key: 'lora', label: 'Lora' },
-                                        { key: 'inter', label: 'Inter' },
-                                        { key: 'opensans', label: 'Open Sans' },
-                                        { key: 'dyslexic', label: 'Dyslexic' },
-                                    ] as { key: FontFamily; label: string }[]).map(font => (
-                                        <button
-                                            key={font.key}
-                                            onClick={() => setFontFamily(font.key)}
-                                            className={`py-2 px-3 rounded border text-sm ${
-                                                settings.fontFamily === font.key
-                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
-                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
-                                            }`}
-                                        >
-                                            {font.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Line Height */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Line Height')}</label>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => setLineHeight(settings.lineHeight - 0.1)}
-                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                    >
-                                        -
-                                    </button>
-                                    <span className="flex-1 text-center text-gray-300">{settings.lineHeight.toFixed(1)}</span>
-                                    <button
-                                        onClick={() => setLineHeight(settings.lineHeight + 0.1)}
-                                        className="w-10 h-10 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Margins */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Margins')}</label>
-                                <div className="flex gap-2">
-                                    {(['compact', 'normal', 'wide'] as Margins[]).map(margin => (
-                                        <button
-                                            key={margin}
-                                            onClick={() => setMargins(margin)}
-                                            className={`flex-1 py-2 rounded border text-sm ${
-                                                settings.margins === margin
-                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
-                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
-                                            }`}
-                                        >
-                                            {t(margin.charAt(0).toUpperCase() + margin.slice(1))}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Flow Mode */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">{t('Reading Mode')}</label>
-                                <div className="flex gap-2">
-                                    {(['paginated', 'scrolled'] as FlowMode[]).map(mode => (
-                                        <button
-                                            key={mode}
-                                            onClick={() => setFlowMode(mode)}
-                                            className={`flex-1 py-2 rounded border text-sm ${
-                                                settings.flowMode === mode
-                                                    ? 'border-indigo-500 bg-indigo-600/20 text-white'
-                                                    : 'border-gray-600 text-gray-300 hover:border-gray-500'
-                                            }`}
-                                        >
-                                            {mode === 'paginated' ? t('Paginated') : t('Scrolling')}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Text Selection */}
-                            <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium text-gray-300">{t('Text Selection')}</label>
-                                <button
-                                    onClick={() => setTextSelection(!settings.textSelection)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                        settings.textSelection ? 'bg-indigo-600' : 'bg-gray-600'
-                                    }`}
-                                >
-                                    <span
-                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                            settings.textSelection ? 'translate-x-6' : 'translate-x-1'
-                                        }`}
-                                    />
-                                </button>
-                            </div>
-
-                            {/* Fullscreen & Orientation Lock (Android only - not supported on iOS) */}
-                            {!isIOS && (
-                                <div className="pt-4 border-t border-gray-700">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-300">{t('Fullscreen Lock')}</label>
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                {t('Lock portrait orientation in fullscreen')}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setFullscreenLock(!settings.fullscreenLock)}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                                settings.fullscreenLock ? 'bg-indigo-600' : 'bg-gray-600'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                                    settings.fullscreenLock ? 'translate-x-6' : 'translate-x-1'
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                {activePanel === 'settings' && (
+                    <SettingsPanel
+                        settings={settings}
+                        isIOS={isIOS}
+                        onThemeChange={setTheme}
+                        onFontSizeChange={setFontSize}
+                        onFontFamilyChange={setFontFamily}
+                        onLineHeightChange={setLineHeight}
+                        onMarginsChange={setMargins}
+                        onTextSelectionChange={setTextSelection}
+                        onFullscreenLockChange={setFullscreenLock}
+                    />
                 )}
             </div>
 

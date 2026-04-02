@@ -16,9 +16,16 @@ import {
 } from '@/services/networkState';
 import { debugLog, debugWarn, debugError } from '@/services/debugLogger';
 
+export interface ServerPosition {
+    cfi: string | null;
+    progress: number;
+}
+
 interface PositionSyncOptions {
     bookId: number;
     debounceMs?: number;
+    /** Callback when server has newer position from another device */
+    onMultiDeviceSync?: (serverPosition: ServerPosition) => void;
 }
 
 export interface LoadedPosition {
@@ -39,10 +46,13 @@ const MULTI_DEVICE_THRESHOLD_MS = 5000;
  * - On load: use local position immediately, check server in background
  * - Detect multi-device sync via timestamp comparison
  */
-export function usePositionSync({ bookId, debounceMs = 500 }: PositionSyncOptions) {
+export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }: PositionSyncOptions) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSavedRef = useRef<{ cfi: string; timestamp: number } | null>(null);
     const isMountedRef = useRef(true);
+    // Store callback in ref to avoid re-creating loadPosition when callback changes
+    const onMultiDeviceSyncRef = useRef(onMultiDeviceSync);
+    onMultiDeviceSyncRef.current = onMultiDeviceSync;
 
     // Track mount state and cleanup old positions on mount
     useEffect(() => {
@@ -95,12 +105,11 @@ export function usePositionSync({ bookId, debounceMs = 500 }: PositionSyncOption
                             timeDiff: serverTime - localTime,
                         });
 
-                        // Dispatch event for reader to handle multi-device sync
-                        window.dispatchEvent(
-                            new CustomEvent('position-sync-available', {
-                                detail: { bookId, serverPosition: serverPos },
-                            })
-                        );
+                        // Notify reader to handle multi-device sync
+                        onMultiDeviceSyncRef.current?.({
+                            cfi: serverPos.cfi,
+                            progress: serverPos.progress,
+                        });
                     }
 
                     // Update server state cache regardless

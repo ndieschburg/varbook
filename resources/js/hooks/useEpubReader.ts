@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { Book, Rendition, NavItem } from 'epubjs';
-import { usePositionSync } from './usePositionSync';
+import { usePositionSync, type ServerPosition } from './usePositionSync';
 import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './useReaderSettings';
 import { useWakeLock } from './useWakeLock';
 import { useFullscreenLock } from './useFullscreenLock';
@@ -79,8 +79,32 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         isSearching: false,
     });
 
-    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setFlowMode, setTextSelection, setFullscreenLock } = useReaderSettings();
-    const { loadPosition, savePosition } = usePositionSync({ bookId });
+    const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setTextSelection, setFullscreenLock } = useReaderSettings();
+
+    // Handle multi-device sync: when server has newer position from another device
+    const handleMultiDeviceSync = useCallback((serverPosition: ServerPosition) => {
+        debug('Multi-device sync available', serverPosition);
+
+        if (!renditionRef.current || !bookRef.current) return;
+
+        skipSaveCountRef.current = 1; // Skip next save to avoid overwriting
+
+        if (serverPosition.cfi) {
+            debug('Navigating to server CFI', serverPosition.cfi);
+            renditionRef.current.display(serverPosition.cfi);
+        } else if (locationsReadyRef.current && serverPosition.progress > 0) {
+            const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+            if (cfi) {
+                debug('Navigating to server percentage', { progress: serverPosition.progress, cfi });
+                renditionRef.current.display(cfi);
+            }
+        }
+    }, [debug]);
+
+    const { loadPosition, savePosition } = usePositionSync({
+        bookId,
+        onMultiDeviceSync: handleMultiDeviceSync,
+    });
 
     // Prevent screen from sleeping while reading
     useWakeLock();
@@ -161,7 +185,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     width: '100%',
                     height: '100%',
                     spread: 'none',
-                    flow: settings.flowMode,
+                    flow: 'paginated',
                     allowScriptedContent: true,
                 });
                 renditionRef.current = rendition;
@@ -386,42 +410,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debugMode]);
 
-
-    // Handle multi-device sync: when server has newer position from another device
-    useEffect(() => {
-        const handleSyncAvailable = (event: Event) => {
-            const customEvent = event as CustomEvent<{
-                bookId: number;
-                serverPosition: { cfi: string | null; progress: number };
-            }>;
-
-            // Ignore events for other books
-            if (customEvent.detail.bookId !== bookId) return;
-
-            const { serverPosition } = customEvent.detail;
-            debug('Multi-device sync available', serverPosition);
-
-            // Navigate to server position if valid
-            if (!renditionRef.current || !bookRef.current) return;
-
-            skipSaveCountRef.current = 1; // Skip next save to avoid overwriting
-
-            if (serverPosition.cfi) {
-                debug('Navigating to server CFI', serverPosition.cfi);
-                renditionRef.current.display(serverPosition.cfi);
-            } else if (locationsReadyRef.current && serverPosition.progress > 0) {
-                const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
-                if (cfi) {
-                    debug('Navigating to server percentage', { progress: serverPosition.progress, cfi });
-                    renditionRef.current.display(cfi);
-                }
-            }
-        };
-
-        window.addEventListener('position-sync-available', handleSyncAvailable);
-        return () => window.removeEventListener('position-sync-available', handleSyncAvailable);
-    }, [bookId, debug]);
-
     // Navigation functions
     const nextPage = useCallback(() => {
         renditionRef.current?.next();
@@ -531,7 +519,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         setFontFamily,
         setLineHeight,
         setMargins,
-        setFlowMode,
         setTextSelection,
         setFullscreenLock,
         nextPage,

@@ -3,7 +3,6 @@ import { useState, useCallback } from 'react';
 export type Theme = 'light' | 'dark' | 'sepia';
 export type FontFamily = 'default' | 'literata' | 'merriweather' | 'lora' | 'inter' | 'opensans' | 'dyslexic';
 export type Margins = 'compact' | 'normal' | 'wide';
-export type FlowMode = 'paginated' | 'scrolled';
 
 interface ReaderSettings {
     theme: Theme;
@@ -11,7 +10,6 @@ interface ReaderSettings {
     fontFamily: FontFamily;
     lineHeight: number;
     margins: Margins;
-    flowMode: FlowMode;
     textSelection: boolean;
     fullscreenLock: boolean;
 }
@@ -22,7 +20,6 @@ const defaultSettings: ReaderSettings = {
     fontFamily: 'default',
     lineHeight: 1.5,
     margins: 'normal',
-    flowMode: 'paginated',
     textSelection: false,
     fullscreenLock: false,
 };
@@ -36,7 +33,6 @@ function loadSettings(): ReaderSettings {
         fontFamily: (localStorage.getItem('reader-font-family') as FontFamily) || defaultSettings.fontFamily,
         lineHeight: parseFloat(localStorage.getItem('reader-line-height') || '') || defaultSettings.lineHeight,
         margins: (localStorage.getItem('reader-margins') as Margins) || defaultSettings.margins,
-        flowMode: (localStorage.getItem('reader-flow') as FlowMode) || defaultSettings.flowMode,
         textSelection: textSelectionStored !== null ? textSelectionStored === 'true' : defaultSettings.textSelection,
         fullscreenLock: fullscreenLockStored !== null ? fullscreenLockStored === 'true' : defaultSettings.fullscreenLock,
     };
@@ -72,11 +68,6 @@ export function useReaderSettings() {
         setSettings(prev => ({ ...prev, margins }));
     }, []);
 
-    const setFlowMode = useCallback((flowMode: FlowMode) => {
-        localStorage.setItem('reader-flow', flowMode);
-        setSettings(prev => ({ ...prev, flowMode }));
-    }, []);
-
     const setTextSelection = useCallback((textSelection: boolean) => {
         localStorage.setItem('reader-text-selection', String(textSelection));
         setSettings(prev => ({ ...prev, textSelection }));
@@ -94,7 +85,6 @@ export function useReaderSettings() {
         setFontFamily,
         setLineHeight,
         setMargins,
-        setFlowMode,
         setTextSelection,
         setFullscreenLock,
     };
@@ -104,6 +94,13 @@ export const themeStyles = {
     light: { background: '#ffffff', color: '#1a1a1a' },
     dark: { background: '#1e293b', color: '#e2e8f0' },
     sepia: { background: '#f4ecd8', color: '#5c4b37' },
+};
+
+/** Tailwind CSS classes for theme backgrounds (used in ReaderPage container) */
+export const themeBackgrounds: Record<Theme, string> = {
+    light: 'bg-white',
+    dark: 'bg-slate-800',
+    sepia: 'bg-[#f4ecd8]',
 };
 
 export const fontFamilies: Record<FontFamily, string> = {
