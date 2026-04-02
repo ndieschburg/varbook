@@ -62,6 +62,50 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
         };
     }, []);
 
+    // Check server position when app becomes visible again
+    // This handles the case where user switches apps and comes back
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.visibilityState !== 'visible' || !isMountedRef.current) return;
+
+            debugLog('PositionSync', 'App became visible, checking server position');
+
+            try {
+                const serverPos = await fetchServerPosition(bookId);
+                if (!serverPos || !isMountedRef.current) return;
+
+                const localState = await getBookSyncState(bookId);
+                if (!localState) return;
+
+                const serverTime = serverPos.timestamp?.getTime() || 0;
+                const localTime = localState.lastLocalTimestamp?.getTime() || 0;
+
+                // If server has newer position, sync to it
+                const serverIsNewer = serverTime > localTime;
+                const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
+
+                if (serverIsNewer && serverHasDifferentPosition) {
+                    debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
+                        serverCfi: serverPos.cfi,
+                        localCfi: localState.lastLocalCfi,
+                    });
+                    onMultiDeviceSyncRef.current?.({
+                        cfi: serverPos.cfi,
+                        progress: serverPos.progress,
+                    });
+                }
+
+                // Update local cache
+                updateServerState(bookId, serverPos.cfi, serverPos.progress, serverPos.timestamp || new Date());
+            } catch (error) {
+                debugWarn('PositionSync', 'Failed to check server position on visibility change', error);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [bookId]);
+
     /**
      * Load position with local-first strategy:
      * 1. Return local position immediately if available
