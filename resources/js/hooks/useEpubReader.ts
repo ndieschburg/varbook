@@ -64,6 +64,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const progressRef = useRef<number>(0); // Track progress in ref to avoid stale closure
     const locationsReadyRef = useRef<boolean>(false); // Track if locations are generated
     const skipSaveCountRef = useRef<number>(0); // Skip N saves after position restore
+    // Only save position on explicit user navigation (not on resize, visibility change, etc.)
+    const shouldSaveOnNextRelocateRef = useRef<boolean>(false);
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -211,6 +213,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                         const deltaX = e.changedTouches[0].clientX - touchStartX;
                         const deltaY = e.changedTouches[0].clientY - touchStartY;
                         if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+                            // Mark as user-initiated navigation to save position
+                            shouldSaveOnNextRelocateRef.current = true;
                             if (deltaX < 0) {
                                 rendition.next();
                             } else {
@@ -351,8 +355,16 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     if (skipSaveCountRef.current > 0) {
                         debug(`Skipping save (skipSaveCount: ${skipSaveCountRef.current})`);
                         skipSaveCountRef.current--;
+                        shouldSaveOnNextRelocateRef.current = false;
                         return;
                     }
+
+                    // Only save on explicit user navigation (not resize, visibility change, etc.)
+                    if (!shouldSaveOnNextRelocateRef.current) {
+                        debug('Skipping save (not user-initiated navigation)');
+                        return;
+                    }
+                    shouldSaveOnNextRelocateRef.current = false;
 
                     debug('Saving position to server', { cfi: currentCfi, progress: progress.toFixed(5) + '%' });
                     savePosition(currentCfi, progress);
@@ -377,6 +389,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             // Reset refs for next book
             locationsReadyRef.current = false;
             skipSaveCountRef.current = 0;
+            shouldSaveOnNextRelocateRef.current = false;
             // Clean up debug objects
             if ((window as any).epubBook) delete (window as any).epubBook;
             if ((window as any).epubRendition) delete (window as any).epubRendition;
@@ -410,21 +423,25 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debugMode]);
 
-    // Navigation functions
+    // Navigation functions - all set shouldSaveOnNextRelocateRef to save position
     const nextPage = useCallback(() => {
+        shouldSaveOnNextRelocateRef.current = true;
         renditionRef.current?.next();
     }, []);
 
     const prevPage = useCallback(() => {
+        shouldSaveOnNextRelocateRef.current = true;
         renditionRef.current?.prev();
     }, []);
 
     const goTo = useCallback((href: string) => {
+        shouldSaveOnNextRelocateRef.current = true;
         renditionRef.current?.display(href);
     }, []);
 
     const goToPercentage = useCallback((percentage: number) => {
         if (!bookRef.current || !renditionRef.current) return;
+        shouldSaveOnNextRelocateRef.current = true;
         const clamped = Math.max(0, Math.min(100, percentage));
         const cfi = bookRef.current.locations.cfiFromPercentage(clamped / 100);
         if (cfi) {
@@ -492,6 +509,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     }, []);
 
     const goToSearchResult = useCallback((result: SearchResult) => {
+        shouldSaveOnNextRelocateRef.current = true;
         renditionRef.current?.display(result.cfi);
     }, []);
 
