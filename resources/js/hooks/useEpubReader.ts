@@ -367,6 +367,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     // Only save on explicit user navigation (not resize, visibility change, etc.)
                     if (!shouldSaveOnNextRelocateRef.current) {
                         debug('Skipping save (not user-initiated navigation)');
+
+                        // CRITICAL: If position changed due to resize (not user action),
+                        // immediately restore to last known good position
+                        // This fixes Android app switcher causing page jumps
+                        if (lastUserCfiRef.current && currentCfi !== lastUserCfiRef.current) {
+                            debug('Position drift detected! Restoring to last user CFI', {
+                                driftedTo: currentCfi,
+                                restoringTo: lastUserCfiRef.current,
+                            });
+                            skipSaveCountRef.current = 1; // Skip next relocated event from restore
+                            rendition.display(lastUserCfiRef.current);
+                        }
                         return;
                     }
                     shouldSaveOnNextRelocateRef.current = false;
