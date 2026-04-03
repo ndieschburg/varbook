@@ -77,7 +77,10 @@ export function useBookSessions(bookId: number) {
     return useQuery({
         queryKey: ['books', bookId, 'sessions'],
         queryFn: async (): Promise<PaginatedResponse<ReadingSession>> => {
-            const { data } = await api.get(`/books/${bookId}/sessions`);
+            // Request all sessions (high per_page to avoid pagination)
+            const { data } = await api.get(`/books/${bookId}/sessions`, {
+                params: { per_page: 1000 }
+            });
             return data;
         },
         enabled: !!bookId,

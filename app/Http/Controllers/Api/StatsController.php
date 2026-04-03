@@ -79,7 +79,7 @@ class StatsController extends Controller
                 $query->where('user_id', $user->id);
             })
             ->orderBy('started_at', 'desc')
-            ->limit(10)
+            ->limit(1000)
             ->get()
             ->map(fn ($session) => [
                 'id' => $session->id,
