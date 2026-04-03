@@ -529,6 +529,34 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         return () => document.removeEventListener('keydown', handleKeydown);
     }, [nextPage, prevPage]);
 
+    // Prevent position jump when app goes to background (Android app switcher causes resize)
+    // Save CFI when hidden, restore when visible
+    useEffect(() => {
+        let savedCfi: string | null = null;
+
+        const handleVisibilityChange = () => {
+            if (!renditionRef.current) return;
+
+            if (document.visibilityState === 'hidden') {
+                // Save current position before going to background
+                const location = renditionRef.current.currentLocation() as any;
+                if (location?.start?.cfi) {
+                    savedCfi = location.start.cfi;
+                    debug('Visibility hidden - saved CFI for restore', savedCfi);
+                }
+            } else if (document.visibilityState === 'visible' && savedCfi) {
+                // Restore position when coming back (skip save to avoid overwriting)
+                debug('Visibility visible - restoring saved CFI', savedCfi);
+                skipSaveCountRef.current = 1;
+                renditionRef.current.display(savedCfi);
+                savedCfi = null;
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [debug]);
+
     return {
         ...state,
         settings,
