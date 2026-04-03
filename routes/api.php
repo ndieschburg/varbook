@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
+use App\Http\Controllers\Api\DebugLogController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\SettingsController;
@@ -70,6 +71,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index'])->name('api.settings.index');
     Route::put('/settings/{key}', [SettingsController::class, 'update'])->name('api.settings.update');
     Route::delete('/settings/{key}', [SettingsController::class, 'destroy'])->name('api.settings.destroy');
+
+    // Debug Logs - POST is for any authenticated user (to send logs)
+    Route::post('/debug/logs', [DebugLogController::class, 'store'])->name('api.debug.logs.store');
+
+    // Debug Logs - Read/Delete are admin only
+    Route::middleware('admin')->group(function () {
+        Route::get('/debug/logs', [DebugLogController::class, 'index'])->name('api.debug.logs.index');
+        Route::delete('/debug/logs', [DebugLogController::class, 'destroy'])->name('api.debug.logs.destroy');
+    });
 
     // Admin Routes
     Route::middleware('admin')->prefix('admin')->name('api.admin.')->group(function () {

@@ -44,6 +44,11 @@ Route::middleware(['auth'])->group(function () {
     Route::view('admin/settings', 'spa')->name('admin.settings');
     Route::view('admin/logs', 'spa')->name('admin.logs');
 
+    // Debug logs viewer (admin only)
+    Route::view('admin/debug-logs', 'admin.debug-logs')
+        ->middleware('admin')
+        ->name('admin.debug-logs');
+
     // API routes that still need server-side handling
     Route::get('books/{book}/download', [BookController::class, 'download'])->name('books.download');
     Route::get('books/{book}/epub', [BookController::class, 'streamEpub'])->name('books.epub');
