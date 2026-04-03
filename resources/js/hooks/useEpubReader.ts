@@ -66,6 +66,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const skipSaveCountRef = useRef<number>(0); // Skip N saves after position restore
     // Only save position on explicit user navigation (not on resize, visibility change, etc.)
     const shouldSaveOnNextRelocateRef = useRef<boolean>(false);
+    // Track last user-initiated CFI for restoration after Android app switcher resize
+    const lastUserCfiRef = useRef<string | null>(null);
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -93,11 +95,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
         if (serverPosition.cfi) {
             debug('Navigating to server CFI', serverPosition.cfi);
+            lastUserCfiRef.current = serverPosition.cfi; // Track for restoration
             renditionRef.current.display(serverPosition.cfi);
         } else if (locationsReadyRef.current && serverPosition.progress > 0) {
             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
             if (cfi) {
                 debug('Navigating to server percentage', { progress: serverPosition.progress, cfi });
+                lastUserCfiRef.current = cfi; // Track for restoration
                 renditionRef.current.display(cfi);
             }
         }
@@ -246,6 +250,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 skipSaveCountRef.current = 1;
                 if (savedPosition?.cfi) {
                     debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
+                    lastUserCfiRef.current = savedPosition.cfi; // Track for restoration
                     await rendition.display(savedPosition.cfi);
                 } else {
                     debug('No saved position, starting from beginning');
@@ -367,6 +372,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     shouldSaveOnNextRelocateRef.current = false;
 
                     debug('Saving position to server', { cfi: currentCfi, progress: progress.toFixed(5) + '%' });
+                    lastUserCfiRef.current = currentCfi; // Track for restoration after resize
                     savePosition(currentCfi, progress);
                 });
             } catch (error) {
@@ -530,26 +536,28 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     }, [nextPage, prevPage]);
 
     // Prevent position jump when app goes to background (Android app switcher causes resize)
-    // Save CFI when hidden, restore when visible
+    // The resize happens BEFORE visibilitychange fires, so we use lastUserCfiRef
+    // which tracks the last user-initiated navigation position (not affected by resize)
     useEffect(() => {
-        let savedCfi: string | null = null;
-
         const handleVisibilityChange = () => {
             if (!renditionRef.current) return;
 
-            if (document.visibilityState === 'hidden') {
-                // Save current position before going to background
-                const location = renditionRef.current.currentLocation() as any;
-                if (location?.start?.cfi) {
-                    savedCfi = location.start.cfi;
-                    debug('Visibility hidden - saved CFI for restore', savedCfi);
+            if (document.visibilityState === 'visible' && lastUserCfiRef.current) {
+                // Restore last user-navigated position when coming back
+                // This fixes Android app switcher resize causing position to jump
+                const currentLocation = renditionRef.current.currentLocation() as any;
+                const currentCfi = currentLocation?.start?.cfi;
+
+                if (currentCfi !== lastUserCfiRef.current) {
+                    debug('Visibility visible - restoring last user CFI', {
+                        currentCfi,
+                        restoringTo: lastUserCfiRef.current,
+                    });
+                    skipSaveCountRef.current = 1;
+                    renditionRef.current.display(lastUserCfiRef.current);
+                } else {
+                    debug('Visibility visible - position unchanged, no restore needed');
                 }
-            } else if (document.visibilityState === 'visible' && savedCfi) {
-                // Restore position when coming back (skip save to avoid overwriting)
-                debug('Visibility visible - restoring saved CFI', savedCfi);
-                skipSaveCountRef.current = 1;
-                renditionRef.current.display(savedCfi);
-                savedCfi = null;
             }
         };
 
