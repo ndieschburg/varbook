@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLogout, useUpdateLocale } from '@/api/hooks';
 import { Button } from '@/components/ui';
-import { CogIcon, MenuIcon, XIcon, LogoutIcon } from '@/components/icons';
+import { CogIcon, MenuIcon, XIcon, LogoutIcon, ChevronDownIcon } from '@/components/icons';
 
 const languages = [
     { code: 'en', label: 'EN' },
@@ -19,6 +19,19 @@ export function Header() {
     const logoutMutation = useLogout();
     const updateLocaleMutation = useUpdateLocale();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [logsDropdownOpen, setLogsDropdownOpen] = useState(false);
+    const logsDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (logsDropdownRef.current && !logsDropdownRef.current.contains(event.target as Node)) {
+                setLogsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleLanguageChange = async (locale: string) => {
         await updateLocaleMutation.mutateAsync(locale);
@@ -39,8 +52,14 @@ export function Header() {
     const adminLinks = user?.is_admin ? [
         { path: '/admin/users', label: t('Users Management') },
         { path: '/admin/settings', label: t('System Settings') },
-        { path: '/admin/logs', label: t('Progress Logs') },
     ] : [];
+
+    const logsSubLinks = user?.is_admin ? [
+        { path: '/admin/logs', label: t('Progress Logs'), external: false },
+        { path: '/admin/debug-logs', label: t('Frontend Logs'), external: true }, // Blade page, not SPA
+    ] : [];
+
+    const isLogsActive = logsSubLinks.some(link => location.pathname === link.path);
 
     return (
         <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -90,6 +109,55 @@ export function Header() {
                                     {link.label}
                                 </Link>
                             ))}
+                            {/* Logs dropdown */}
+                            {logsSubLinks.length > 0 && (
+                                <div className="relative" ref={logsDropdownRef}>
+                                    <button
+                                        onClick={() => setLogsDropdownOpen(!logsDropdownOpen)}
+                                        className={`flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            isLogsActive
+                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                                        }`}
+                                    >
+                                        {t('Logs')}
+                                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${logsDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {logsDropdownOpen && (
+                                        <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 min-w-[160px] z-50">
+                                            {logsSubLinks.map((link) => (
+                                                link.external ? (
+                                                    <a
+                                                        key={link.path}
+                                                        href={link.path}
+                                                        onClick={() => setLogsDropdownOpen(false)}
+                                                        className={`block px-4 py-2 text-sm transition-colors ${
+                                                            isActive(link.path)
+                                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {link.label}
+                                                    </a>
+                                                ) : (
+                                                    <Link
+                                                        key={link.path}
+                                                        to={link.path}
+                                                        onClick={() => setLogsDropdownOpen(false)}
+                                                        className={`block px-4 py-2 text-sm transition-colors ${
+                                                            isActive(link.path)
+                                                                ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                                                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {link.label}
+                                                    </Link>
+                                                )
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </nav>
                     </div>
 
@@ -180,7 +248,7 @@ export function Header() {
                                 {link.label}
                             </Link>
                         ))}
-                        {adminLinks.length > 0 && (
+                        {(adminLinks.length > 0 || logsSubLinks.length > 0) && (
                             <>
                                 <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
                                 <p className="px-3 py-1 text-xs text-gray-500 uppercase">{t('Admin')}</p>
@@ -198,6 +266,41 @@ export function Header() {
                                         {link.label}
                                     </Link>
                                 ))}
+                                {/* Logs section in mobile */}
+                                {logsSubLinks.length > 0 && (
+                                    <>
+                                        <p className="px-3 py-1 mt-2 text-xs text-gray-400">{t('Logs')}</p>
+                                        {logsSubLinks.map((link) => (
+                                            link.external ? (
+                                                <a
+                                                    key={link.path}
+                                                    href={link.path}
+                                                    onClick={() => setMobileMenuOpen(false)}
+                                                    className={`block px-3 py-2 pl-6 rounded-md text-base font-medium transition-colors ${
+                                                        isActive(link.path)
+                                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                                                    }`}
+                                                >
+                                                    {link.label}
+                                                </a>
+                                            ) : (
+                                                <Link
+                                                    key={link.path}
+                                                    to={link.path}
+                                                    onClick={() => setMobileMenuOpen(false)}
+                                                    className={`block px-3 py-2 pl-6 rounded-md text-base font-medium transition-colors ${
+                                                        isActive(link.path)
+                                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
+                                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                                                    }`}
+                                                >
+                                                    {link.label}
+                                                </Link>
+                                            )
+                                        ))}
+                                    </>
+                                )}
                             </>
                         )}
                     </nav>

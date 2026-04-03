@@ -207,6 +207,8 @@
     "settings.options.appearance.ui_theme.system": "System",
 
     "Progress Logs": "Progress Logs",
+    "Frontend Logs": "Frontend Logs",
+    "Logs": "Logs",
     "Logging is enabled": "Logging is enabled",
     "Logging is disabled": "Logging is disabled",
     "Auto-refresh": "Auto-refresh",

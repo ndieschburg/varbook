@@ -220,6 +220,8 @@
     "settings.options.appearance.ui_theme.system": "Sistema",
 
     "Progress Logs": "Logs de progreso",
+    "Frontend Logs": "Logs de frontend",
+    "Logs": "Logs",
     "Logging is enabled": "Registro activado",
     "Logging is disabled": "Registro desactivado",
     "Auto-refresh": "Auto-refrescar",
