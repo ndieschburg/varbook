@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useBook, useBookSessions, useDeleteBook, useResetBookStats } from '@/api/hooks';
 import { LoadingSpinner, ConfirmModal } from '@/components/ui';
-import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon, RefreshIcon } from '@/components/icons';
+import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon, RefreshIcon, ChevronDownIcon } from '@/components/icons';
 import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
 function formatFileSize(bytes: number): string {
@@ -79,6 +79,19 @@ export function BookDetailPage() {
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showResetModal, setShowResetModal] = useState(false);
+    const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+
+    const toggleDay = (dateKey: string) => {
+        setExpandedDays((prev) => {
+            const next = new Set(prev);
+            if (next.has(dateKey)) {
+                next.delete(dateKey);
+            } else {
+                next.add(dateKey);
+            }
+            return next;
+        });
+    };
 
     const handleDelete = async () => {
         try {
@@ -312,8 +325,24 @@ export function BookDetailPage() {
                     </div>
                 ) : sessions.length > 0 ? (
                     (() => {
-                        // Group sessions by day
-                        const groupedSessions = sessions.reduce((acc, session) => {
+                        // Filter out 0-duration sessions and group by day
+                        const filteredSessions = sessions.filter((s) => s.duration_seconds > 0);
+
+                        if (filteredSessions.length === 0) {
+                            return (
+                                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center">
+                                    <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-600" />
+                                    <h3 className="mt-4 text-sm font-medium text-gray-700 dark:text-slate-300">
+                                        {t('No reading sessions yet')}
+                                    </h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-500">
+                                        {t('Open this book in Moon+ Reader to start tracking your progress.')}
+                                    </p>
+                                </div>
+                            );
+                        }
+
+                        const groupedSessions = filteredSessions.reduce((acc, session) => {
                             const dateKey = getDateKey(session.started_at);
                             if (!acc[dateKey]) {
                                 acc[dateKey] = [];
@@ -346,61 +375,76 @@ export function BookDetailPage() {
                                         });
                                     }
 
+                                    const isExpanded = expandedDays.has(dateKey);
+
                                     return (
                                         <div key={dateKey} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                                            {/* Day Header */}
-                                            <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
-                                                <span className="font-medium text-gray-900 dark:text-slate-100 capitalize">
-                                                    {dayLabel}
-                                                </span>
+                                            {/* Day Header - Clickable */}
+                                            <button
+                                                onClick={() => toggleDay(dateKey)}
+                                                className="w-full px-6 py-3 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <ChevronDownIcon
+                                                        className={`h-5 w-5 text-gray-500 dark:text-slate-400 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                                                    />
+                                                    <span className="font-medium text-gray-900 dark:text-slate-100 capitalize">
+                                                        {dayLabel}
+                                                    </span>
+                                                    <span className="text-sm text-gray-500 dark:text-slate-400">
+                                                        ({daySessions.length})
+                                                    </span>
+                                                </div>
                                                 <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-1">
                                                     <ClockIcon className="h-4 w-4" />
                                                     {formatDuration(totalSeconds)}
                                                 </span>
-                                            </div>
+                                            </button>
 
-                                            {/* Sessions Table */}
-                                            <table className="w-full">
-                                                <thead>
-                                                    <tr className="border-b border-gray-200 dark:border-slate-700">
-                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                                            {t('Time')}
-                                                        </th>
-                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                                            {t('Duration')}
-                                                        </th>
-                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                                            {t('Progress')}
-                                                        </th>
-                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                                            {t('Client')}
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                                                    {daySessions.map((session) => (
-                                                        <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                                                {new Date(session.started_at).toLocaleTimeString(undefined, {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit',
-                                                                })}
-                                                            </td>
-                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                                                {session.formatted_duration}
-                                                            </td>
-                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                                                {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
-                                                            </td>
-                                                            <td className="px-6 py-3 whitespace-nowrap text-sm">
-                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
-                                                                    {session.client}
-                                                                </span>
-                                                            </td>
+                                            {/* Sessions Table - Collapsible */}
+                                            {isExpanded && (
+                                                <table className="w-full border-t border-gray-200 dark:border-slate-700">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200 dark:border-slate-700">
+                                                            <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                                {t('Time')}
+                                                            </th>
+                                                            <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                                {t('Duration')}
+                                                            </th>
+                                                            <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                                {t('Progress')}
+                                                            </th>
+                                                            <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                                {t('Client')}
+                                                            </th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                                                        {daySessions.map((session) => (
+                                                            <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                    {new Date(session.started_at).toLocaleTimeString(undefined, {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                    })}
+                                                                </td>
+                                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                    {session.formatted_duration}
+                                                                </td>
+                                                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                    {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
+                                                                </td>
+                                                                <td className="px-6 py-3 whitespace-nowrap text-sm">
+                                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
+                                                                        {session.client}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            )}
                                         </div>
                                     );
                                 })}
