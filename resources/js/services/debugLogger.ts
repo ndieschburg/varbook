@@ -2,9 +2,22 @@
 // Debug mode can be enabled via the reader.debug_mode setting
 
 let debugEnabled = false;
+let erudaLoaded = false;
 
 export function setDebugMode(enabled: boolean): void {
     debugEnabled = enabled;
+
+    // Load Eruda mobile console when debug mode is enabled
+    if (enabled && !erudaLoaded && typeof window !== 'undefined') {
+        erudaLoaded = true;
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+        script.onload = () => {
+            (window as any).eruda?.init();
+            console.log('[Debug] Eruda console loaded');
+        };
+        document.head.appendChild(script);
+    }
 }
 
 export function isDebugEnabled(): boolean {

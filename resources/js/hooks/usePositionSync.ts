@@ -65,45 +65,59 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
     // Check server position when app becomes visible again
     // This handles the case where user switches apps and comes back
     useEffect(() => {
-        const handleVisibilityChange = async () => {
+        let visibilityTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        const handleVisibilityChange = () => {
+            // Clear any pending check
+            if (visibilityTimeout) {
+                clearTimeout(visibilityTimeout);
+                visibilityTimeout = null;
+            }
+
             if (document.visibilityState !== 'visible' || !isMountedRef.current) return;
 
-            debugLog('PositionSync', 'App became visible, checking server position');
+            // Wait 1 second before checking - avoids false positives from quick app switcher gestures
+            visibilityTimeout = setTimeout(async () => {
+                debugLog('PositionSync', 'App became visible, checking server position');
 
-            try {
-                const serverPos = await fetchServerPosition(bookId);
-                if (!serverPos || !isMountedRef.current) return;
+                try {
+                    const serverPos = await fetchServerPosition(bookId);
+                    if (!serverPos || !isMountedRef.current) return;
 
-                const localState = await getBookSyncState(bookId);
-                if (!localState) return;
+                    const localState = await getBookSyncState(bookId);
+                    if (!localState) return;
 
-                const serverTime = serverPos.timestamp?.getTime() || 0;
-                const localTime = localState.lastLocalTimestamp?.getTime() || 0;
+                    const serverTime = serverPos.timestamp?.getTime() || 0;
+                    const localTime = localState.lastLocalTimestamp?.getTime() || 0;
 
-                // If server has newer position, sync to it
-                const serverIsNewer = serverTime > localTime;
-                const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
+                    // If server has newer position, sync to it
+                    const serverIsNewer = serverTime > localTime;
+                    const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
 
-                if (serverIsNewer && serverHasDifferentPosition) {
-                    debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
-                        serverCfi: serverPos.cfi,
-                        localCfi: localState.lastLocalCfi,
-                    });
-                    onMultiDeviceSyncRef.current?.({
-                        cfi: serverPos.cfi,
-                        progress: serverPos.progress,
-                    });
+                    if (serverIsNewer && serverHasDifferentPosition) {
+                        debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
+                            serverCfi: serverPos.cfi,
+                            localCfi: localState.lastLocalCfi,
+                        });
+                        onMultiDeviceSyncRef.current?.({
+                            cfi: serverPos.cfi,
+                            progress: serverPos.progress,
+                        });
+                    }
+
+                    // Update local cache
+                    updateServerState(bookId, serverPos.cfi, serverPos.progress, serverPos.timestamp || new Date());
+                } catch (error) {
+                    debugWarn('PositionSync', 'Failed to check server position on visibility change', error);
                 }
-
-                // Update local cache
-                updateServerState(bookId, serverPos.cfi, serverPos.progress, serverPos.timestamp || new Date());
-            } catch (error) {
-                debugWarn('PositionSync', 'Failed to check server position on visibility change', error);
-            }
+            }, 1000);
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (visibilityTimeout) clearTimeout(visibilityTimeout);
+        };
     }, [bookId]);
 
     /**
