@@ -20,6 +20,44 @@ function formatDate(dateString: string): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Get date key for grouping sessions (YYYY-MM-DD format)
+ */
+function getDateKey(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+}
+
+/**
+ * Format duration in seconds to human-readable format
+ */
+function formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+}
+
+/**
+ * Check if date is today
+ */
+function isToday(dateKey: string): boolean {
+    const today = new Date().toISOString().split('T')[0];
+    return dateKey === today;
+}
+
+/**
+ * Check if date is yesterday
+ */
+function isYesterday(dateKey: string): boolean {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return dateKey === yesterday.toISOString().split('T')[0];
+}
+
 export function BookDetailPage() {
     const { t } = useTranslation();
     const { id } = useParams<{ id: string }>();
@@ -273,46 +311,102 @@ export function BookDetailPage() {
                         <LoadingSpinner />
                     </div>
                 ) : sessions.length > 0 ? (
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-gray-200 dark:border-slate-700">
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                        {t('Date')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                        {t('Duration')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                        {t('Progress')}
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                                        {t('Client')}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
-                                {sessions.map((session) => (
-                                    <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                            {new Date(session.started_at).toLocaleString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                            {session.formatted_duration}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                            {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
-                                                {session.client}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    (() => {
+                        // Group sessions by day
+                        const groupedSessions = sessions.reduce((acc, session) => {
+                            const dateKey = getDateKey(session.started_at);
+                            if (!acc[dateKey]) {
+                                acc[dateKey] = [];
+                            }
+                            acc[dateKey].push(session);
+                            return acc;
+                        }, {} as Record<string, typeof sessions>);
+
+                        // Sort days (most recent first)
+                        const sortedDays = Object.keys(groupedSessions).sort((a, b) => b.localeCompare(a));
+
+                        return (
+                            <div className="space-y-4">
+                                {sortedDays.map((dateKey) => {
+                                    const daySessions = groupedSessions[dateKey];
+                                    const totalSeconds = daySessions.reduce((sum, s) => sum + s.duration_seconds, 0);
+
+                                    // Format day label
+                                    let dayLabel: string;
+                                    if (isToday(dateKey)) {
+                                        dayLabel = t('Today');
+                                    } else if (isYesterday(dateKey)) {
+                                        dayLabel = t('Yesterday');
+                                    } else {
+                                        dayLabel = new Date(dateKey + 'T00:00:00').toLocaleDateString(undefined, {
+                                            weekday: 'long',
+                                            day: 'numeric',
+                                            month: 'long',
+                                            year: 'numeric',
+                                        });
+                                    }
+
+                                    return (
+                                        <div key={dateKey} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+                                            {/* Day Header */}
+                                            <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+                                                <span className="font-medium text-gray-900 dark:text-slate-100 capitalize">
+                                                    {dayLabel}
+                                                </span>
+                                                <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-1">
+                                                    <ClockIcon className="h-4 w-4" />
+                                                    {formatDuration(totalSeconds)}
+                                                </span>
+                                            </div>
+
+                                            {/* Sessions Table */}
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="border-b border-gray-200 dark:border-slate-700">
+                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                            {t('Time')}
+                                                        </th>
+                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                            {t('Duration')}
+                                                        </th>
+                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                            {t('Progress')}
+                                                        </th>
+                                                        <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                                            {t('Client')}
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+                                                    {daySessions.map((session) => (
+                                                        <tr key={session.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                {new Date(session.started_at).toLocaleTimeString(undefined, {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit',
+                                                                })}
+                                                            </td>
+                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                {session.formatted_duration}
+                                                            </td>
+                                                            <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                                                {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
+                                                            </td>
+                                                            <td className="px-6 py-3 whitespace-nowrap text-sm">
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">
+                                                                    {session.client}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()
                 ) : (
                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-8 text-center">
                         <ClockIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-slate-600" />
