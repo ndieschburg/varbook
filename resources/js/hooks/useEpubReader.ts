@@ -547,36 +547,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         return () => document.removeEventListener('keydown', handleKeydown);
     }, [nextPage, prevPage]);
 
-    // Prevent position jump when app goes to background (Android app switcher causes resize)
-    // The resize happens BEFORE visibilitychange fires, so we use lastUserCfiRef
-    // which tracks the last user-initiated navigation position (not affected by resize)
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            if (!renditionRef.current) return;
-
-            if (document.visibilityState === 'visible' && lastUserCfiRef.current) {
-                // Restore last user-navigated position when coming back
-                // This fixes Android app switcher resize causing position to jump
-                const currentLocation = renditionRef.current.currentLocation() as any;
-                const currentCfi = currentLocation?.start?.cfi;
-
-                if (currentCfi !== lastUserCfiRef.current) {
-                    debug('Visibility visible - restoring last user CFI', {
-                        currentCfi,
-                        restoringTo: lastUserCfiRef.current,
-                    });
-                    skipSaveCountRef.current = 1;
-                    renditionRef.current.display(lastUserCfiRef.current);
-                } else {
-                    debug('Visibility visible - position unchanged, no restore needed');
-                }
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [debug]);
-
     return {
         ...state,
         settings,
