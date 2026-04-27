@@ -116,19 +116,143 @@ class EpubService
     protected function extractCover(Ebook $ebook, int $userId, string $fileHash): ?string
     {
         $cover = $ebook->getCover();
+        $contents = $cover?->getContents();
 
-        if (!$cover || !$cover->getContents()) {
+        // Fallback: extract cover directly from ZIP when php-ebook fails
+        if (!$contents) {
+            $contents = $this->extractCoverFromZip($ebook->getPath());
+        }
+
+        if (!$contents) {
             return null;
         }
 
-        $extension = $this->getImageExtension($cover->getContents());
+        $extension = $this->getImageExtension($contents);
         $path = config('bookshelf.covers_path') . "/{$userId}";
         $filename = "{$fileHash}.{$extension}";
         $fullPath = "{$path}/{$filename}";
 
-        Storage::disk('public')->put($fullPath, $cover->getContents());
+        Storage::disk('public')->put($fullPath, $contents);
 
         return $fullPath;
+    }
+
+    /**
+     * Extract cover image directly from EPUB ZIP archive.
+     *
+     * Handles cases where php-ebook fails to find the cover, such as when
+     * the OPF manifest uses a non-standard id (e.g. "img1" instead of "cover").
+     * Resolves the <meta name="cover" content="..."> reference and falls back
+     * to searching for common cover filenames.
+     */
+    protected function extractCoverFromZip(string $epubPath): ?string
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($epubPath) !== true) {
+            return null;
+        }
+
+        try {
+            $opfPath = $this->findOpfPath($zip);
+            if (!$opfPath) {
+                return null;
+            }
+
+            $opfContent = $zip->getFromName($opfPath);
+            if (!$opfContent) {
+                return null;
+            }
+
+            $opfDir = dirname($opfPath);
+            $opfDir = $opfDir === '.' ? '' : $opfDir . '/';
+
+            $coverHref = $this->findCoverHrefFromOpf($opfContent);
+            if ($coverHref) {
+                $coverFullPath = $opfDir . $coverHref;
+                $contents = $zip->getFromName($coverFullPath);
+                if ($contents) {
+                    return $contents;
+                }
+            }
+
+            // Last resort: search for common cover filenames
+            $candidates = ['cover.jpg', 'cover.jpeg', 'cover.png', 'Cover.jpg', 'Cover.jpeg', 'Cover.png'];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                $basename = basename($name);
+                if (in_array($basename, $candidates)) {
+                    $contents = $zip->getFromIndex($i);
+                    if ($contents) {
+                        return $contents;
+                    }
+                }
+            }
+
+            return null;
+        } finally {
+            $zip->close();
+        }
+    }
+
+    /**
+     * Find the OPF file path from the container.xml in the EPUB archive.
+     */
+    protected function findOpfPath(\ZipArchive $zip): ?string
+    {
+        $container = $zip->getFromName('META-INF/container.xml');
+        if (!$container) {
+            return null;
+        }
+
+        $xml = @simplexml_load_string($container);
+        if (!$xml) {
+            return null;
+        }
+
+        $xml->registerXPathNamespace('c', 'urn:oasis:names:tc:opendocument:xmlns:container');
+        $rootfiles = $xml->xpath('//c:rootfile/@full-path');
+
+        return $rootfiles[0] ? (string) $rootfiles[0] : null;
+    }
+
+    /**
+     * Parse the OPF XML to find the cover image href.
+     *
+     * Resolves the <meta name="cover" content="item-id"> reference by looking
+     * up the corresponding manifest item. Also checks for items with "cover"
+     * in the id or properties as a fallback.
+     */
+    protected function findCoverHrefFromOpf(string $opfContent): ?string
+    {
+        $xml = @simplexml_load_string($opfContent);
+        if (!$xml) {
+            return null;
+        }
+
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+        // Strategy 1: Follow <meta name="cover" content="item-id"> to manifest item
+        $xml->registerXPathNamespace('opf', 'http://www.idpf.org/2007/opf');
+        $coverMeta = $xml->xpath('//opf:meta[@name="cover"]/@content');
+        if (!empty($coverMeta)) {
+            $coverId = (string) $coverMeta[0];
+            $items = $xml->xpath("//opf:manifest/opf:item[@id='{$coverId}']/@href");
+            if (!empty($items)) {
+                $href = (string) $items[0];
+                $ext = strtolower(pathinfo($href, PATHINFO_EXTENSION));
+                if (in_array($ext, $imageExtensions)) {
+                    return $href;
+                }
+            }
+        }
+
+        // Strategy 2: Look for manifest items with properties="cover-image" (EPUB3)
+        $coverImage = $xml->xpath('//opf:manifest/opf:item[@properties="cover-image"]/@href');
+        if (!empty($coverImage)) {
+            return (string) $coverImage[0];
+        }
+
+        return null;
     }
 
     protected function getImageExtension(string $contents): string
