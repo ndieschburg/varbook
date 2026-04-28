@@ -75,19 +75,20 @@ class StatsController extends Controller
             ]);
 
         // Top 5 readers (last 12 months)
-        $topReaders = User::select('users.id', 'users.name')
+        $topReaders = User::query()
+            ->select(
+                'users.id',
+                'users.name',
+                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds'),
+                DB::raw('COUNT(DISTINCT books.id) as books_count')
+            )
             ->join('books', 'books.user_id', '=', 'users.id')
             ->join('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
             ->where('reading_sessions.started_at', '>=', now()->subMonths(12))
             ->groupBy('users.id', 'users.name')
-            ->orderByDesc(DB::raw('SUM(reading_sessions.duration_seconds)'))
+            ->orderByDesc('total_seconds')
             ->limit(5)
-            ->get([
-                'users.id',
-                'users.name',
-                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds'),
-                DB::raw('COUNT(DISTINCT books.id) as books_count'),
-            ])
+            ->get()
             ->map(fn ($row) => [
                 'name' => $row->name,
                 'hours' => round($row->total_seconds / 3600, 1),
