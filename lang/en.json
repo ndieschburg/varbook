@@ -297,5 +297,8 @@
     "We have emailed your password reset link!": "We have emailed your password reset link!",
     "Reset Password": "Reset Password",
     "Forgot password?": "Forgot password?",
-    "Your password has been reset. You can now log in with your new password.": "Your password has been reset. You can now log in with your new password."
+    "Your password has been reset. You can now log in with your new password.": "Your password has been reset. You can now log in with your new password.",
+
+    "remaining": "remaining",
+    "Estimated from {{time}} read over {{progress}}% of the book": "Estimated from {{time}} read over {{progress}}% of the book"
 }

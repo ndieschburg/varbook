@@ -309,5 +309,8 @@
     "We have emailed your password reset link!": "Nous vous avons envoyé le lien de réinitialisation par e-mail !",
     "Reset Password": "Réinitialiser le mot de passe",
     "Forgot password?": "Mot de passe oublié ?",
-    "Your password has been reset. You can now log in with your new password.": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe."
+    "Your password has been reset. You can now log in with your new password.": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
+
+    "remaining": "restant",
+    "Estimated from {{time}} read over {{progress}}% of the book": "Estimé à partir de {{time}} de lecture sur {{progress}}% du livre"
 }

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useBook, useBookSessions, useDeleteBook, useResetBookStats } from '@/api/hooks';
 import { LoadingSpinner, ConfirmModal } from '@/components/ui';
-import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon, RefreshIcon, ChevronDownIcon } from '@/components/icons';
+import { BookIcon, ArrowLeftIcon, DownloadIcon, TrashIcon, CheckCircleIcon, ClockIcon, CloudDownloadIcon, CloudOfflineIcon, RefreshIcon, ChevronDownIcon, HourglassIcon } from '@/components/icons';
 import { useBookOfflineStatus } from '@/hooks/useBookOfflineStatus';
 
 function formatFileSize(bytes: number): string {
@@ -207,6 +207,35 @@ export function BookDetailPage() {
                                 />
                             </div>
                         </div>
+
+                        {/* Estimated Remaining Time */}
+                        {!book.is_finished && book.progress > 0 && book.total_reading_seconds > 0 && (
+                            (() => {
+                                const remainingSeconds = (book.total_reading_seconds / book.progress) * (100 - book.progress);
+                                const remainingHours = Math.floor(remainingSeconds / 3600);
+                                const remainingMinutes = Math.floor((remainingSeconds % 3600) / 60);
+                                const formattedRemaining = remainingHours > 0
+                                    ? `${remainingHours}h ${remainingMinutes}m`
+                                    : `${remainingMinutes}m`;
+
+                                return (
+                                    <div className="mt-6 flex items-center gap-3 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 px-4 py-3">
+                                        <HourglassIcon className="h-5 w-5 text-indigo-500 dark:text-indigo-400 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-indigo-900 dark:text-indigo-200">
+                                                ~{formattedRemaining} {t('remaining')}
+                                            </p>
+                                            <p className="text-xs text-indigo-600 dark:text-indigo-400/70">
+                                                {t('Estimated from {{time}} read over {{progress}}% of the book', {
+                                                    time: book.formatted_reading_time,
+                                                    progress: book.progress.toFixed(1),
+                                                })}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })()
+                        )}
 
                         {/* Stats */}
                         <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
