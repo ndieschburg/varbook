@@ -251,6 +251,92 @@ export function StatsPage() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Line Chart */}
+                        {(() => {
+                            const chartW = 800;
+                            const chartH = 240;
+                            const padL = 40;
+                            const padR = 16;
+                            const padT = 16;
+                            const padB = 32;
+                            const innerW = chartW - padL - padR;
+                            const innerH = chartH - padT - padB;
+                            const chartMax = Math.max(...readers.flatMap(r => r.monthly_hours), 1);
+                            const stepCount = 4;
+
+                            const lineColors = [
+                                '#6366f1', // indigo
+                                '#f59e0b', // amber
+                                '#10b981', // emerald
+                                '#ef4444', // red
+                                '#8b5cf6', // violet
+                            ];
+
+                            const x = (i: number) => padL + (i / (months.length - 1)) * innerW;
+                            const y = (val: number) => padT + innerH - (val / chartMax) * innerH;
+
+                            return (
+                                <div className="mt-6 overflow-x-auto -mx-6 px-6">
+                                    <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full min-w-[500px]" preserveAspectRatio="xMidYMid meet">
+                                        {/* Horizontal grid lines + Y labels */}
+                                        {Array.from({ length: stepCount + 1 }, (_, i) => {
+                                            const val = (chartMax / stepCount) * i;
+                                            const yPos = y(val);
+                                            return (
+                                                <g key={i}>
+                                                    <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-200 dark:text-slate-700" strokeWidth="1" />
+                                                    <text x={padL - 6} y={yPos + 4} textAnchor="end" className="fill-gray-400 dark:fill-slate-500" fontSize="10">
+                                                        {Math.round(val)}h
+                                                    </text>
+                                                </g>
+                                            );
+                                        })}
+
+                                        {/* X labels (months) */}
+                                        {months.map((month, i) => (
+                                            <text key={month} x={x(i)} y={chartH - 6} textAnchor="middle" className="fill-gray-400 dark:fill-slate-500" fontSize="10">
+                                                {month.slice(5)}
+                                            </text>
+                                        ))}
+
+                                        {/* Lines + dots per reader */}
+                                        {readers.map((reader, ri) => {
+                                            const color = lineColors[ri % lineColors.length];
+                                            const points = reader.monthly_hours.map((h, i) => `${x(i)},${y(h)}`).join(' ');
+
+                                            return (
+                                                <g key={reader.name}>
+                                                    <polyline
+                                                        points={points}
+                                                        fill="none"
+                                                        stroke={color}
+                                                        strokeWidth="2.5"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                    {reader.monthly_hours.map((h, i) => (
+                                                        <circle key={i} cx={x(i)} cy={y(h)} r="3.5" fill={color} stroke="white" strokeWidth="1.5">
+                                                            <title>{`${reader.name}: ${h}h`}</title>
+                                                        </circle>
+                                                    ))}
+                                                </g>
+                                            );
+                                        })}
+                                    </svg>
+
+                                    {/* Legend */}
+                                    <div className="flex flex-wrap gap-4 mt-3 justify-center">
+                                        {readers.map((reader, ri) => (
+                                            <div key={reader.name} className="flex items-center gap-1.5">
+                                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: lineColors[ri % lineColors.length] }} />
+                                                <span className="text-xs text-gray-600 dark:text-slate-400">{reader.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 );
             })()}
