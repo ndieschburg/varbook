@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\ReadingSession;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,26 @@ class StatsController extends Controller
                 'sessions' => $row->sessions,
             ]);
 
+        // Top 5 readers (last 12 months)
+        $topReaders = User::select('users.id', 'users.name')
+            ->join('books', 'books.user_id', '=', 'users.id')
+            ->join('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
+            ->where('reading_sessions.started_at', '>=', now()->subMonths(12))
+            ->groupBy('users.id', 'users.name')
+            ->orderByDesc(DB::raw('SUM(reading_sessions.duration_seconds)'))
+            ->limit(5)
+            ->get([
+                'users.id',
+                'users.name',
+                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds'),
+                DB::raw('COUNT(DISTINCT books.id) as books_count'),
+            ])
+            ->map(fn ($row) => [
+                'name' => $row->name,
+                'hours' => round($row->total_seconds / 3600, 1),
+                'books_count' => $row->books_count,
+            ]);
+
         // Recent sessions
         $recentSessions = ReadingSession::with('book:id,title,author,cover_path')
             ->whereHas('book', function ($query) use ($user) {
@@ -106,6 +127,7 @@ class StatsController extends Controller
                 'total_sessions' => $totalSessions,
                 'reading_by_month' => $readingByMonth,
                 'reading_by_client' => $readingByClient,
+                'top_readers' => $topReaders,
                 'recent_sessions' => $recentSessions,
             ],
         ]);

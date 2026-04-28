@@ -235,6 +235,14 @@ export function ChevronDownIcon({ className }: IconProps) {
     );
 }
 
+export function TrophyIcon({ className }: IconProps) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15V17M8 21H16M6 3H18M6 3C6 3 4 3 4 5C4 7 6 9 6 9M18 3C18 3 20 3 20 5C20 7 18 9 18 9M6 9C6 9 6 15 12 15M18 9C18 9 18 15 12 15" />
+        </svg>
+    );
+}
+
 export function HourglassIcon({ className }: IconProps) {
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

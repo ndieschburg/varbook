@@ -80,6 +80,12 @@ export interface RecentSession {
     client: string;
 }
 
+export interface TopReader {
+    name: string;
+    hours: number;
+    books_count: number;
+}
+
 export interface UserStats {
     total_books: number;
     books_finished: number;
@@ -90,6 +96,7 @@ export interface UserStats {
     total_sessions: number;
     reading_by_month: MonthlyReading[];
     reading_by_client: ClientReading[];
+    top_readers: TopReader[];
     recent_sessions: RecentSession[];
 }
 

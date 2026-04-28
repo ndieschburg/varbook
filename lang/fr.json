@@ -312,5 +312,9 @@
     "Your password has been reset. You can now log in with your new password.": "Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.",
 
     "remaining": "restant",
-    "Estimated from {{time}} read over {{progress}}% of the book": "Estimé à partir de {{time}} de lecture sur {{progress}}% du livre"
+    "Estimated from {{time}} read over {{progress}}% of the book": "Estimé à partir de {{time}} de lecture sur {{progress}}% du livre",
+
+    "Top Readers": "Top Lecteurs",
+    "Last 12 months": "12 derniers mois",
+    "books": "livres"
 }
