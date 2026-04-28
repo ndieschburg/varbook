@@ -82,8 +82,13 @@ export interface RecentSession {
 
 export interface TopReader {
     name: string;
-    hours: number;
-    books_count: number;
+    total_hours: number;
+    monthly_hours: number[];
+}
+
+export interface TopReadersData {
+    months: string[];
+    readers: TopReader[];
 }
 
 export interface UserStats {
@@ -96,7 +101,7 @@ export interface UserStats {
     total_sessions: number;
     reading_by_month: MonthlyReading[];
     reading_by_client: ClientReading[];
-    top_readers: TopReader[];
+    top_readers: TopReadersData;
     recent_sessions: RecentSession[];
 }
 

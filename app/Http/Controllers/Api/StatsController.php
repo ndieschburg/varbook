@@ -74,26 +74,77 @@ class StatsController extends Controller
                 'sessions' => $row->sessions,
             ]);
 
-        // Top 5 readers (last 12 months)
-        $topReaders = User::query()
-            ->select(
-                'users.id',
-                'users.name',
-                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds'),
-                DB::raw('COUNT(DISTINCT books.id) as books_count')
-            )
+        // Top 5 readers (last 12 months) with monthly breakdown
+        $twelveMonthsAgo = now()->subMonths(12);
+
+        // Get top 5 user IDs by total reading time
+        $topUserIds = User::query()
+            ->select('users.id')
             ->join('books', 'books.user_id', '=', 'users.id')
             ->join('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
-            ->where('reading_sessions.started_at', '>=', now()->subMonths(12))
-            ->groupBy('users.id', 'users.name')
-            ->orderByDesc('total_seconds')
+            ->where('reading_sessions.started_at', '>=', $twelveMonthsAgo)
+            ->groupBy('users.id')
+            ->orderByDesc(DB::raw('SUM(reading_sessions.duration_seconds)'))
             ->limit(5)
-            ->get()
-            ->map(fn ($row) => [
-                'name' => $row->name,
-                'hours' => round($row->total_seconds / 3600, 1),
-                'books_count' => $row->books_count,
-            ]);
+            ->pluck('users.id');
+
+        // Get monthly breakdown for these users
+        $monthlyData = DB::table('reading_sessions')
+            ->join('books', 'books.id', '=', 'reading_sessions.book_id')
+            ->join('users', 'users.id', '=', 'books.user_id')
+            ->select(
+                'users.id as user_id',
+                'users.name',
+                DB::raw("DATE_FORMAT(reading_sessions.started_at, '%Y-%m') as month"),
+                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds')
+            )
+            ->whereIn('users.id', $topUserIds)
+            ->where('reading_sessions.started_at', '>=', $twelveMonthsAgo)
+            ->groupBy('users.id', 'users.name', 'month')
+            ->get();
+
+        // Build months list (last 12 months)
+        $months = collect();
+        for ($i = 11; $i >= 0; $i--) {
+            $months->push(now()->subMonths($i)->format('Y-m'));
+        }
+
+        // Pivot data per user
+        $readersByUser = [];
+        foreach ($monthlyData as $row) {
+            if (! isset($readersByUser[$row->user_id])) {
+                $readersByUser[$row->user_id] = [
+                    'name' => $row->name,
+                    'total_seconds' => 0,
+                    'monthly' => [],
+                ];
+            }
+            $hours = round($row->total_seconds / 3600, 1);
+            $readersByUser[$row->user_id]['monthly'][$row->month] = $hours;
+            $readersByUser[$row->user_id]['total_seconds'] += $row->total_seconds;
+        }
+
+        // Sort by total and fill missing months with 0
+        $topReaders = collect($readersByUser)
+            ->sortByDesc('total_seconds')
+            ->values()
+            ->map(function ($reader) use ($months) {
+                $monthlyHours = [];
+                foreach ($months as $month) {
+                    $monthlyHours[] = $reader['monthly'][$month] ?? 0;
+                }
+
+                return [
+                    'name' => $reader['name'],
+                    'total_hours' => round($reader['total_seconds'] / 3600, 1),
+                    'monthly_hours' => $monthlyHours,
+                ];
+            });
+
+        $topReadersData = [
+            'months' => $months->values()->all(),
+            'readers' => $topReaders->all(),
+        ];
 
         // Recent sessions
         $recentSessions = ReadingSession::with('book:id,title,author,cover_path')
@@ -128,7 +179,7 @@ class StatsController extends Controller
                 'total_sessions' => $totalSessions,
                 'reading_by_month' => $readingByMonth,
                 'reading_by_client' => $readingByClient,
-                'top_readers' => $topReaders,
+                'top_readers' => $topReadersData,
                 'recent_sessions' => $recentSessions,
             ],
         ]);

@@ -170,64 +170,90 @@ export function StatsPage() {
                 </div>
             )}
 
-            {/* Top Readers (Last 12 Months) */}
-            {stats.top_readers.length > 0 && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <TrophyIcon className="h-5 w-5 text-amber-500" />
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('Top Readers')}</h2>
-                        <span className="text-sm text-gray-400 dark:text-slate-500">({t('Last 12 months')})</span>
-                    </div>
-                    <div className="space-y-3">
-                        {stats.top_readers.map((reader, index) => {
-                            const maxHours = stats.top_readers[0]?.hours || 1;
-                            const barWidth = (reader.hours / maxHours) * 100;
-                            const medalColors = [
-                                'text-amber-400',
-                                'text-gray-400 dark:text-slate-400',
-                                'text-amber-700 dark:text-amber-600',
-                            ];
+            {/* Top Readers (Last 12 Months) - Heatmap */}
+            {stats.top_readers.readers.length > 0 && (() => {
+                const { months, readers } = stats.top_readers;
+                const allHours = readers.flatMap(r => r.monthly_hours);
+                const maxHours = Math.max(...allHours, 1);
 
-                            return (
-                                <div key={reader.name} className="flex items-center gap-3">
-                                    <div className="w-6 text-center flex-shrink-0">
-                                        {index < 3 ? (
-                                            <span className={`text-lg font-bold ${medalColors[index]}`}>
-                                                {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                                            </span>
-                                        ) : (
-                                            <span className="text-sm font-medium text-gray-400 dark:text-slate-500">
-                                                {index + 1}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-medium text-gray-900 dark:text-white truncate">
-                                                {reader.name}
-                                            </span>
-                                            <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-                                                <span className="text-xs text-gray-400 dark:text-slate-500">
-                                                    {reader.books_count} {t('books')}
-                                                </span>
-                                                <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                                                    {reader.hours}h
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full rounded-full transition-all bg-gradient-to-r from-indigo-500 to-purple-500"
-                                                style={{ width: `${barWidth}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                /**
+                 * Get heatmap cell background based on hours value relative to max
+                 */
+                const getCellStyle = (hours: number) => {
+                    if (hours === 0) return {};
+                    const intensity = Math.min(hours / maxHours, 1);
+                    const opacity = 0.15 + intensity * 0.85;
+                    return { backgroundColor: `rgba(99, 102, 241, ${opacity})` };
+                };
+
+                return (
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
+                        <div className="flex items-center gap-2 mb-5">
+                            <TrophyIcon className="h-5 w-5 text-amber-500" />
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('Top Readers')}</h2>
+                            <span className="text-sm text-gray-400 dark:text-slate-500">({t('Last 12 months')})</span>
+                        </div>
+
+                        <div className="overflow-x-auto -mx-6 px-6">
+                            <table className="w-full min-w-[640px]">
+                                <thead>
+                                    <tr>
+                                        <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 pb-2 pr-3 w-32"></th>
+                                        {months.map((month) => (
+                                            <th key={month} className="text-center text-xs font-medium text-gray-400 dark:text-slate-500 pb-2 px-0.5">
+                                                {month.slice(5)}
+                                            </th>
+                                        ))}
+                                        <th className="text-right text-xs font-medium text-gray-500 dark:text-slate-400 pb-2 pl-3">{t('Total')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {readers.map((reader, index) => {
+                                        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
+
+                                        return (
+                                            <tr key={reader.name}>
+                                                <td className="py-1.5 pr-3">
+                                                    <div className="flex items-center gap-2">
+                                                        {medal ? (
+                                                            <span className="text-sm">{medal}</span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400 dark:text-slate-500 w-5 text-center">{index + 1}</span>
+                                                        )}
+                                                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                            {reader.name}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                {reader.monthly_hours.map((hours, i) => (
+                                                    <td key={months[i]} className="py-1.5 px-0.5">
+                                                        <div
+                                                            className={`rounded h-8 flex items-center justify-center text-xs tabular-nums transition-colors ${
+                                                                hours > 0
+                                                                    ? 'text-white font-medium'
+                                                                    : 'bg-gray-50 dark:bg-slate-700/30 text-gray-300 dark:text-slate-600'
+                                                            }`}
+                                                            style={getCellStyle(hours)}
+                                                            title={`${reader.name} — ${months[i]}: ${hours}h`}
+                                                        >
+                                                            {hours > 0 ? `${hours}` : ''}
+                                                        </div>
+                                                    </td>
+                                                ))}
+                                                <td className="py-1.5 pl-3 text-right">
+                                                    <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
+                                                        {reader.total_hours}h
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Monthly Reading Chart */}
             {stats.reading_by_month.length > 0 && (
