@@ -1,0 +1,361 @@
+--[[
+    Varbook KOReader Plugin
+    Synchronizes reading progress with a Varbook (BookShelf) server.
+
+    - Tracks page turns locally in SQLite (percentage + timestamp)
+    - Manual sync via menu button: pull server position, push local positions
+    - Uses percentage-based navigation for cross-device compatibility
+]]--
+
+local DataStorage = require("datastorage")
+local Event = require("ui/event")
+local InfoMessage = require("ui/widget/infomessage")
+local InputDialog = require("ui/widget/inputdialog")
+local LuaSettings = require("luasettings")
+local Math = require("optmath")
+local NetworkMgr = require("ui/network/manager")
+local Notification = require("ui/widget/notification")
+local UIManager = require("ui/uimanager")
+local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local logger = require("logger")
+local _ = require("gettext")
+local T = require("ffi/util").template
+
+local VarbookAPI = require("api")
+local VarbookDB = require("db")
+
+local Varbook = WidgetContainer:extend{
+    name = "varbook",
+    is_doc_only = true,
+}
+
+local SETTINGS_PATH = DataStorage:getSettingsDir() .. "/varbook.lua"
+
+function Varbook:init()
+    self.settings = LuaSettings:open(SETTINGS_PATH)
+    self.doc_hash = nil
+    self.last_percentage = nil
+    self.ui.menu:registerToMainMenu(self)
+end
+
+--- Get document partial MD5 hash (same hash stored on Varbook server).
+function Varbook:getDocHash()
+    if self.doc_hash then
+        return self.doc_hash
+    end
+    self.doc_hash = self.ui.doc_settings:readSetting("partial_md5_checksum")
+    return self.doc_hash
+end
+
+--- Get current reading percentage (0-100).
+function Varbook:getPercentage()
+    if self.ui.document.info.has_pages then
+        return Math.roundPercent(self.ui.paging:getLastPercent())
+    else
+        return Math.roundPercent(self.ui.rolling:getLastPercent())
+    end
+end
+
+--- Get the last sync timestamp for the current document.
+function Varbook:getLastSyncTimestamp()
+    local doc_hash = self:getDocHash()
+    if not doc_hash then return 0 end
+    local per_doc = self.settings:readSetting("last_sync", {})
+    return per_doc[doc_hash] or 0
+end
+
+--- Save the last sync timestamp for the current document.
+function Varbook:setLastSyncTimestamp(ts)
+    local doc_hash = self:getDocHash()
+    if not doc_hash then return end
+    local per_doc = self.settings:readSetting("last_sync", {})
+    per_doc[doc_hash] = ts
+    self.settings:saveSetting("last_sync", per_doc)
+end
+
+function Varbook:isConfigured()
+    local url = self.settings:readSetting("server_url")
+    local token = self.settings:readSetting("token")
+    return url and url ~= "" and token and token ~= ""
+end
+
+function Varbook:getAPI()
+    return VarbookAPI:new(
+        self.settings:readSetting("server_url"),
+        self.settings:readSetting("token")
+    )
+end
+
+-- ==========================================
+-- Page turn tracking
+-- ==========================================
+
+function Varbook:onPageUpdate()
+    if not self:isConfigured() then return end
+
+    local doc_hash = self:getDocHash()
+    if not doc_hash then return end
+
+    local percentage = self:getPercentage()
+    if percentage == nil then return end
+
+    -- Skip if percentage hasn't changed
+    if self.last_percentage and self.last_percentage == percentage then
+        return
+    end
+    self.last_percentage = percentage
+
+    VarbookDB:addPosition(doc_hash, percentage)
+end
+
+function Varbook:onCloseDocument()
+    VarbookDB:close()
+end
+
+-- ==========================================
+-- Sync logic
+-- ==========================================
+
+function Varbook:doSync()
+    if not self:isConfigured() then
+        UIManager:show(InfoMessage:new{
+            text = _("Please configure Varbook server URL and token first."),
+        })
+        return
+    end
+
+    local doc_hash = self:getDocHash()
+    if not doc_hash then
+        UIManager:show(InfoMessage:new{
+            text = _("Cannot identify this document."),
+        })
+        return
+    end
+
+    local api = self:getAPI()
+    local navigated = false
+    local synced_count = 0
+
+    -- Step 1: Pull server progress
+    local server, err = api:getProgress(doc_hash)
+
+    if err == "unauthorized" then
+        UIManager:show(InfoMessage:new{
+            text = _("Authentication failed. Check Varbook settings."),
+        })
+        return
+    elseif err == "network_error" then
+        UIManager:show(InfoMessage:new{
+            text = _("Network error. Positions saved locally."),
+        })
+        return
+    end
+
+    -- Step 2: Navigate if server is newer
+    if server and server.timestamp > self:getLastSyncTimestamp() then
+        local current = self:getPercentage() or 0
+        -- Only navigate if server position differs by more than 1%
+        if math.abs(server.progress - current) > 1 then
+            self.ui:handleEvent(Event:new("GotoPercentage", server.progress / 100))
+            navigated = true
+        end
+    end
+
+    -- Step 3: Push unsynced positions
+    local positions = VarbookDB:getUnsyncedPositions(doc_hash)
+
+    if #positions > 0 then
+        local count, push_err = api:pushBatch(doc_hash, positions)
+
+        if push_err == "unauthorized" then
+            UIManager:show(InfoMessage:new{
+                text = _("Authentication failed. Check Varbook settings."),
+            })
+            return
+        elseif push_err == "book_not_found" then
+            UIManager:show(InfoMessage:new{
+                text = _("Book not found on server. Upload it via the web interface first."),
+            })
+            return
+        elseif push_err then
+            UIManager:show(InfoMessage:new{
+                text = _("Server error. Positions saved locally for next sync."),
+            })
+            return
+        end
+
+        VarbookDB:markSynced(doc_hash)
+        synced_count = count or #positions
+    end
+
+    -- Step 4: Update last sync timestamp
+    self:setLastSyncTimestamp(os.time())
+
+    -- Step 5: Show result
+    local msg
+    if navigated and synced_count > 0 then
+        msg = string.format(_("Synced to %.0f%% and pushed %d positions."),
+            server.progress, synced_count)
+    elseif navigated then
+        msg = string.format(_("Synced to %.0f%%."), server.progress)
+    elseif synced_count > 0 then
+        msg = string.format(_("Pushed %d positions."), synced_count)
+    else
+        msg = _("Already in sync.")
+    end
+
+    UIManager:show(Notification:new{ text = msg })
+end
+
+function Varbook:syncNow()
+    if NetworkMgr:willRerunWhenOnline(function() self:doSync() end) then
+        return
+    end
+    self:doSync()
+end
+
+-- ==========================================
+-- Menu
+-- ==========================================
+
+function Varbook:addToMainMenu(menu_items)
+    menu_items.varbook = {
+        text = _("Varbook"),
+        sub_item_table = {
+            {
+                text = _("Sync now"),
+                enabled_func = function()
+                    return self:isConfigured()
+                end,
+                callback = function()
+                    self:syncNow()
+                end,
+                separator = true,
+            },
+            {
+                text = _("Server URL"),
+                keep_menu_open = true,
+                callback = function(touchmenu_instance)
+                    self:showServerURLDialog(touchmenu_instance)
+                end,
+            },
+            {
+                text = _("API Token"),
+                keep_menu_open = true,
+                callback = function(touchmenu_instance)
+                    self:showTokenDialog(touchmenu_instance)
+                end,
+                separator = true,
+            },
+            {
+                text = _("Status"),
+                callback = function()
+                    self:showStatus()
+                end,
+            },
+        },
+    }
+end
+
+function Varbook:showServerURLDialog(touchmenu_instance)
+    local dialog
+    dialog = InputDialog:new{
+        title = _("Varbook server URL"),
+        input = self.settings:readSetting("server_url") or "https://",
+        input_hint = "https://bookshelf.example.com",
+        buttons = {{
+            {
+                text = _("Cancel"),
+                id = "close",
+                callback = function()
+                    UIManager:close(dialog)
+                end,
+            },
+            {
+                text = _("Save"),
+                is_enter_default = true,
+                callback = function()
+                    local url = dialog:getInputText()
+                    -- Remove trailing slash
+                    url = url:gsub("/+$", "")
+                    self.settings:saveSetting("server_url", url)
+                    UIManager:close(dialog)
+                    if touchmenu_instance then
+                        touchmenu_instance:updateItems()
+                    end
+                end,
+            },
+        }},
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function Varbook:showTokenDialog(touchmenu_instance)
+    local current = self.settings:readSetting("token") or ""
+    local masked = current ~= "" and (current:sub(1, 4) .. "...") or ""
+
+    local dialog
+    dialog = InputDialog:new{
+        title = _("API Token"),
+        description = masked ~= "" and (
+            _("Current token: ") .. masked
+        ) or nil,
+        input = "",
+        input_hint = _("Enter 16-character token"),
+        buttons = {{
+            {
+                text = _("Cancel"),
+                id = "close",
+                callback = function()
+                    UIManager:close(dialog)
+                end,
+            },
+            {
+                text = _("Save"),
+                is_enter_default = true,
+                callback = function()
+                    local token = dialog:getInputText()
+                    if token and token ~= "" then
+                        self.settings:saveSetting("token", token)
+                    end
+                    UIManager:close(dialog)
+                    if touchmenu_instance then
+                        touchmenu_instance:updateItems()
+                    end
+                end,
+            },
+        }},
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function Varbook:showStatus()
+    local doc_hash = self:getDocHash()
+    local pending = doc_hash and VarbookDB:countUnsynced(doc_hash) or 0
+    local total_pending = VarbookDB:countUnsynced()
+    local last_sync = self:getLastSyncTimestamp()
+    local last_sync_str = last_sync > 0
+        and os.date("%Y-%m-%d %H:%M", last_sync)
+        or _("Never")
+
+    local configured = self:isConfigured()
+    local url = self.settings:readSetting("server_url") or _("Not set")
+    local token = self.settings:readSetting("token")
+    local token_str = token and token ~= "" and (token:sub(1, 4) .. "...") or _("Not set")
+
+    local text = table.concat({
+        _("Server") .. ": " .. url,
+        _("Token") .. ": " .. token_str,
+        _("Status") .. ": " .. (configured and _("Configured") or _("Not configured")),
+        "",
+        _("Current book pending") .. ": " .. tostring(pending),
+        _("Total pending") .. ": " .. tostring(total_pending),
+        _("Last sync") .. ": " .. last_sync_str,
+    }, "\n")
+
+    UIManager:show(InfoMessage:new{ text = text })
+end
+
+return Varbook
