@@ -282,7 +282,10 @@ class EpubService
 
         for ($i = -1; $i <= 10; $i++) {
             $shift = 2 * $i;
-            $offset = $shift >= 0 ? ($blockSize << $shift) : ($blockSize >> abs($shift));
+            // LuaJIT's lshift masks shift count to 5 bits (mod 32).
+            // For i=-1: lshift(1024, -2) = lshift(1024, 30) = 0 (32-bit overflow)
+            $effectiveShift = $shift & 0x1F;
+            $offset = ($blockSize << $effectiveShift) & 0xFFFFFFFF;
             if ($offset >= $fileSize) {
                 break;
             }

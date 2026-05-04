@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class RehashKoreaderCommand extends Command
 {
-    protected $signature = 'bookshelf:rehash-koreader';
+    protected $signature = 'bookshelf:rehash-koreader {--force : Recalculate all hashes, not just missing ones}';
 
     protected $description = 'Recalculate KOReader partial MD5 hashes for all existing books';
 
@@ -21,7 +21,9 @@ class RehashKoreaderCommand extends Command
 
     public function handle(): int
     {
-        $books = Book::whereNull('koreader_file_hash')->get();
+        $books = $this->option('force')
+            ? Book::all()
+            : Book::whereNull('koreader_file_hash')->get();
 
         if ($books->isEmpty()) {
             $this->info('All books already have KOReader hashes.');
