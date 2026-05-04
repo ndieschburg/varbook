@@ -281,7 +281,8 @@ class EpubService
         $blockSize = 1024;
 
         for ($i = -1; $i <= 10; $i++) {
-            $offset = $blockSize << (2 * $i);
+            $shift = 2 * $i;
+            $offset = $shift >= 0 ? ($blockSize << $shift) : ($blockSize >> abs($shift));
             if ($offset >= $fileSize) {
                 break;
             }
