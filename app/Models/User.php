@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -19,12 +20,14 @@ class User extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'password',
+        'kosync_password_hash',
         'is_admin',
         'timezone',
     ];
 
     protected $hidden = [
         'password',
+        'kosync_password_hash',
         'remember_token',
     ];
 
@@ -35,6 +38,17 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'is_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * Compute and store the kosync password hash from a plain-text password.
+     *
+     * KOReader sends md5(password) as the auth key. We store bcrypt(md5(password))
+     * so we can verify it with Hash::check() on incoming kosync requests.
+     */
+    public function setKosyncPasswordHash(string $plainPassword): void
+    {
+        $this->kosync_password_hash = Hash::make(md5($plainPassword));
     }
 
     public function books(): HasMany

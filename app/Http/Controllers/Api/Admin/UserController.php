@@ -50,6 +50,7 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'kosync_password_hash' => Hash::make(md5($validated['password'])),
             'is_admin' => $validated['is_admin'] ?? false,
         ]);
 
@@ -83,6 +84,7 @@ class UserController extends Controller
 
         if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
+            $user->setKosyncPasswordHash($validated['password']);
         }
 
         if (isset($validated['is_admin'])) {

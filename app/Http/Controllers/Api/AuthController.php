@@ -53,6 +53,7 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'kosync_password_hash' => Hash::make(md5($validated['password'])),
         ]);
 
         event(new Registered($user));
@@ -165,9 +166,10 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $request->user()->update([
-            'password' => Hash::make($validated['password']),
-        ]);
+        $user = $request->user();
+        $user->password = Hash::make($validated['password']);
+        $user->setKosyncPasswordHash($validated['password']);
+        $user->save();
 
         return response()->json([
             'message' => __('Password updated'),

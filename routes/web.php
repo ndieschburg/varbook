@@ -96,12 +96,13 @@ Route::prefix('api/kosync')
     ->group(function () {
         // Public endpoints (no auth required)
         Route::post('users/create', [KosyncController::class, 'createUser']);
-        Route::post('users/auth', [KosyncController::class, 'authUser']);
+        Route::get('users/auth', [KosyncController::class, 'authUser']);
+        Route::get('healthcheck', [KosyncController::class, 'healthcheck']);
 
         // Protected endpoints (require kosync auth)
         Route::middleware(['kosync.auth'])->group(function () {
             Route::put('syncs/progress', [KosyncController::class, 'updateProgress']);
-            Route::get('syncs/progress', [KosyncController::class, 'getProgress']);
+            Route::get('syncs/progress/{document}', [KosyncController::class, 'getProgress']);
         });
     });
 

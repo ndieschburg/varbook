@@ -43,6 +43,7 @@ class CreateAdminCommand extends Command
             'name' => $name,
             'email' => $email,
             'password' => Hash::make($password),
+            'kosync_password_hash' => Hash::make(md5($password)),
             'is_admin' => true,
         ]);
 

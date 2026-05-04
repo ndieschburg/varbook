@@ -22,7 +22,7 @@ class KosyncAuthMiddleware
 
         $user = User::where('email', $username)->first();
 
-        if (!$user || !Hash::check($authKey, $user->password)) {
+        if (!$user || !$user->kosync_password_hash || !Hash::check($authKey, $user->kosync_password_hash)) {
             return $this->unauthorized();
         }
 

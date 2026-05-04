@@ -29,15 +29,18 @@ class KosyncController extends Controller
     }
 
     /**
-     * POST /api/kosync/users/auth
-     * Authenticate user and return success
+     * GET /api/kosync/users/auth
+     * Authenticate user via x-auth-user / x-auth-key headers.
+     *
+     * KOReader sends md5(password) as x-auth-key, so we verify against
+     * the dedicated kosync_password_hash field (bcrypt of md5(password)).
      */
     public function authUser(Request $request): JsonResponse
     {
-        $username = $request->input('username') ?? $request->header('x-auth-user');
-        $password = $request->input('password') ?? $request->header('x-auth-key');
+        $username = $request->header('x-auth-user');
+        $authKey = $request->header('x-auth-key');
 
-        if (!$username || !$password) {
+        if (!$username || !$authKey) {
             return response()->json([
                 'message' => __('Unauthorized'),
             ], 401);
@@ -45,7 +48,7 @@ class KosyncController extends Controller
 
         $user = User::where('email', $username)->first();
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (!$user || !$user->kosync_password_hash || !Hash::check($authKey, $user->kosync_password_hash)) {
             return response()->json([
                 'message' => __('Unauthorized'),
             ], 401);
@@ -54,6 +57,15 @@ class KosyncController extends Controller
         return response()->json([
             'username' => $user->email,
         ], 200);
+    }
+
+    /**
+     * GET /api/kosync/healthcheck
+     * Simple health check endpoint for KOReader server detection.
+     */
+    public function healthcheck(): JsonResponse
+    {
+        return response()->json(['state' => 'OK'], 200);
     }
 
     /**
@@ -83,8 +95,8 @@ class KosyncController extends Controller
             $progressPercent = floatval($validated['percentage']) * 100;
         }
 
-        // Find book by file hash
-        $book = $this->readingSessionService->findBookByHash($user->id, $documentHash);
+        // Find book by koreader partial hash
+        $book = $this->readingSessionService->findBookByKoreaderHash($user->id, $documentHash);
 
         if (!$book) {
             return response()->json([
@@ -127,23 +139,17 @@ class KosyncController extends Controller
     }
 
     /**
-     * GET /api/kosync/syncs/progress
+     * GET /api/kosync/syncs/progress/{document}
      * Get reading progress for a document
      */
-    public function getProgress(Request $request): JsonResponse
+    public function getProgress(Request $request, string $document): JsonResponse
     {
         $user = Auth::user();
 
-        $documentHash = $request->query('document');
+        $documentHash = $document;
 
-        if (!$documentHash) {
-            return response()->json([
-                'message' => __('Document parameter required'),
-            ], 400);
-        }
-
-        // Find book by file hash
-        $book = $this->readingSessionService->findBookByHash($user->id, $documentHash);
+        // Find book by koreader partial hash
+        $book = $this->readingSessionService->findBookByKoreaderHash($user->id, $documentHash);
 
         if (!$book) {
             return response()->json([

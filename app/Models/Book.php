@@ -25,6 +25,7 @@ class Book extends Model
         'storage_path',
         'cover_path',
         'file_hash',
+        'koreader_file_hash',
         'file_size',
         'progress',
         'total_reading_seconds',

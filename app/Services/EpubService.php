@@ -6,7 +6,7 @@ use App\Models\Book;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+
 use Kiwilan\Ebook\Ebook;
 
 class EpubService
@@ -42,6 +42,9 @@ class EpubService
             // Extract and store cover
             $coverPath = $this->extractCover($ebook, $user->id, $fileHash);
 
+            // Calculate KOReader-compatible partial MD5 hash
+            $koreaderHash = $this->calculateKoreaderHash($tempPath);
+
             // Create book record
             return Book::create([
                 'user_id' => $user->id,
@@ -55,6 +58,7 @@ class EpubService
                 'storage_path' => $storagePath,
                 'cover_path' => $coverPath,
                 'file_hash' => $fileHash,
+                'koreader_file_hash' => $koreaderHash,
                 'file_size' => $fileSize,
                 'progress' => 0,
                 'total_reading_seconds' => 0,
@@ -255,6 +259,46 @@ class EpubService
         return null;
     }
 
+    /**
+     * Calculate the partial MD5 hash matching KOReader's algorithm.
+     *
+     * KOReader samples 12 blocks of 1024 bytes at exponentially increasing
+     * offsets (1024 << (2*i) for i from -1 to 10), then computes the MD5
+     * of the concatenated blocks. This avoids reading the entire file and
+     * remains stable even if data is appended (e.g., PDF annotations).
+     *
+     * @see https://github.com/koreader/koreader/discussions/14448
+     */
+    public function calculateKoreaderHash(string $filePath): string
+    {
+        $handle = fopen($filePath, 'rb');
+        if (!$handle) {
+            return md5_file($filePath);
+        }
+
+        $fileSize = filesize($filePath);
+        $sample = '';
+        $blockSize = 1024;
+
+        for ($i = -1; $i <= 10; $i++) {
+            $offset = $blockSize << (2 * $i);
+            if ($offset >= $fileSize) {
+                break;
+            }
+
+            fseek($handle, $offset);
+            $data = fread($handle, $blockSize);
+            if ($data === false) {
+                break;
+            }
+            $sample .= $data;
+        }
+
+        fclose($handle);
+
+        return md5($sample);
+    }
+
     protected function getImageExtension(string $contents): string
     {
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
@@ -322,6 +366,9 @@ class EpubService
         // Extract and store cover
         $coverPath = $this->extractCover($ebook, $user->id, $fileHash);
 
+        // Calculate KOReader-compatible partial MD5 hash
+        $koreaderHash = $this->calculateKoreaderHash($filePath);
+
         // Create book record
         return Book::create([
             'user_id' => $user->id,
@@ -335,6 +382,7 @@ class EpubService
             'storage_path' => $storagePath,
             'cover_path' => $coverPath,
             'file_hash' => $fileHash,
+            'koreader_file_hash' => $koreaderHash,
             'file_size' => $fileSize,
             'progress' => 0,
             'total_reading_seconds' => 0,

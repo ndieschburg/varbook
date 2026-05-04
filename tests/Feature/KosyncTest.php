@@ -7,6 +7,7 @@ use App\Models\BookSyncIdentifier;
 use App\Models\ReadingSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class KosyncTest extends TestCase
@@ -17,18 +18,22 @@ class KosyncTest extends TestCase
 
     protected Book $book;
 
+    protected string $plainPassword = 'password123';
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->user = User::factory()->create([
             'email' => 'test@example.com',
-            'password' => bcrypt('password123'),
+            'password' => bcrypt($this->plainPassword),
+            'kosync_password_hash' => Hash::make(md5($this->plainPassword)),
         ]);
 
         $this->book = Book::factory()->create([
             'user_id' => $this->user->id,
             'file_hash' => 'abc123def456789012345678901234ab',
+            'koreader_file_hash' => 'koreader_partial_hash_abcdef1234',
             'progress' => 0,
         ]);
     }
@@ -56,9 +61,9 @@ class KosyncTest extends TestCase
 
     public function test_auth_with_valid_credentials_returns_username(): void
     {
-        $response = $this->postJson('/api/kosync/users/auth', [
-            'username' => 'test@example.com',
-            'password' => 'password123',
+        $response = $this->getJson('/api/kosync/users/auth', [
+            'x-auth-user' => 'test@example.com',
+            'x-auth-key' => md5($this->plainPassword),
         ]);
 
         $response->assertStatus(200)
@@ -69,9 +74,9 @@ class KosyncTest extends TestCase
 
     public function test_auth_with_invalid_password_returns_unauthorized(): void
     {
-        $response = $this->postJson('/api/kosync/users/auth', [
-            'username' => 'test@example.com',
-            'password' => 'wrongpassword',
+        $response = $this->getJson('/api/kosync/users/auth', [
+            'x-auth-user' => 'test@example.com',
+            'x-auth-key' => md5('wrongpassword'),
         ]);
 
         $response->assertStatus(401)
@@ -82,9 +87,9 @@ class KosyncTest extends TestCase
 
     public function test_auth_with_nonexistent_user_returns_unauthorized(): void
     {
-        $response = $this->postJson('/api/kosync/users/auth', [
-            'username' => 'nonexistent@example.com',
-            'password' => 'password123',
+        $response = $this->getJson('/api/kosync/users/auth', [
+            'x-auth-user' => 'nonexistent@example.com',
+            'x-auth-key' => md5($this->plainPassword),
         ]);
 
         $response->assertStatus(401)
@@ -93,17 +98,53 @@ class KosyncTest extends TestCase
             ]);
     }
 
-    public function test_auth_with_header_credentials(): void
+    public function test_auth_without_headers_returns_unauthorized(): void
     {
-        $response = $this->postJson('/api/kosync/users/auth', [], [
+        $response = $this->getJson('/api/kosync/users/auth');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'message' => 'Unauthorized',
+            ]);
+    }
+
+    public function test_auth_with_plain_password_fails(): void
+    {
+        // KOReader always sends md5(password), plain password should fail
+        $response = $this->getJson('/api/kosync/users/auth', [
             'x-auth-user' => 'test@example.com',
-            'x-auth-key' => 'password123',
+            'x-auth-key' => $this->plainPassword,
         ]);
 
+        $response->assertStatus(401);
+    }
+
+    public function test_auth_fails_when_kosync_hash_not_set(): void
+    {
+        $userWithoutHash = User::factory()->create([
+            'email' => 'nohash@example.com',
+            'password' => bcrypt('password123'),
+            'kosync_password_hash' => null,
+        ]);
+
+        $response = $this->getJson('/api/kosync/users/auth', [
+            'x-auth-user' => 'nohash@example.com',
+            'x-auth-key' => md5('password123'),
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    // ==========================================
+    // Healthcheck Tests
+    // ==========================================
+
+    public function test_healthcheck_returns_ok(): void
+    {
+        $response = $this->getJson('/api/kosync/healthcheck');
+
         $response->assertStatus(200)
-            ->assertJson([
-                'username' => 'test@example.com',
-            ]);
+            ->assertJson(['state' => 'OK']);
     }
 
     // ==========================================
@@ -113,7 +154,7 @@ class KosyncTest extends TestCase
     public function test_update_progress_requires_authentication(): void
     {
         $response = $this->putJson('/api/kosync/syncs/progress', [
-            'document' => $this->book->file_hash,
+            'document' => $this->book->koreader_file_hash,
             'progress' => '45.5',
         ]);
 
@@ -124,7 +165,7 @@ class KosyncTest extends TestCase
     {
         $response = $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '45.5',
                 'device' => 'KOReader',
                 'device_id' => 'test-device-123',
@@ -136,7 +177,7 @@ class KosyncTest extends TestCase
                 'timestamp',
             ])
             ->assertJson([
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
             ]);
 
         // Verify book progress was updated
@@ -147,7 +188,7 @@ class KosyncTest extends TestCase
         $this->assertDatabaseHas('book_sync_identifiers', [
             'book_id' => $this->book->id,
             'client' => 'koreader',
-            'external_identifier' => $this->book->file_hash,
+            'external_identifier' => $this->book->koreader_file_hash,
         ]);
 
         // Verify reading session was created
@@ -161,7 +202,7 @@ class KosyncTest extends TestCase
     {
         $response = $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '0.75',
                 'percentage' => 0.75,
             ]);
@@ -191,7 +232,7 @@ class KosyncTest extends TestCase
     {
         $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '25.0',
             ]);
 
@@ -209,7 +250,7 @@ class KosyncTest extends TestCase
         // First update
         $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '25.0',
             ]);
 
@@ -219,7 +260,7 @@ class KosyncTest extends TestCase
         // Second update within session gap (default 10 minutes)
         $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '30.0',
             ]);
 
@@ -235,7 +276,7 @@ class KosyncTest extends TestCase
     {
         $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '96.0', // Above default 95% threshold
             ]);
 
@@ -244,12 +285,12 @@ class KosyncTest extends TestCase
     }
 
     // ==========================================
-    // Progress Retrieval Tests (GET)
+    // Progress Retrieval Tests (GET with route param)
     // ==========================================
 
     public function test_get_progress_requires_authentication(): void
     {
-        $response = $this->getJson('/api/kosync/syncs/progress?document='.$this->book->file_hash);
+        $response = $this->getJson('/api/kosync/syncs/progress/' . $this->book->koreader_file_hash);
 
         $response->assertStatus(401);
     }
@@ -262,14 +303,14 @@ class KosyncTest extends TestCase
         BookSyncIdentifier::create([
             'book_id' => $this->book->id,
             'client' => 'koreader',
-            'external_identifier' => $this->book->file_hash,
+            'external_identifier' => $this->book->koreader_file_hash,
             'last_sync_at' => now(),
             'last_progress' => 45.5,
             'raw_position' => '45.5',
         ]);
 
         $response = $this->withKosyncAuth()
-            ->getJson('/api/kosync/syncs/progress?document='.$this->book->file_hash);
+            ->getJson('/api/kosync/syncs/progress/' . $this->book->koreader_file_hash);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -281,7 +322,7 @@ class KosyncTest extends TestCase
                 'timestamp',
             ])
             ->assertJson([
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'progress' => '45.5',
                 'percentage' => 0.455,
             ]);
@@ -290,22 +331,11 @@ class KosyncTest extends TestCase
     public function test_get_progress_for_nonexistent_document(): void
     {
         $response = $this->withKosyncAuth()
-            ->getJson('/api/kosync/syncs/progress?document=nonexistenthash12345678901234ab');
+            ->getJson('/api/kosync/syncs/progress/nonexistenthash12345678901234ab');
 
         $response->assertStatus(404)
             ->assertJson([
                 'message' => 'Document not found',
-            ]);
-    }
-
-    public function test_get_progress_without_document_parameter(): void
-    {
-        $response = $this->withKosyncAuth()
-            ->getJson('/api/kosync/syncs/progress');
-
-        $response->assertStatus(400)
-            ->assertJson([
-                'message' => 'Document parameter required',
             ]);
     }
 
@@ -314,13 +344,39 @@ class KosyncTest extends TestCase
         $this->book->update(['progress' => 30.0]);
 
         $response = $this->withKosyncAuth()
-            ->getJson('/api/kosync/syncs/progress?document='.$this->book->file_hash);
+            ->getJson('/api/kosync/syncs/progress/' . $this->book->koreader_file_hash);
 
         $response->assertStatus(200)
             ->assertJson([
-                'document' => $this->book->file_hash,
+                'document' => $this->book->koreader_file_hash,
                 'percentage' => 0.30,
             ]);
+    }
+
+    // ==========================================
+    // Fallback to file_hash Tests
+    // ==========================================
+
+    public function test_update_progress_falls_back_to_file_hash(): void
+    {
+        // Book without koreader_file_hash should still work via file_hash
+        $bookNoKoreaderHash = Book::factory()->create([
+            'user_id' => $this->user->id,
+            'file_hash' => 'fallback_full_hash_abcdef12345678',
+            'koreader_file_hash' => null,
+            'progress' => 0,
+        ]);
+
+        $response = $this->withKosyncAuth()
+            ->putJson('/api/kosync/syncs/progress', [
+                'document' => 'fallback_full_hash_abcdef12345678',
+                'progress' => '50.0',
+            ]);
+
+        $response->assertStatus(200);
+
+        $bookNoKoreaderHash->refresh();
+        $this->assertEquals(50.0, $bookNoKoreaderHash->progress);
     }
 
     // ==========================================
@@ -333,12 +389,13 @@ class KosyncTest extends TestCase
         $otherBook = Book::factory()->create([
             'user_id' => $otherUser->id,
             'file_hash' => 'other123hash456789012345678901ab',
+            'koreader_file_hash' => 'other_koreader_hash_abcdef123456',
         ]);
 
         // Try to update progress on other user's book
         $response = $this->withKosyncAuth()
             ->putJson('/api/kosync/syncs/progress', [
-                'document' => $otherBook->file_hash,
+                'document' => $otherBook->koreader_file_hash,
                 'progress' => '50.0',
             ]);
 
@@ -346,7 +403,7 @@ class KosyncTest extends TestCase
 
         // Try to get progress on other user's book
         $response = $this->withKosyncAuth()
-            ->getJson('/api/kosync/syncs/progress?document='.$otherBook->file_hash);
+            ->getJson('/api/kosync/syncs/progress/' . $otherBook->koreader_file_hash);
 
         $response->assertStatus(404);
     }
@@ -359,7 +416,7 @@ class KosyncTest extends TestCase
     {
         return $this->withHeaders([
             'x-auth-user' => $this->user->email,
-            'x-auth-key' => 'password123',
+            'x-auth-key' => md5($this->plainPassword),
         ]);
     }
 }

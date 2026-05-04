@@ -173,6 +173,22 @@ class ReadingSessionService
             ->first();
     }
 
+    /**
+     * Find a book by KOReader's partial MD5 hash.
+     *
+     * Falls back to the full file_hash for backwards compatibility with
+     * books that were synced before the koreader_file_hash field existed.
+     */
+    public function findBookByKoreaderHash(int $userId, string $hash): ?Book
+    {
+        return Book::where('user_id', $userId)
+            ->where(function ($query) use ($hash) {
+                $query->where('koreader_file_hash', $hash)
+                    ->orWhere('file_hash', $hash);
+            })
+            ->first();
+    }
+
     public function createSyncIdentifier(Book $book, string $client, string $externalIdentifier): BookSyncIdentifier
     {
         return BookSyncIdentifier::firstOrCreate([
