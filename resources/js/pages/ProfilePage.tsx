@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui';
 import { UserIcon } from '@/components/icons';
+import { ApiTokenManager } from '@/components/ApiTokenManager';
 import api from '@/api/client';
 
 interface ProfileFormData {
@@ -203,6 +204,8 @@ export function ProfilePage() {
                     </div>
                 </form>
             </div>
+            {/* API Tokens */}
+            <ApiTokenManager />
         </div>
     );
 }

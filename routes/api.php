@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ApiTokenController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\DebugLogController;
@@ -71,6 +72,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings', [SettingsController::class, 'index'])->name('api.settings.index');
     Route::put('/settings/{key}', [SettingsController::class, 'update'])->name('api.settings.update');
     Route::delete('/settings/{key}', [SettingsController::class, 'destroy'])->name('api.settings.destroy');
+
+    // API Tokens (for KOReader Varbook plugin)
+    Route::get('/tokens', [ApiTokenController::class, 'index'])->name('api.tokens.index');
+    Route::post('/tokens', [ApiTokenController::class, 'store'])->name('api.tokens.store');
+    Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy'])->name('api.tokens.destroy');
 
     // Debug Logs - POST is for any authenticated user (to send logs)
     Route::post('/debug/logs', [DebugLogController::class, 'store'])->name('api.debug.logs.store');

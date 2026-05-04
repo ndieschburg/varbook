@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'basic.auth' => \App\Http\Middleware\BasicAuthMiddleware::class,
             'kosync.auth' => \App\Http\Middleware\KosyncAuthMiddleware::class,
+            'varbook.auth' => \App\Http\Middleware\VarbookAuthMiddleware::class,
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
 
@@ -33,6 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webdav/*',
             'opds/*',
             'api/kosync/*',
+            'api/varbook/*',
             'api/books/*/progress', // For sendBeacon (can't send CSRF header)
         ]);
     })

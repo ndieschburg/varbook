@@ -162,18 +162,39 @@ class KosyncController extends Controller
             ->where('client', 'koreader')
             ->first();
 
-        // If no KOReader sync identifier, use book's current progress
-        $progress = $syncIdentifier?->last_progress ?? $book->progress;
-        $rawPosition = $syncIdentifier?->raw_position ?? (string) $progress;
-        $lastSyncAt = $syncIdentifier?->last_sync_at ?? $book->updated_at;
+        if (!$syncIdentifier) {
+            // No KOReader-native position exists yet.
+            // Return the book's current progress percentage so KOReader
+            // knows reading has happened, but without a raw_position
+            // (XPointer) we cannot provide a valid navigation target.
+            $responseData = [
+                'document' => $documentHash,
+                'progress' => '',
+                'percentage' => $book->progress / 100,
+                'device' => 'Varbook',
+                'device_id' => 'varbook-server',
+                'timestamp' => $book->updated_at->timestamp,
+            ];
+
+            ProgressLoggingService::log(
+                request: $request,
+                action: 'kosync_get',
+                bookId: $book->id,
+                client: 'koreader',
+                requestData: ['document' => $documentHash],
+                responseData: $responseData
+            );
+
+            return response()->json($responseData, 200);
+        }
 
         $responseData = [
             'document' => $documentHash,
-            'progress' => $rawPosition,
-            'percentage' => $progress / 100,
+            'progress' => $syncIdentifier->raw_position,
+            'percentage' => $syncIdentifier->last_progress / 100,
             'device' => 'Varbook',
             'device_id' => 'varbook-server',
-            'timestamp' => $lastSyncAt->timestamp,
+            'timestamp' => $syncIdentifier->last_sync_at->timestamp,
         ];
 
         ProgressLoggingService::log(

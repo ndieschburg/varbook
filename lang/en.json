@@ -304,5 +304,25 @@
 
     "Top Readers": "Top Readers",
     "Last 12 months": "Last 12 months",
-    "Total": "Total"
+    "Total": "Total",
+
+    "API Tokens": "API Tokens",
+    "Manage API tokens for external devices like e-readers.": "Manage API tokens for external devices like e-readers.",
+    "Generate new token": "Generate new token",
+    "Device name": "Device name",
+    "e.g. Kobo Libra, Kindle": "e.g. Kobo Libra, Kindle",
+    "Token created successfully": "Token created successfully",
+    "Copy this token now. It won't be shown again.": "Copy this token now. It won't be shown again.",
+    "Token revoked successfully": "Token revoked successfully",
+    "Token not found": "Token not found",
+    "Revoke": "Revoke",
+    "Revoke token": "Revoke token",
+    "Are you sure you want to revoke this token?": "Are you sure you want to revoke this token?",
+    "The device using this token will no longer be able to sync.": "The device using this token will no longer be able to sync.",
+    "No tokens yet": "No tokens yet",
+    "Never used": "Never used",
+    "Last used": "Last used",
+    "Created": "Created",
+    "Copied!": "Copied!",
+    "Document not found": "Document not found"
 }

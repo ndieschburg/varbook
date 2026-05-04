@@ -316,5 +316,25 @@
 
     "Top Readers": "Top Lecteurs",
     "Last 12 months": "12 derniers mois",
-    "Total": "Total"
+    "Total": "Total",
+
+    "API Tokens": "Jetons API",
+    "Manage API tokens for external devices like e-readers.": "Gérez les jetons API pour vos appareils externes comme les liseuses.",
+    "Generate new token": "Générer un nouveau jeton",
+    "Device name": "Nom de l'appareil",
+    "e.g. Kobo Libra, Kindle": "ex. Kobo Libra, Kindle",
+    "Token created successfully": "Jeton créé avec succès",
+    "Copy this token now. It won't be shown again.": "Copiez ce jeton maintenant. Il ne sera plus affiché.",
+    "Token revoked successfully": "Jeton révoqué avec succès",
+    "Token not found": "Jeton introuvable",
+    "Revoke": "Révoquer",
+    "Revoke token": "Révoquer le jeton",
+    "Are you sure you want to revoke this token?": "Êtes-vous sûr de vouloir révoquer ce jeton ?",
+    "The device using this token will no longer be able to sync.": "L'appareil utilisant ce jeton ne pourra plus synchroniser.",
+    "No tokens yet": "Aucun jeton pour le moment",
+    "Never used": "Jamais utilisé",
+    "Last used": "Dernière utilisation",
+    "Created": "Créé",
+    "Copied!": "Copié !",
+    "Document not found": "Document introuvable"
 }

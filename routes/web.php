@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\VarbookController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\KosyncController;
 use App\Http\Controllers\OpdsController;
@@ -104,6 +105,19 @@ Route::prefix('api/kosync')
             Route::put('syncs/progress', [KosyncController::class, 'updateProgress']);
             Route::get('syncs/progress/{document}', [KosyncController::class, 'getProgress']);
         });
+    });
+
+// Varbook plugin routes (KOReader plugin, Bearer token auth)
+Route::prefix('api/varbook')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->middleware(['varbook.auth'])
+    ->group(function () {
+        Route::get('progress/{documentHash}', [VarbookController::class, 'getProgress']);
+        Route::post('progress/{documentHash}/batch', [VarbookController::class, 'batchProgress']);
     });
 
 require __DIR__.'/auth.php';
