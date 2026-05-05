@@ -41,6 +41,8 @@ interface EpubReaderState {
     locationInfo: LocationInfo;
     searchResults: SearchResult[];
     isSearching: boolean;
+    /** Non-null when waiting for locations to sync position from an external client */
+    syncingPositionFrom: string | null;
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
@@ -83,6 +85,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         },
         searchResults: [],
         isSearching: false,
+        syncingPositionFrom: null,
     });
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setTextSelection, setFullscreenLock } = useReaderSettings();
@@ -126,7 +129,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 renditionRef.current.display(cfi);
             }
         } else if (!locationsReadyRef.current && serverPosition.progress > 0) {
-            debug('Locations not ready yet for percentage navigation, deferring');
+            debug('Locations not ready yet for percentage navigation, deferring via pendingPercentageRef');
+            pendingPercentageRef.current = serverPosition.progress;
+            setState(prev => ({ ...prev, syncingPositionFrom: serverPosition.lastSyncClient || 'external' }));
         }
     }, [debug]);
 
@@ -302,6 +307,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     await rendition.display();
                     // Store progress for deferred navigation after locations are generated
                     pendingPercentageRef.current = savedPosition.progress;
+                    if (savedPosition.lastSyncClient && savedPosition.lastSyncClient !== 'web') {
+                        setState(prev => ({ ...prev, syncingPositionFrom: savedPosition.lastSyncClient }));
+                    }
                 } else {
                     debug('No saved position, starting from beginning');
                     await rendition.display();
@@ -324,6 +332,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                             lastUserCfiRef.current = targetCfi;
                             rendition.display(targetCfi);
                         }
+                        setState(prev => ({ ...prev, syncingPositionFrom: null }));
                     }
 
                     // Recalculate and update progress now that locations are ready

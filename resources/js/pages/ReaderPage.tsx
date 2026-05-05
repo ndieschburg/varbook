@@ -43,6 +43,7 @@ export function ReaderPage() {
         locationInfo,
         searchResults,
         isSearching,
+        syncingPositionFrom,
         settings,
         setTheme,
         setFontSize,
@@ -201,6 +202,18 @@ export function ReaderPage() {
                         <div className="text-center">
                             <LoadingSpinner size="lg" />
                             <p className="text-gray-400 mt-4">{t('Loading book...')}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Syncing position overlay - shown when loading position from external client */}
+                {syncingPositionFrom && (
+                    <div className="absolute inset-0 bg-gray-900/80 flex items-center justify-center z-10">
+                        <div className="text-center">
+                            <LoadingSpinner size="lg" />
+                            <p className="text-gray-300 mt-4">
+                                {t('Syncing position from {{client}}...', { client: syncingPositionFrom })}
+                            </p>
                         </div>
                     </div>
                 )}
