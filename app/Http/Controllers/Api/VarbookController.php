@@ -87,7 +87,7 @@ class VarbookController extends Controller
             action: 'varbook_batch',
             bookId: $book->id,
             client: 'koreader',
-            requestData: ['updates_count' => count($updates)]
+            requestData: ['updates_count' => count($updates), 'updates' => $updates]
         );
 
         // Sort by timestamp to process in chronological order

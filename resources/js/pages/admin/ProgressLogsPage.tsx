@@ -60,13 +60,15 @@ export function ProgressLogsPage() {
 
     const getActionColor = (action: string) => {
         switch (action) {
-            case 'web_put':
+            case 'save_progress':
             case 'kosync_put':
                 return 'text-green-400';
-            case 'web_get':
+            case 'load_progress':
             case 'kosync_get':
+            case 'varbook_get':
                 return 'text-blue-400';
-            case 'batch_sync':
+            case 'batch_progress':
+            case 'varbook_batch':
                 return 'text-purple-400';
             default:
                 return 'text-slate-400';
@@ -162,9 +164,11 @@ export function ProgressLogsPage() {
                     className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
                 >
                     <option value="">{t('All actions')}</option>
-                    <option value="web_put">web_put</option>
-                    <option value="web_get">web_get</option>
-                    <option value="batch_sync">batch_sync</option>
+                    <option value="save_progress">save_progress</option>
+                    <option value="load_progress">load_progress</option>
+                    <option value="batch_progress">batch_progress</option>
+                    <option value="varbook_get">varbook_get</option>
+                    <option value="varbook_batch">varbook_batch</option>
                     <option value="kosync_put">kosync_put</option>
                     <option value="kosync_get">kosync_get</option>
                 </select>
@@ -243,8 +247,23 @@ export function ProgressLogsPage() {
                                                     </span>
                                                 )}
                                                 {typeof log.request_data?.position === 'string' && (
-                                                    <span className="text-slate-500 text-xs truncate max-w-[200px]">
-                                                        CFI: {log.request_data.position.substring(0, 40)}...
+                                                    <span className="text-slate-500 text-xs truncate max-w-[200px]" title={String(log.request_data.position)}>
+                                                        {log.client === 'koreader' ? 'xptr' : 'CFI'}: {String(log.request_data.position).substring(0, 40)}...
+                                                    </span>
+                                                )}
+                                                {typeof log.response_data?.last_sync_client === 'string' && (
+                                                    <span className="text-amber-500 text-xs">
+                                                        last:{String(log.response_data.last_sync_client)}
+                                                    </span>
+                                                )}
+                                                {typeof log.response_data?.position === 'string' && !log.request_data?.position && (
+                                                    <span className="text-slate-500 text-xs truncate max-w-[200px]" title={String(log.response_data.position)}>
+                                                        {log.client === 'koreader' ? 'xptr' : 'CFI'}: {String(log.response_data.position).substring(0, 40)}...
+                                                    </span>
+                                                )}
+                                                {log.request_data?.updates_count !== undefined && (
+                                                    <span className="text-cyan-400 text-xs">
+                                                        batch:{String(log.request_data.updates_count)}
                                                     </span>
                                                 )}
                                                 {log.error_message && (
