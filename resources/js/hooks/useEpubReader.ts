@@ -68,6 +68,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const shouldSaveOnNextRelocateRef = useRef<boolean>(false);
     // Track last user-initiated CFI for restoration after Android app switcher resize
     const lastUserCfiRef = useRef<string | null>(null);
+    // Deferred percentage navigation when locations aren't ready yet (cross-client sync)
+    const pendingPercentageRef = useRef<number | null>(null);
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -93,14 +95,21 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
         skipSaveCountRef.current = 1; // Skip next save to avoid overwriting
 
-        if (serverPosition.cfi) {
-            debug('Navigating to server CFI', serverPosition.cfi);
+        // Use CFI only when last sync was from web (same position format)
+        // Otherwise fall back to percentage (slower but cross-client compatible)
+        const useCfi = serverPosition.lastSyncClient === 'web' && serverPosition.cfi;
+
+        if (useCfi) {
+            debug('Navigating to server CFI (last sync from web)', serverPosition.cfi);
             lastUserCfiRef.current = serverPosition.cfi; // Track for restoration
-            renditionRef.current.display(serverPosition.cfi);
+            renditionRef.current.display(serverPosition.cfi!);
         } else if (locationsReadyRef.current && serverPosition.progress > 0) {
             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
             if (cfi) {
-                debug('Navigating to server percentage', { progress: serverPosition.progress, cfi });
+                debug('Navigating to server percentage (last sync from ' + serverPosition.lastSyncClient + ')', {
+                    progress: serverPosition.progress,
+                    cfi,
+                });
                 lastUserCfiRef.current = cfi; // Track for restoration
                 renditionRef.current.display(cfi);
             }
@@ -246,12 +255,22 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 const savedPosition = await loadPosition();
                 debug('Server position loaded', savedPosition);
 
-                // Navigate to saved CFI or start
+                // Navigate to saved position or start
+                // Use CFI when last sync was from web (same format); otherwise use percentage
                 skipSaveCountRef.current = 1;
-                if (savedPosition?.cfi) {
-                    debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
+                const useSavedCfi = savedPosition?.cfi
+                    && (savedPosition.source === 'local' || savedPosition.lastSyncClient === 'web');
+
+                if (useSavedCfi && savedPosition?.cfi) {
+                    debug(`Navigating to saved CFI (source: ${savedPosition.source}, lastSyncClient: ${savedPosition.lastSyncClient}): ${savedPosition.cfi}`);
                     lastUserCfiRef.current = savedPosition.cfi; // Track for restoration
                     await rendition.display(savedPosition.cfi);
+                } else if (savedPosition && savedPosition.progress > 0) {
+                    debug(`Navigating to saved percentage (lastSyncClient: ${savedPosition.lastSyncClient}): ${savedPosition.progress}%`);
+                    // Percentage navigation requires locations; display start first, then navigate after locations ready
+                    await rendition.display();
+                    // Store progress for deferred navigation after locations are generated
+                    pendingPercentageRef.current = savedPosition.progress;
                 } else {
                     debug('No saved position, starting from beginning');
                     await rendition.display();
@@ -262,6 +281,19 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 book.locations.generate(1024).then(() => {
                     locationsReadyRef.current = true;
                     debug(`Locations generated: ${book.locations.length()} total locations`);
+
+                    // Navigate to pending percentage from cross-client sync
+                    if (pendingPercentageRef.current !== null && pendingPercentageRef.current > 0) {
+                        const pendingPct = pendingPercentageRef.current;
+                        pendingPercentageRef.current = null;
+                        const targetCfi = book.locations.cfiFromPercentage(pendingPct / 100);
+                        if (targetCfi) {
+                            debug(`Deferred percentage navigation: ${pendingPct}% -> CFI: ${targetCfi}`);
+                            skipSaveCountRef.current = 1;
+                            lastUserCfiRef.current = targetCfi;
+                            rendition.display(targetCfi);
+                        }
+                    }
 
                     // Recalculate and update progress now that locations are ready
                     const currentLocation = rendition.currentLocation() as any;

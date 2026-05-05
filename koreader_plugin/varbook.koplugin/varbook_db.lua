@@ -38,13 +38,26 @@ function VarbookDB:createTable()
             doc_hash    TEXT NOT NULL,
             percentage  REAL NOT NULL,
             timestamp   INTEGER NOT NULL,
-            synced      INTEGER DEFAULT 0
+            synced      INTEGER DEFAULT 0,
+            xpointer    TEXT
         );
     ]])
     self.conn:exec([[
         CREATE INDEX IF NOT EXISTS idx_positions_unsynced
         ON positions (doc_hash, synced);
     ]])
+    -- Add xpointer column if upgrading from older schema
+    self:migrateAddXpointer()
+end
+
+--- Add xpointer column to existing tables (safe to call multiple times).
+function VarbookDB:migrateAddXpointer()
+    local ok, err = pcall(function()
+        self.conn:exec("ALTER TABLE positions ADD COLUMN xpointer TEXT;")
+    end)
+    if not ok and not err:find("duplicate column") then
+        logger.warn("Varbook: xpointer migration error:", err)
+    end
 end
 
 --- Remove old synced positions to save disk space.
@@ -59,24 +72,25 @@ end
 --- Record a reading position.
 -- @param doc_hash string KOReader partial MD5
 -- @param percentage number Reading progress 0-100
-function VarbookDB:addPosition(doc_hash, percentage)
+-- @param xpointer string|nil XPointer position string
+function VarbookDB:addPosition(doc_hash, percentage, xpointer)
     local conn = self:open()
     local stmt = conn:prepare([[
-        INSERT INTO positions (doc_hash, percentage, timestamp)
-        VALUES (?, ?, ?);
+        INSERT INTO positions (doc_hash, percentage, timestamp, xpointer)
+        VALUES (?, ?, ?, ?);
     ]])
-    stmt:reset():bind(doc_hash, percentage, os.time()):step()
+    stmt:reset():bind(doc_hash, percentage, os.time(), xpointer):step()
     stmt:close()
 end
 
 --- Get all unsynced positions for a document.
 -- @param doc_hash string KOReader partial MD5
--- @return table Array of {percentage, timestamp} records
+-- @return table Array of {percentage, timestamp, xpointer} records
 function VarbookDB:getUnsyncedPositions(doc_hash)
     local conn = self:open()
     local results = {}
     local stmt = conn:prepare([[
-        SELECT percentage, timestamp
+        SELECT percentage, timestamp, xpointer
         FROM positions
         WHERE doc_hash = ? AND synced = 0
         ORDER BY timestamp ASC;
@@ -88,6 +102,7 @@ function VarbookDB:getUnsyncedPositions(doc_hash)
         table.insert(results, {
             percentage = tonumber(row[1]),
             timestamp = tonumber(row[2]),
+            xpointer = row[3],
         })
     end
     stmt:close()

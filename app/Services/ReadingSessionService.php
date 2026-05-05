@@ -189,6 +189,20 @@ class ReadingSessionService
             ->first();
     }
 
+    /**
+     * Get the most recent sync identifier for a book across all clients.
+     *
+     * Used to determine which client last synced, so readers can decide
+     * whether to use their native position format (CFI/xpointer) or
+     * fall back to percentage-based navigation.
+     */
+    public function getLastSyncIdentifier(Book $book): ?BookSyncIdentifier
+    {
+        return BookSyncIdentifier::where('book_id', $book->id)
+            ->orderBy('last_sync_at', 'desc')
+            ->first();
+    }
+
     public function createSyncIdentifier(Book $book, string $client, string $externalIdentifier): BookSyncIdentifier
     {
         return BookSyncIdentifier::firstOrCreate([

@@ -71,6 +71,15 @@ function Varbook:getPercentage()
     return pct and Math.roundPercent(pct) * 100 or nil
 end
 
+--- Get current xpointer position (rolling/reflowable documents only).
+-- @return string|nil XPointer string, or nil for paged documents
+function Varbook:getXPointer()
+    if self.ui.document.info.has_pages then
+        return nil
+    end
+    return self.ui.rolling:getLastProgress()
+end
+
 --- Get the last sync timestamp for the current document.
 function Varbook:getLastSyncTimestamp()
     local doc_hash = self:getDocHash()
@@ -121,7 +130,8 @@ function Varbook:onPageUpdate()
     end
     self.last_percentage = percentage
 
-    VarbookDB:addPosition(doc_hash, percentage)
+    local xpointer = self:getXPointer()
+    VarbookDB:addPosition(doc_hash, percentage, xpointer)
 end
 
 function Varbook:onCloseDocument()
@@ -170,14 +180,24 @@ function Varbook:doSync()
     -- Step 2: Compare server progress with local position
     local current = self:getPercentage() or 0
     local server_progress = server and server.progress or 0
-    logger.dbg("Varbook: server=", server_progress, "% local=", current, "%")
+    logger.dbg("Varbook: server=", server_progress, "% local=", current, "%",
+        "last_sync_client=", server and server.last_sync_client,
+        "position=", server and server.position)
 
     if server and server_progress > current + 1 then
         -- Server is ahead: another device has read further, navigate there
-        local page_count = self.ui.document:getPageCount()
-        local target_page = math.floor(page_count * server_progress / 100)
-        logger.dbg("Varbook: navigating to page", target_page, "/", page_count, "(", server_progress, "%)")
-        self.ui:handleEvent(Event:new("GotoPage", target_page))
+        if server.last_sync_client == "koreader" and server.position
+                and not self.ui.document.info.has_pages then
+            -- Last sync was from KOReader: use xpointer for precise navigation
+            logger.dbg("Varbook: navigating to xpointer", server.position)
+            self.ui:handleEvent(Event:new("GotoXPointer", server.position))
+        else
+            -- Last sync was from another client (web, etc.): fall back to percentage
+            local page_count = self.ui.document:getPageCount()
+            local target_page = math.floor(page_count * server_progress / 100)
+            logger.dbg("Varbook: navigating to page", target_page, "/", page_count, "(", server_progress, "%)")
+            self.ui:handleEvent(Event:new("GotoPage", target_page))
+        end
         navigated = true
     end
 

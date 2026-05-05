@@ -80,16 +80,20 @@ function VarbookAPI:getProgress(doc_hash)
         return nil, "json_error"
     end
 
-    logger.dbg("Varbook: getProgress result: progress=", result.progress, "timestamp=", result.timestamp)
+    logger.dbg("Varbook: getProgress result: progress=", result.progress,
+        "timestamp=", result.timestamp, "last_sync_client=", result.last_sync_client,
+        "position=", result.position)
     return {
         progress = tonumber(result.progress) or 0,
         timestamp = tonumber(result.timestamp) or 0,
+        last_sync_client = result.last_sync_client,
+        position = result.position,
     }, nil
 end
 
 --- Push a batch of position updates to the server.
 -- @param doc_hash string KOReader partial MD5 hash
--- @param updates table Array of {percentage, timestamp} records
+-- @param updates table Array of {percentage, timestamp, xpointer} records
 -- @return number|nil Number of synced positions, or nil on error
 -- @return string|nil Error message
 function VarbookAPI:pushBatch(doc_hash, updates)
@@ -100,10 +104,14 @@ function VarbookAPI:pushBatch(doc_hash, updates)
     -- Convert timestamps to ISO8601 for the server
     local formatted = {}
     for _, u in ipairs(updates) do
-        table.insert(formatted, {
+        local entry = {
             progress = u.percentage,
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ", tonumber(u.timestamp)),
-        })
+        }
+        if u.xpointer then
+            entry.position = u.xpointer
+        end
+        table.insert(formatted, entry)
     end
 
     local body = JSON.encode({ updates = formatted })

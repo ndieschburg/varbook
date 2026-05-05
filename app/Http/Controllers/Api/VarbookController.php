@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookSyncIdentifier;
 use App\Services\ProgressLoggingService;
 use App\Services\ReadingSessionService;
 use Illuminate\Http\JsonResponse;
@@ -31,9 +32,16 @@ class VarbookController extends Controller
             ], 404);
         }
 
+        $lastSync = $this->readingSessionService->getLastSyncIdentifier($book);
+        $koreaderSync = BookSyncIdentifier::where('book_id', $book->id)
+            ->where('client', 'koreader')
+            ->first();
+
         $responseData = [
             'progress' => (float) $book->progress,
+            'position' => $koreaderSync?->raw_position,
             'last_sync_at' => $book->last_read_at?->toIso8601String(),
+            'last_sync_client' => $lastSync?->client,
             'timestamp' => $book->last_read_at?->timestamp ?? 0,
         ];
 
@@ -69,6 +77,7 @@ class VarbookController extends Controller
             'updates' => 'required|array|min:1|max:500',
             'updates.*.progress' => 'required|numeric|min:0|max:100',
             'updates.*.timestamp' => 'required|date',
+            'updates.*.position' => 'nullable|string|max:500',
         ]);
 
         $updates = $validated['updates'];
@@ -91,6 +100,7 @@ class VarbookController extends Controller
                 externalIdentifier: $documentHash,
                 progress: $update['progress'],
                 rawPayload: ['source' => 'varbook_plugin', 'timestamp' => $update['timestamp']],
+                rawPosition: $update['position'] ?? null
             );
         }
 

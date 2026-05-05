@@ -19,6 +19,7 @@ import { debugLog, debugWarn, debugError } from '@/services/debugLogger';
 export interface ServerPosition {
     cfi: string | null;
     progress: number;
+    lastSyncClient: string | null;
 }
 
 interface PositionSyncOptions {
@@ -32,6 +33,7 @@ export interface LoadedPosition {
     cfi: string | null;
     progress: number;
     source: 'local' | 'server';
+    lastSyncClient: string | null;
 }
 
 
@@ -98,10 +100,12 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                         debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
                             serverCfi: serverPos.cfi,
                             localCfi: localState.lastLocalCfi,
+                            lastSyncClient: serverPos.lastSyncClient,
                         });
                         onMultiDeviceSyncRef.current?.({
                             cfi: serverPos.cfi,
                             progress: serverPos.progress,
+                            lastSyncClient: serverPos.lastSyncClient,
                         });
                     }
 
@@ -162,12 +166,14 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                             serverCfi: serverPos.cfi,
                             localCfi: localState.lastLocalCfi,
                             timeDiff: serverTime - localTime,
+                            lastSyncClient: serverPos.lastSyncClient,
                         });
 
                         // Notify reader to navigate to server position
                         onMultiDeviceSyncRef.current?.({
                             cfi: serverPos.cfi,
                             progress: serverPos.progress,
+                            lastSyncClient: serverPos.lastSyncClient,
                         });
                     }
 
@@ -187,6 +193,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                 cfi: localState.lastLocalCfi,
                 progress: localState.lastLocalProgress,
                 source: 'local',
+                lastSyncClient: null,
             };
         }
 
@@ -205,6 +212,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     cfi: serverPos.cfi,
                     progress: serverPos.progress,
                     source: 'server',
+                    lastSyncClient: serverPos.lastSyncClient,
                 };
             }
         } catch (error) {
@@ -276,6 +284,7 @@ async function fetchServerPosition(bookId: number): Promise<{
     cfi: string | null;
     progress: number;
     timestamp: Date | null;
+    lastSyncClient: string | null;
 } | null> {
     try {
         const response = await api.get(`/books/${bookId}/progress`);
@@ -286,6 +295,7 @@ async function fetchServerPosition(bookId: number): Promise<{
                 cfi: data.position || null,
                 progress: data.progress || 0,
                 timestamp: data.last_sync_at ? new Date(data.last_sync_at) : null,
+                lastSyncClient: data.last_sync_client || null,
             };
         }
     } catch (error) {

@@ -214,10 +214,13 @@ class BookController extends Controller
             ->where('client', 'web')
             ->first();
 
+        $lastSync = $this->readingSessionService->getLastSyncIdentifier($book);
+
         $responseData = [
             'progress' => (float) $book->progress,
             'position' => $syncIdentifier?->raw_position,
             'last_sync_at' => $syncIdentifier?->last_sync_at?->toIso8601String(),
+            'last_sync_client' => $lastSync?->client,
         ];
 
         ProgressLoggingService::log(
