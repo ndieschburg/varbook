@@ -99,20 +99,34 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         // Otherwise fall back to percentage (slower but cross-client compatible)
         const useCfi = serverPosition.lastSyncClient === 'web' && serverPosition.cfi;
 
+        debug('Multi-device sync decision', {
+            lastSyncClient: serverPosition.lastSyncClient,
+            hasCfi: !!serverPosition.cfi,
+            progress: serverPosition.progress,
+            navigationMode: useCfi ? 'cfi' : 'percentage',
+            reason: useCfi
+                ? 'last sync from web client, using precise CFI'
+                : !serverPosition.cfi
+                    ? 'no CFI available, using percentage'
+                    : `last sync from "${serverPosition.lastSyncClient}" (not web), CFI/xpointer incompatible, using percentage`,
+        });
+
         if (useCfi) {
-            debug('Navigating to server CFI (last sync from web)', serverPosition.cfi);
+            debug('Navigating to server CFI', serverPosition.cfi);
             lastUserCfiRef.current = serverPosition.cfi; // Track for restoration
             renditionRef.current.display(serverPosition.cfi!);
         } else if (locationsReadyRef.current && serverPosition.progress > 0) {
             const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
             if (cfi) {
-                debug('Navigating to server percentage (last sync from ' + serverPosition.lastSyncClient + ')', {
-                    progress: serverPosition.progress,
-                    cfi,
+                debug('Navigating via percentage -> CFI conversion', {
+                    percentage: serverPosition.progress,
+                    resolvedCfi: cfi,
                 });
                 lastUserCfiRef.current = cfi; // Track for restoration
                 renditionRef.current.display(cfi);
             }
+        } else if (!locationsReadyRef.current && serverPosition.progress > 0) {
+            debug('Locations not ready yet for percentage navigation, deferring');
         }
     }, [debug]);
 
@@ -261,8 +275,25 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 const useSavedCfi = savedPosition?.cfi
                     && (savedPosition.source === 'local' || savedPosition.lastSyncClient === 'web');
 
+                if (savedPosition) {
+                    debug('Initial position decision', {
+                        source: savedPosition.source,
+                        lastSyncClient: savedPosition.lastSyncClient,
+                        hasCfi: !!savedPosition.cfi,
+                        progress: savedPosition.progress,
+                        navigationMode: useSavedCfi ? 'cfi' : savedPosition.progress > 0 ? 'percentage (deferred)' : 'start',
+                        reason: useSavedCfi
+                            ? savedPosition.source === 'local'
+                                ? 'local position available, using CFI'
+                                : 'server position from web client, using CFI'
+                            : savedPosition.progress > 0
+                                ? `server position from "${savedPosition.lastSyncClient}" (not web), CFI incompatible, will use percentage after locations ready`
+                                : 'no progress, starting from beginning',
+                    });
+                }
+
                 if (useSavedCfi && savedPosition?.cfi) {
-                    debug(`Navigating to saved CFI (source: ${savedPosition.source}, lastSyncClient: ${savedPosition.lastSyncClient}): ${savedPosition.cfi}`);
+                    debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
                     lastUserCfiRef.current = savedPosition.cfi; // Track for restoration
                     await rendition.display(savedPosition.cfi);
                 } else if (savedPosition && savedPosition.progress > 0) {

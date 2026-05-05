@@ -97,10 +97,15 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
 
                     if (serverIsNewer && serverHasDifferentPosition) {
+                        const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
                         debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
                             serverCfi: serverPos.cfi,
                             localCfi: localState.lastLocalCfi,
                             lastSyncClient: serverPos.lastSyncClient,
+                            navigationMode: willUseCfi ? 'cfi' : 'percentage',
+                            reason: willUseCfi
+                                ? 'last sync from web, CFI available'
+                                : `last sync from ${serverPos.lastSyncClient || 'unknown'}, falling back to percentage`,
                         });
                         onMultiDeviceSyncRef.current?.({
                             cfi: serverPos.cfi,
@@ -160,6 +165,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
 
                     if (serverIsNewer && serverHasDifferentPosition) {
+                        const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
                         debugLog('PositionSync', 'Server position is more recent, syncing', {
                             serverProgress: serverPos.progress,
                             localProgress: localState.lastLocalProgress,
@@ -167,6 +173,10 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                             localCfi: localState.lastLocalCfi,
                             timeDiff: serverTime - localTime,
                             lastSyncClient: serverPos.lastSyncClient,
+                            navigationMode: willUseCfi ? 'cfi' : 'percentage',
+                            reason: willUseCfi
+                                ? 'last sync from web, CFI available'
+                                : `last sync from ${serverPos.lastSyncClient || 'unknown'}, falling back to percentage`,
                         });
 
                         // Notify reader to navigate to server position
@@ -291,6 +301,12 @@ async function fetchServerPosition(bookId: number): Promise<{
         markAsOnline();
         const data = response.data.data;
         if (data) {
+            debugLog('PositionSync', 'Server response', {
+                progress: data.progress,
+                hasCfi: !!data.position,
+                lastSyncClient: data.last_sync_client,
+                lastSyncAt: data.last_sync_at,
+            });
             return {
                 cfi: data.position || null,
                 progress: data.progress || 0,

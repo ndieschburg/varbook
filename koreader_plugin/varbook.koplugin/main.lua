@@ -131,6 +131,8 @@ function Varbook:onPageUpdate()
     self.last_percentage = percentage
 
     local xpointer = self:getXPointer()
+    logger.dbg("Varbook: page update", percentage, "%",
+        xpointer and ("xpointer=" .. xpointer) or "no xpointer (paged document)")
     VarbookDB:addPosition(doc_hash, percentage, xpointer)
 end
 
@@ -186,19 +188,37 @@ function Varbook:doSync()
 
     if server and server_progress > current + 1 then
         -- Server is ahead: another device has read further, navigate there
-        if server.last_sync_client == "koreader" and server.position
-                and not self.ui.document.info.has_pages then
-            -- Last sync was from KOReader: use xpointer for precise navigation
-            logger.dbg("Varbook: navigating to xpointer", server.position)
+        local use_xpointer = server.last_sync_client == "koreader"
+            and server.position
+            and not self.ui.document.info.has_pages
+
+        if use_xpointer then
+            logger.dbg("Varbook: navigation decision: XPOINTER",
+                "reason: last_sync_client=koreader, xpointer available, rolling document",
+                "xpointer=", server.position)
             self.ui:handleEvent(Event:new("GotoXPointer", server.position))
         else
-            -- Last sync was from another client (web, etc.): fall back to percentage
             local page_count = self.ui.document:getPageCount()
             local target_page = math.floor(page_count * server_progress / 100)
-            logger.dbg("Varbook: navigating to page", target_page, "/", page_count, "(", server_progress, "%)")
+            local reason
+            if server.last_sync_client ~= "koreader" then
+                reason = "last_sync_client=" .. tostring(server.last_sync_client) .. " (not koreader)"
+            elseif not server.position then
+                reason = "no xpointer from server"
+            elseif self.ui.document.info.has_pages then
+                reason = "paged document (xpointer not supported)"
+            end
+            logger.dbg("Varbook: navigation decision: PERCENTAGE",
+                "reason:", reason,
+                "target_page=", target_page, "/", page_count,
+                "(", server_progress, "%)")
             self.ui:handleEvent(Event:new("GotoPage", target_page))
         end
         navigated = true
+    else
+        logger.dbg("Varbook: no navigation needed",
+            "server_progress=", server_progress, "% local=", current, "%",
+            server_progress <= current + 1 and "(server not ahead by >1%)" or "")
     end
 
     -- Step 3: Handle local unsynced positions
@@ -210,7 +230,12 @@ function Varbook:doSync()
         VarbookDB:markSynced(doc_hash)
     elseif #positions > 0 then
         -- Local reading is ahead or equal: push positions to server
-        logger.dbg("Varbook: pushing", #positions, "positions")
+        local with_xpointer = 0
+        for _, p in ipairs(positions) do
+            if p.xpointer then with_xpointer = with_xpointer + 1 end
+        end
+        logger.dbg("Varbook: pushing", #positions, "positions",
+            "(", with_xpointer, "with xpointer,", #positions - with_xpointer, "without)")
         local count, push_err = api:pushBatch(doc_hash, positions)
 
         if push_err == "unauthorized" then
