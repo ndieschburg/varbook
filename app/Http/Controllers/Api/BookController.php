@@ -219,7 +219,7 @@ class BookController extends Controller
         $responseData = [
             'progress' => (float) $book->progress,
             'position' => $syncIdentifier?->raw_position,
-            'last_sync_at' => $syncIdentifier?->last_sync_at?->toIso8601String(),
+            'last_sync_at' => $lastSync?->last_sync_at?->toIso8601String(),
             'last_sync_client' => $lastSync?->client,
         ];
 

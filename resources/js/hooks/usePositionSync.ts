@@ -163,8 +163,13 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     // This fixes the case where IndexedDB wasn't updated due to page close during debounce
                     const serverIsNewer = serverTime > localTime;
                     const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
+                    // When last sync is from an external client (koreader, moon), the web CFI may match
+                    // local but the overall progress can be different (synced via percentage)
+                    const externalClientHasDifferentProgress = serverPos.lastSyncClient !== 'web'
+                        && serverPos.lastSyncClient !== null
+                        && Math.abs(serverPos.progress - (localState.lastLocalProgress || 0)) > 1;
 
-                    if (serverIsNewer && serverHasDifferentPosition) {
+                    if (serverIsNewer && (serverHasDifferentPosition || externalClientHasDifferentProgress)) {
                         const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
                         debugLog('PositionSync', 'Server position is more recent, syncing', {
                             serverProgress: serverPos.progress,
