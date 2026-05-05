@@ -21,8 +21,18 @@ local logger = require("logger")
 local _ = require("gettext")
 local T = require("ffi/util").template
 
-local VarbookAPI = require("api")
-local VarbookDB = require("db")
+logger.warn("Varbook: loading plugin modules")
+local ok1, VarbookAPI = pcall(require, "varbook_api")
+if not ok1 then
+    logger.warn("Varbook: FAILED to load varbook_api:", VarbookAPI)
+    VarbookAPI = nil
+end
+local ok2, VarbookDB = pcall(require, "varbook_db")
+if not ok2 then
+    logger.warn("Varbook: FAILED to load varbook_db:", VarbookDB)
+    VarbookDB = nil
+end
+logger.warn("Varbook: modules loaded, api=", ok1, "db=", ok2)
 
 local Varbook = WidgetContainer:extend{
     name = "varbook",
@@ -32,10 +42,12 @@ local Varbook = WidgetContainer:extend{
 local SETTINGS_PATH = DataStorage:getSettingsDir() .. "/varbook.lua"
 
 function Varbook:init()
+    logger.warn("Varbook: plugin init called")
     self.settings = LuaSettings:open(SETTINGS_PATH)
     self.doc_hash = nil
     self.last_percentage = nil
     self.ui.menu:registerToMainMenu(self)
+    logger.warn("Varbook: menu registered OK")
 end
 
 --- Get document partial MD5 hash (same hash stored on Varbook server).
@@ -49,11 +61,14 @@ end
 
 --- Get current reading percentage (0-100).
 function Varbook:getPercentage()
+    local pct
     if self.ui.document.info.has_pages then
-        return Math.roundPercent(self.ui.paging:getLastPercent())
+        pct = self.ui.paging:getLastPercent()
     else
-        return Math.roundPercent(self.ui.rolling:getLastPercent())
+        pct = self.ui.rolling:getLastPercent()
     end
+    -- getLastPercent() returns 0-1, convert to 0-100
+    return pct and Math.roundPercent(pct) * 100 or nil
 end
 
 --- Get the last sync timestamp for the current document.
@@ -71,6 +86,7 @@ function Varbook:setLastSyncTimestamp(ts)
     local per_doc = self.settings:readSetting("last_sync", {})
     per_doc[doc_hash] = ts
     self.settings:saveSetting("last_sync", per_doc)
+    self.settings:flush()
 end
 
 function Varbook:isConfigured()
@@ -151,20 +167,30 @@ function Varbook:doSync()
         return
     end
 
-    -- Step 2: Navigate if server is newer
-    if server and server.timestamp > self:getLastSyncTimestamp() then
-        local current = self:getPercentage() or 0
-        -- Only navigate if server position differs by more than 1%
-        if math.abs(server.progress - current) > 1 then
-            self.ui:handleEvent(Event:new("GotoPercentage", server.progress / 100))
-            navigated = true
-        end
+    -- Step 2: Compare server progress with local position
+    local current = self:getPercentage() or 0
+    local server_progress = server and server.progress or 0
+    logger.dbg("Varbook: server=", server_progress, "% local=", current, "%")
+
+    if server and server_progress > current + 1 then
+        -- Server is ahead: another device has read further, navigate there
+        local page_count = self.ui.document:getPageCount()
+        local target_page = math.floor(page_count * server_progress / 100)
+        logger.dbg("Varbook: navigating to page", target_page, "/", page_count, "(", server_progress, "%)")
+        self.ui:handleEvent(Event:new("GotoPage", target_page))
+        navigated = true
     end
 
-    -- Step 3: Push unsynced positions
+    -- Step 3: Handle local unsynced positions
     local positions = VarbookDB:getUnsyncedPositions(doc_hash)
 
-    if #positions > 0 then
+    if navigated then
+        -- Server was ahead: discard all local positions (they predate the server state)
+        logger.dbg("Varbook: discarding", #positions, "local positions (server was ahead)")
+        VarbookDB:markSynced(doc_hash)
+    elseif #positions > 0 then
+        -- Local reading is ahead or equal: push positions to server
+        logger.dbg("Varbook: pushing", #positions, "positions")
         local count, push_err = api:pushBatch(doc_hash, positions)
 
         if push_err == "unauthorized" then
@@ -221,6 +247,7 @@ end
 function Varbook:addToMainMenu(menu_items)
     menu_items.varbook = {
         text = _("Varbook"),
+        sorting_hint = "tools",
         sub_item_table = {
             {
                 text = _("Sync now"),
@@ -279,6 +306,7 @@ function Varbook:showServerURLDialog(touchmenu_instance)
                     -- Remove trailing slash
                     url = url:gsub("/+$", "")
                     self.settings:saveSetting("server_url", url)
+                    self.settings:flush()
                     UIManager:close(dialog)
                     if touchmenu_instance then
                         touchmenu_instance:updateItems()
@@ -318,6 +346,7 @@ function Varbook:showTokenDialog(touchmenu_instance)
                     local token = dialog:getInputText()
                     if token and token ~= "" then
                         self.settings:saveSetting("token", token)
+                        self.settings:flush()
                     end
                     UIManager:close(dialog)
                     if touchmenu_instance then

@@ -86,8 +86,8 @@ function VarbookDB:getUnsyncedPositions(doc_hash)
         local row = stmt:step()
         if not row then break end
         table.insert(results, {
-            percentage = row[1],
-            timestamp = row[2],
+            percentage = tonumber(row[1]),
+            timestamp = tonumber(row[2]),
         })
     end
     stmt:close()

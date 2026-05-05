@@ -5,6 +5,7 @@
 
 local http = require("socket.http")
 local ltn12 = require("ltn12")
+local socket = require("socket")
 local socketutil = require("socketutil")
 local JSON = require("json")
 local logger = require("logger")
@@ -50,32 +51,36 @@ function VarbookAPI:getProgress(doc_hash)
         sink = ltn12.sink.table(sink),
     }
 
+    logger.dbg("Varbook: GET", request.url)
     socketutil:set_timeout(10, 30)
     local code, resp_headers, status = socket.skip(1, http.request(request))
     socketutil:reset_timeout()
+    logger.dbg("Varbook: getProgress response code:", code)
 
     if resp_headers == nil then
         logger.warn("Varbook: network error on getProgress:", status or code)
         return nil, "network_error"
     end
 
+    local body = table.concat(sink)
+    logger.dbg("Varbook: getProgress body:", body)
+
     if code == 404 then
-        -- No progress yet for this book
         return nil, nil
     end
 
     if code ~= 200 then
-        logger.warn("Varbook: getProgress HTTP", code)
+        logger.warn("Varbook: getProgress HTTP", code, body)
         return nil, "http_" .. tostring(code)
     end
 
-    local body = table.concat(sink)
     local ok, result = pcall(JSON.decode, body)
     if not ok or not result then
-        logger.warn("Varbook: failed to decode getProgress response")
+        logger.warn("Varbook: failed to decode getProgress response:", body)
         return nil, "json_error"
     end
 
+    logger.dbg("Varbook: getProgress result: progress=", result.progress, "timestamp=", result.timestamp)
     return {
         progress = tonumber(result.progress) or 0,
         timestamp = tonumber(result.timestamp) or 0,
@@ -97,7 +102,7 @@ function VarbookAPI:pushBatch(doc_hash, updates)
     for _, u in ipairs(updates) do
         table.insert(formatted, {
             progress = u.percentage,
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ", u.timestamp),
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ", tonumber(u.timestamp)),
         })
     end
 
@@ -111,14 +116,20 @@ function VarbookAPI:pushBatch(doc_hash, updates)
         sink = ltn12.sink.table(sink),
     }
 
+    logger.dbg("Varbook: POST", request.url, "updates:", #formatted)
+    logger.dbg("Varbook: pushBatch body:", body)
     socketutil:set_timeout(10, 60)
     local code, resp_headers, status = socket.skip(1, http.request(request))
     socketutil:reset_timeout()
+    logger.dbg("Varbook: pushBatch response code:", code)
 
     if resp_headers == nil then
         logger.warn("Varbook: network error on pushBatch:", status or code)
         return nil, "network_error"
     end
+
+    local resp_body = table.concat(sink)
+    logger.dbg("Varbook: pushBatch response body:", resp_body)
 
     if code == 401 then
         return nil, "unauthorized"
@@ -129,14 +140,13 @@ function VarbookAPI:pushBatch(doc_hash, updates)
     end
 
     if code ~= 200 then
-        logger.warn("Varbook: pushBatch HTTP", code)
+        logger.warn("Varbook: pushBatch HTTP", code, resp_body)
         return nil, "http_" .. tostring(code)
     end
 
-    local resp_body = table.concat(sink)
     local ok, result = pcall(JSON.decode, resp_body)
     if not ok or not result or not result.data then
-        logger.warn("Varbook: failed to decode pushBatch response")
+        logger.warn("Varbook: failed to decode pushBatch response:", resp_body)
         return nil, "json_error"
     end
 
