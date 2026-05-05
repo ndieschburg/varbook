@@ -65,6 +65,10 @@ function VarbookAPI:getProgress(doc_hash)
     local body = table.concat(sink)
     logger.dbg("Varbook: getProgress body:", body)
 
+    if code == 401 then
+        return nil, "unauthorized"
+    end
+
     if code == 404 then
         return nil, nil
     end

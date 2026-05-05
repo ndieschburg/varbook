@@ -2,7 +2,7 @@
 
 ## Overview
 
-A KOReader plugin that synchronizes reading positions with the Varbook (BookShelf) server. Works purely with **percentages** for position tracking -- the universal format understood by both KOReader and the web reader. No XPointer or CFI conversion needed.
+A KOReader plugin that synchronizes reading positions with the Varbook (BookShelf) server. Uses **percentages** as the universal progress format, with **xpointer** support for precise koreader-to-koreader navigation on reflowable documents. Falls back to percentage-based page navigation for cross-client sync (e.g. web reader).
 
 ## Scope (v1)
 
@@ -40,8 +40,8 @@ A KOReader plugin that synchronizes reading positions with the Varbook (BookShel
 plugins/varbook.koplugin/
 ├── _meta.lua          # Plugin metadata
 ├── main.lua           # Entry point, WidgetContainer
-├── api.lua            # HTTP client wrapper for Varbook API
-└── db.lua             # SQLite storage for position queue
+├── varbook_api.lua    # HTTP client wrapper for Varbook API
+└── varbook_db.lua     # SQLite storage for position queue
 ```
 
 ## Configuration
@@ -134,7 +134,8 @@ CREATE TABLE positions (
     doc_hash    TEXT NOT NULL,     -- koreader partial MD5
     percentage  REAL NOT NULL,     -- 0-100 (e.g. 45.50)
     timestamp   INTEGER NOT NULL,  -- os.time() (unix epoch)
-    synced      INTEGER DEFAULT 0  -- 0 = pending, 1 = synced
+    synced      INTEGER DEFAULT 0, -- 0 = pending, 1 = synced
+    xpointer    TEXT               -- xpointer position string (reflowable docs only)
 );
 
 CREATE INDEX idx_positions_unsynced ON positions (doc_hash, synced);
@@ -158,16 +159,25 @@ local percentage = self.ui.rolling:getLastPercent()
 local percentage = self.view.state.page / self.ui.document:getPageCount() * 100
 ```
 
-### Navigation by Percentage
+### Navigation
 
-KOReader supports percentage-based navigation via the `GotoPercentage` event:
+The plugin uses two navigation strategies depending on context:
 
+**XPointer navigation** (preferred for KOReader-to-KOReader sync on reflowable documents):
 ```lua
--- percentage is 0-1 range (NOT 0-100)
-self.ui:handleEvent(Event:new("GotoPercentage", percentage / 100))
+-- When last_sync_client == "koreader" and xpointer is available
+self.ui:handleEvent(Event:new("GotoXPointer", server.position))
 ```
 
-This works for both paged and reflowable documents. Precision is page-level (navigates to the page containing that percentage), which is good enough for cross-device sync.
+**Page-based navigation** (fallback for cross-client sync or paged documents):
+```lua
+-- When last sync came from another client (e.g. web reader), or no xpointer available
+local page_count = self.ui.document:getPageCount()
+local target_page = math.floor(page_count * server_progress / 100)
+self.ui:handleEvent(Event:new("GotoPage", target_page))
+```
+
+The decision logic checks: if the last sync came from KOReader, an xpointer is available from the server, and the document is reflowable → use xpointer (exact position). Otherwise → fall back to percentage-based page calculation. Precision is page-level in the fallback case, which is good enough for cross-device sync.
 
 ## Core Feature: Manual Sync
 
@@ -180,22 +190,22 @@ Menu entry: **Tools > Varbook > Sync now**
 ```
 1. Ensure WiFi is on (prompt if not)
 2. GET server position for this book
-3. Compare server timestamp with local last_sync timestamp
-4. IF server timestamp > local last_sync timestamp:
-     → Navigate to server percentage via GotoPercentage
-5. Push all unsynced local positions (synced = 0) via batch endpoint
-6. Mark pushed positions as synced (synced = 1)
-7. Update local last_sync timestamp
-8. Show result notification
+3. Compare server progress with current local percentage
+4. IF server progress > local + 1%:
+     → Navigate via xpointer (if koreader-to-koreader) or page (fallback)
+     → Discard local unsynced positions (they predate the server state)
+   ELSE:
+     → Push all unsynced local positions (synced = 0) via batch endpoint
+     → Mark pushed positions as synced (synced = 1)
+5. Update local last_sync timestamp
+6. Show result notification
 ```
 
 ### Step 1: Ensure Network
 
 ```lua
-if not NetworkMgr:isOnline() then
-    NetworkMgr:beforeWifiAction(function()
-        self:doSync()
-    end)
+-- willRerunWhenOnline() enables WiFi if needed and re-calls the callback once connected
+if NetworkMgr:willRerunWhenOnline(function() self:doSync() end) then
     return
 end
 self:doSync()
@@ -219,20 +229,25 @@ Response 404: No progress data for this book (first sync)
 
 ### Step 3-4: Compare and Navigate
 
+Comparison is **percentage-based** (not timestamp-based): navigate only if the server progress exceeds the local position by more than 1%. This avoids navigating backward when the server has a more recent timestamp but a lower percentage (e.g. after a re-read).
+
 ```lua
 local server = api:getProgress(doc_hash)
+local current = self:getPercentage() or 0
 
-if server and server.timestamp > self.last_sync_timestamp then
-    -- Server is newer (someone read on another device), navigate
-    self.ui:handleEvent(Event:new("GotoPercentage", server.progress / 100))
-    UIManager:show(Notification:new{
-        text = _("Synced to ") .. string.format("%.0f%%", server.progress)
-    })
+if server and server.progress > current + 1 then
+    -- Server is ahead by >1%: another device has read further
+    -- Use xpointer if last sync was from koreader and xpointer is available
+    -- Otherwise fall back to page-based navigation from percentage
+    ...
+    navigated = true
 end
--- If server is older or same: stay at current position (local reading is ahead)
+-- If server is not ahead: stay at current position (local reading is ahead or equal)
 ```
 
 If no server position exists (404), skip navigation.
+
+When the server is ahead and navigation occurs, all local unsynced positions are discarded (they predate the server state). Otherwise, local positions are pushed to the server.
 
 ### Step 5: Push Unsynced Positions
 
@@ -245,11 +260,13 @@ Content-Type: application/json
     "updates": [
         {
             "progress": 45.50,
-            "timestamp": "2026-05-04T21:30:00Z"
+            "timestamp": "2026-05-04T21:30:00Z",
+            "position": "/body/DocFragment[5]/body/div/p[12]"
         },
         {
             "progress": 46.20,
-            "timestamp": "2026-05-04T21:31:15Z"
+            "timestamp": "2026-05-04T21:31:15Z",
+            "position": "/body/DocFragment[5]/body/div/p[18]"
         }
     ]
 }
@@ -329,12 +346,15 @@ Response:
 ```json
 {
     "progress": 45.50,
+    "position": "/body/DocFragment[5]/body/div/p[12]",
     "last_sync_at": "2026-05-04T21:30:00Z",
+    "last_sync_client": "koreader",
     "timestamp": 1717538400
 }
 ```
 
-This is simpler than kosync's getProgress -- no raw_position, no per-client lookup. Just the book's current state.
+- `position`: the xpointer from the last KOReader sync (null if last sync was from another client). Used for precise navigation on koreader-to-koreader sync.
+- `last_sync_client`: which client last synced this book ("koreader", "web", etc.). Determines navigation strategy.
 
 #### `POST /api/varbook/progress/{documentHash}/batch`
 
@@ -345,6 +365,7 @@ Accepts batch position updates (percentage only).
 // - updates: required|array|min:1|max:500
 // - updates.*.progress: required|numeric|min:0|max:100
 // - updates.*.timestamp: required|date
+// - updates.*.position: nullable|string|max:500
 
 // Logic:
 // 1. Find book by koreader_file_hash
@@ -353,7 +374,7 @@ Accepts batch position updates (percentage only).
 //    - client: 'koreader'
 //    - externalIdentifier: documentHash
 //    - progress: update.progress
-//    - rawPosition: null (no position data, percentage only)
+//    - rawPosition: update.position (xpointer string, if available)
 // 4. Return final progress + synced count
 ```
 

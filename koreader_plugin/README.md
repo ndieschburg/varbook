@@ -51,8 +51,8 @@ The folder should contain:
 varbook.koplugin/
   _meta.lua
   main.lua
-  api.lua
-  db.lua
+  varbook_api.lua
+  varbook_db.lua
 ```
 
 ### 3. Eject and restart

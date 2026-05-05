@@ -282,10 +282,7 @@ function Varbook:doSync()
 
     -- Step 5: Show result
     local msg
-    if navigated and synced_count > 0 then
-        msg = string.format(_("Synced to %.0f%% and pushed %d positions."),
-            server.progress, synced_count)
-    elseif navigated then
+    if navigated then
         msg = string.format(_("Synced to %.0f%%."), server.progress)
     elseif synced_count > 0 then
         msg = string.format(_("Pushed %d positions."), synced_count)
