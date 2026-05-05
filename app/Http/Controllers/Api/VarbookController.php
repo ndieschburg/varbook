@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookSyncIdentifier;
 use App\Services\ProgressLoggingService;
 use App\Services\ReadingSessionService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -100,7 +101,8 @@ class VarbookController extends Controller
                 externalIdentifier: $documentHash,
                 progress: $update['progress'],
                 rawPayload: ['source' => 'varbook_plugin', 'timestamp' => $update['timestamp']],
-                rawPosition: $update['position'] ?? null
+                rawPosition: $update['position'] ?? null,
+                eventTimestamp: Carbon::parse($update['timestamp'])
             );
         }
 

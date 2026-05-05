@@ -84,6 +84,23 @@ Safely eject the Kobo, then restart KOReader (or the Kobo itself).
 2. Menu > **Tools > Varbook > Sync now**
 3. The plugin enables WiFi if needed, syncs, and displays the result
 
+### Quick Sync via Gesture (recommended)
+
+Instead of navigating through the menu each time, you can assign **Varbook Sync** to any gesture (tap zone, swipe, long-press...) for one-tap access:
+
+1. Open the top menu in KOReader
+2. Go to **Settings (gear icon) > Taps and gestures > Gesture manager**
+3. Pick a gesture you want to use, for example:
+   - **Top right corner tap** (convenient one-hand access)
+   - **Two-finger tap**
+   - **Long-press bottom right corner**
+4. In the action list, scroll to find **Varbook Sync**
+5. Select it and confirm
+
+From now on, that gesture triggers a sync directly -- WiFi is enabled automatically if needed.
+
+> **Tip**: A good default is **top right corner tap** -- easy to reach on a Kobo, and rarely conflicts with other gestures.
+
 ### Checking status
 
 Menu > **Tools > Varbook > Status** shows:

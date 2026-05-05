@@ -18,6 +18,7 @@ local Notification = require("ui/widget/notification")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local logger = require("logger")
+local Dispatcher = require("dispatcher")
 local _ = require("gettext")
 local T = require("ffi/util").template
 
@@ -47,7 +48,24 @@ function Varbook:init()
     self.doc_hash = nil
     self.last_percentage = nil
     self.ui.menu:registerToMainMenu(self)
+    self:onDispatcherRegisterActions()
     logger.warn("Varbook: menu registered OK")
+end
+
+--- Register Dispatcher action so users can assign "Varbook Sync" to any gesture.
+function Varbook:onDispatcherRegisterActions()
+    Dispatcher:registerAction("varbook_sync_now", {
+        category = "none",
+        event = "VarbookSyncNow",
+        title = _("Varbook Sync"),
+        general = true,
+        reader = true,
+    })
+end
+
+--- Handle the Dispatcher event triggered by gesture/shortcut.
+function Varbook:onVarbookSyncNow()
+    self:syncNow()
 end
 
 --- Get document partial MD5 hash (same hash stored on Varbook server).

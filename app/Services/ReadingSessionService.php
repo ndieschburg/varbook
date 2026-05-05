@@ -31,9 +31,10 @@ class ReadingSessionService
         string $externalIdentifier,
         float $progress,
         ?array $rawPayload = null,
-        ?string $rawPosition = null
+        ?string $rawPosition = null,
+        ?Carbon $eventTimestamp = null
     ): ReadingSession {
-        $now = Carbon::now();
+        $now = $eventTimestamp ?? Carbon::now();
 
         // Get or create sync identifier
         $syncIdentifier = BookSyncIdentifier::firstOrCreate(
