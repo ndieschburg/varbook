@@ -197,7 +197,7 @@ export function BookDetailPage() {
                             <div className="flex items-center justify-between text-sm mb-2">
                                 <span className="text-gray-500 dark:text-slate-400">{t('Progress')}</span>
                                 <span className="text-gray-900 dark:text-slate-100 font-medium">
-                                    {(book.progress ?? 0).toFixed(1)}%
+                                    {(book.progress ?? 0).toFixed(2)}%
                                 </span>
                             </div>
                             <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -228,7 +228,7 @@ export function BookDetailPage() {
                                             <p className="text-xs text-indigo-600 dark:text-indigo-400/70">
                                                 {t('Estimated from {{time}} read over {{progress}}% of the book', {
                                                     time: book.formatted_reading_time,
-                                                    progress: book.progress.toFixed(1),
+                                                    progress: book.progress.toFixed(2),
                                                 })}
                                             </p>
                                         </div>
@@ -462,7 +462,7 @@ export function BookDetailPage() {
                                                                     {session.formatted_duration}
                                                                 </td>
                                                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
-                                                                    {(session.progress_before ?? 0).toFixed(1)}% → {(session.progress_after ?? 0).toFixed(1)}%
+                                                                    {(session.progress_before ?? 0).toFixed(2)}% → {(session.progress_after ?? 0).toFixed(2)}%
                                                                 </td>
                                                                 <td className="px-6 py-3 whitespace-nowrap text-sm">
                                                                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300">

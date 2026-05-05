@@ -243,7 +243,7 @@ export function ProgressLogsPage() {
                                                 )}
                                                 {log.request_data?.progress !== undefined && (
                                                     <span className="text-indigo-400">
-                                                        {Number(log.request_data.progress).toFixed(1)}%
+                                                        {Number(log.request_data.progress).toFixed(2)}%
                                                     </span>
                                                 )}
                                                 {typeof log.request_data?.position === 'string' && (

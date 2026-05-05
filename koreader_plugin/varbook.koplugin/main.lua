@@ -86,7 +86,8 @@ function Varbook:getPercentage()
         pct = self.ui.rolling:getLastPercent()
     end
     -- getLastPercent() returns 0-1, convert to 0-100
-    return pct and Math.roundPercent(pct) * 100 or nil
+    -- Round to 2 decimal places (0.01% precision) for large books (10,000+ pages)
+    return pct and math.floor(pct * 10000) / 100 or nil
 end
 
 --- Get current xpointer position (rolling/reflowable documents only).
@@ -283,7 +284,7 @@ function Varbook:doSync()
     -- Step 5: Show result
     local msg
     if navigated then
-        msg = string.format(_("Synced to %.0f%%."), server.progress)
+        msg = string.format(_("Synced to %.2f%%."), server.progress)
     elseif synced_count > 0 then
         msg = string.format(_("Pushed %d positions."), synced_count)
     else
