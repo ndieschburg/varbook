@@ -47,6 +47,7 @@ interface EpubReaderState {
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
+    console.warn('[PIVOT-BUILD] useEpubReader loaded - pivot v2');
     // Use ref for debugMode to avoid re-initializing reader when settings load
     const debugModeRef = useRef(debugMode);
     debugModeRef.current = debugMode;
