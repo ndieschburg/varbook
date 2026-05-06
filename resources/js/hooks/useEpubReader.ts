@@ -123,43 +123,41 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
      * Used for cross-client sync (koreader → web).
      */
     const resolvePivot = useCallback(async (pivot: PivotData) => {
-        if (!renditionRef.current || !bookRef.current) return false;
+        console.warn('[Pivot] resolvePivot called', JSON.stringify(pivot));
+        if (!renditionRef.current || !bookRef.current) {
+            console.warn('[Pivot] FAIL: no rendition or book ref');
+            return false;
+        }
         const book = bookRef.current;
         const rendition = renditionRef.current;
 
+        console.warn('[Pivot] spine items count:', book.spine.length);
+
         // Find the spine item by index, fallback by href if mismatch
         let spineItem = book.spine.get(pivot.spine_index);
+        console.warn('[Pivot] spine.get(' + pivot.spine_index + '):', spineItem ? 'found href=' + spineItem.href : 'NOT FOUND');
         if (!spineItem) {
             spineItem = book.spine.get(pivot.spine_href);
         } else if (pivot.spine_href && spineItem.href !== pivot.spine_href) {
-            // Index exists but href doesn't match — trust href over index
             spineItem = book.spine.get(pivot.spine_href) || spineItem;
         }
         if (!spineItem) {
-            debug('Pivot resolve: spine item not found', pivot);
+            console.warn('[Pivot] FAIL: spine item not found');
             return false;
         }
 
-        debug('Pivot resolve: navigating to spine item', {
-            spineIndex: spineItem.index,
-            href: spineItem.href,
-            spinePercent: pivot.spine_percent,
-        });
-
         // Navigate to start of spine item
-        skipSaveCountRef.current = 100; // Skip saves during navigation loop
+        skipSaveCountRef.current = 100;
+        console.warn('[Pivot] displaying spine item:', spineItem.href);
         await rendition.display(spineItem.href);
 
-        // Read total pages in this spine item
+        // Read total pages — wait for relocated event to ensure layout is complete
+        await new Promise(resolve => setTimeout(resolve, 100));
         const loc = rendition.currentLocation() as any;
         const totalPages = loc?.start?.displayed?.total || 1;
         const targetPage = Math.round(pivot.spine_percent * Math.max(1, totalPages - 1));
 
-        debug('Pivot resolve: advancing pages', {
-            totalPages,
-            targetPage,
-            spinePercent: pivot.spine_percent,
-        });
+        console.warn('[Pivot] totalPages:', totalPages, 'targetPage:', targetPage, 'spine_percent:', pivot.spine_percent);
 
         // Advance to target page
         for (let i = 0; i < targetPage; i++) {
@@ -171,9 +169,10 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         if (finalLoc?.start?.cfi) {
             lastUserCfiRef.current = finalLoc.start.cfi;
         }
-        skipSaveCountRef.current = 1; // Skip next relocated event from settling
+        skipSaveCountRef.current = 1;
+        console.warn('[Pivot] SUCCESS: navigated to page', targetPage, 'of', totalPages);
         return true;
-    }, [debug]);
+    }, []);
 
     // Handle multi-device sync: when server has newer position from another device
     const handleMultiDeviceSync = useCallback((serverPosition: ServerPosition) => {
