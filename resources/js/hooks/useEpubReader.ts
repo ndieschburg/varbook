@@ -177,6 +177,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
     // Handle multi-device sync: when server has newer position from another device
     const handleMultiDeviceSync = useCallback((serverPosition: ServerPosition) => {
+        console.warn('[Pivot] handleMultiDeviceSync called', JSON.stringify({
+            lastSyncClient: serverPosition.lastSyncClient,
+            hasPivot: !!serverPosition.pivot,
+            progress: serverPosition.progress,
+        }));
         debug('Multi-device sync available', serverPosition);
 
         if (!renditionRef.current || !bookRef.current) return;
@@ -380,16 +385,15 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     && savedPosition.lastSyncClient !== 'web'
                     && savedPosition.source === 'server';
 
-                if (savedPosition) {
-                    debug('Initial position decision', {
-                        source: savedPosition.source,
-                        lastSyncClient: savedPosition.lastSyncClient,
-                        hasCfi: !!savedPosition.cfi,
-                        hasPivot: !!savedPosition.pivot,
-                        progress: savedPosition.progress,
-                        navigationMode: useSavedCfi ? 'cfi' : useSavedPivot ? 'pivot' : savedPosition.progress > 0 ? 'percentage (deferred)' : 'start',
-                    });
-                }
+                console.warn('[Pivot] loadPosition result:', JSON.stringify({
+                    source: savedPosition?.source,
+                    lastSyncClient: savedPosition?.lastSyncClient,
+                    hasCfi: !!savedPosition?.cfi,
+                    hasPivot: !!savedPosition?.pivot,
+                    progress: savedPosition?.progress,
+                    useSavedCfi,
+                    useSavedPivot,
+                }));
 
                 if (useSavedCfi && savedPosition?.cfi) {
                     debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
