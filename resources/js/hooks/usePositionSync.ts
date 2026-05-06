@@ -102,12 +102,13 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, e
                     // If server has newer position, sync to it
                     const serverIsNewer = serverTime > localTime;
                     const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
-                    // Cross-client sync: always trigger when a non-web client has synced
-                    // (progress % can be nearly identical but map to different positions)
-                    const externalClientSynced = serverPos.lastSyncClient !== 'web'
-                        && serverPos.lastSyncClient !== null;
+                    // Cross-client pivot sync: trigger regardless of timestamp
+                    // (user may open book on web, creating a local timestamp, then KOReader syncs)
+                    const externalClientHasPivot = serverPos.lastSyncClient !== 'web'
+                        && serverPos.lastSyncClient !== null
+                        && !!serverPos.pivot;
 
-                    if (serverIsNewer && (serverHasDifferentPosition || externalClientSynced)) {
+                    if ((serverIsNewer && serverHasDifferentPosition) || externalClientHasPivot) {
                         const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
                         debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
                             serverCfi: serverPos.cfi,

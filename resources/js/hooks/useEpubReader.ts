@@ -47,7 +47,6 @@ interface EpubReaderState {
 }
 
 export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMode = false }: UseEpubReaderOptions) {
-    console.warn('[PIVOT-BUILD] useEpubReader loaded - pivot v2');
     // Use ref for debugMode to avoid re-initializing reader when settings load
     const debugModeRef = useRef(debugMode);
     debugModeRef.current = debugMode;
@@ -124,41 +123,36 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
      * Used for cross-client sync (koreader → web).
      */
     const resolvePivot = useCallback(async (pivot: PivotData) => {
-        console.warn('[Pivot] resolvePivot called', JSON.stringify(pivot));
-        if (!renditionRef.current || !bookRef.current) {
-            console.warn('[Pivot] FAIL: no rendition or book ref');
-            return false;
-        }
+        debug('resolvePivot called', pivot);
+        if (!renditionRef.current || !bookRef.current) return false;
         const book = bookRef.current;
         const rendition = renditionRef.current;
 
-        console.warn('[Pivot] spine items count:', book.spine.length);
-
         // Find the spine item by index, fallback by href if mismatch
         let spineItem = book.spine.get(pivot.spine_index);
-        console.warn('[Pivot] spine.get(' + pivot.spine_index + '):', spineItem ? 'found href=' + spineItem.href : 'NOT FOUND');
         if (!spineItem) {
             spineItem = book.spine.get(pivot.spine_href);
         } else if (pivot.spine_href && spineItem.href !== pivot.spine_href) {
             spineItem = book.spine.get(pivot.spine_href) || spineItem;
         }
         if (!spineItem) {
-            console.warn('[Pivot] FAIL: spine item not found');
+            debug('resolvePivot: spine item not found');
             return false;
         }
 
+        debug('resolvePivot: navigating to', spineItem.href);
+
         // Navigate to start of spine item
         skipSaveCountRef.current = 100;
-        console.warn('[Pivot] displaying spine item:', spineItem.href);
         await rendition.display(spineItem.href);
 
-        // Read total pages — wait for relocated event to ensure layout is complete
+        // Wait for layout to settle before reading page count
         await new Promise(resolve => setTimeout(resolve, 100));
         const loc = rendition.currentLocation() as any;
         const totalPages = loc?.start?.displayed?.total || 1;
         const targetPage = Math.round(pivot.spine_percent * Math.max(1, totalPages - 1));
 
-        console.warn('[Pivot] totalPages:', totalPages, 'targetPage:', targetPage, 'spine_percent:', pivot.spine_percent);
+        debug('resolvePivot: advancing', { totalPages, targetPage, spinePercent: pivot.spine_percent });
 
         // Advance to target page
         for (let i = 0; i < targetPage; i++) {
@@ -171,17 +165,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             lastUserCfiRef.current = finalLoc.start.cfi;
         }
         skipSaveCountRef.current = 1;
-        console.warn('[Pivot] SUCCESS: navigated to page', targetPage, 'of', totalPages);
         return true;
-    }, []);
+    }, [debug]);
 
     // Handle multi-device sync: when server has newer position from another device
     const handleMultiDeviceSync = useCallback((serverPosition: ServerPosition) => {
-        console.warn('[Pivot] handleMultiDeviceSync called', JSON.stringify({
-            lastSyncClient: serverPosition.lastSyncClient,
-            hasPivot: !!serverPosition.pivot,
-            progress: serverPosition.progress,
-        }));
         debug('Multi-device sync available', serverPosition);
 
         if (!renditionRef.current || !bookRef.current) return;
@@ -385,7 +373,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     && savedPosition.lastSyncClient !== 'web'
                     && savedPosition.source === 'server';
 
-                console.warn('[Pivot] loadPosition result:', JSON.stringify({
+                debug('Initial position decision', {
                     source: savedPosition?.source,
                     lastSyncClient: savedPosition?.lastSyncClient,
                     hasCfi: !!savedPosition?.cfi,
@@ -393,7 +381,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     progress: savedPosition?.progress,
                     useSavedCfi,
                     useSavedPivot,
-                }));
+                });
 
                 if (useSavedCfi && savedPosition?.cfi) {
                     debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
