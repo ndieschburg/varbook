@@ -127,10 +127,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         const book = bookRef.current;
         const rendition = renditionRef.current;
 
-        // Find the spine item by index, fallback by href
+        // Find the spine item by index, fallback by href if mismatch
         let spineItem = book.spine.get(pivot.spine_index);
-        if (!spineItem || spineItem.href !== pivot.spine_href) {
+        if (!spineItem) {
             spineItem = book.spine.get(pivot.spine_href);
+        } else if (pivot.spine_href && spineItem.href !== pivot.spine_href) {
+            // Index exists but href doesn't match — trust href over index
+            spineItem = book.spine.get(pivot.spine_href) || spineItem;
         }
         if (!spineItem) {
             debug('Pivot resolve: spine item not found', pivot);
