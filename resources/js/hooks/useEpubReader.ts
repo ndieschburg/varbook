@@ -409,12 +409,29 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
                     const currentChapter = findCurrentChapter(location);
 
+                    // PIVOT VALIDATION: log displayed.page/total for spine_percent computation
+                    const spineDisplayedPage = location.start?.displayed?.page;
+                    const spineDisplayedTotal = location.start?.displayed?.total;
+                    const spineHref = location.start?.href;
+                    const spineIndex = spineHref ? book.spine.get(spineHref)?.index : undefined;
+                    const spinePercent = spineDisplayedTotal && spineDisplayedTotal > 1
+                        ? (spineDisplayedPage - 1) / (spineDisplayedTotal - 1)
+                        : 0;
+
                     debug('relocated event', {
                         cfi: currentCfi,
                         progress: progress.toFixed(5) + '%',
                         page: `${currentPage}/${totalPages}`,
                         chapter: currentChapter,
                         locationsReady: locationsReadyRef.current,
+                        // PIVOT VALIDATION fields (remove after validation)
+                        pivotValidation: {
+                            spineIndex,
+                            spineHref,
+                            displayedPage: spineDisplayedPage,
+                            displayedTotal: spineDisplayedTotal,
+                            spinePercent: spinePercent !== undefined ? spinePercent.toFixed(4) : 'N/A',
+                        },
                     });
 
                     progressRef.current = progress;

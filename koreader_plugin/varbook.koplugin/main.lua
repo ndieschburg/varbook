@@ -153,6 +153,65 @@ function Varbook:onPageUpdate()
     logger.dbg("Varbook: page update", percentage, "%",
         xpointer and ("xpointer=" .. xpointer) or "no xpointer (paged document)")
     VarbookDB:addPosition(doc_hash, percentage, xpointer)
+
+    -- PIVOT VALIDATION: log spine_percent computation data
+    if xpointer and not self.ui.document.info.has_pages then
+        self:logPivotValidation(xpointer)
+    end
+end
+
+--- Temporary validation logging for pivot spine_percent computation.
+-- Remove after validation is complete.
+function Varbook:logPivotValidation(xpointer)
+    -- Extract DocFragment number
+    local frag_str = xpointer:match("DocFragment%[(%d+)%]")
+    local frag_n = frag_str and tonumber(frag_str) or nil
+
+    if not frag_n then
+        logger.warn("Varbook PIVOT-VALIDATION: no DocFragment in xpointer:", xpointer)
+        logger.warn("Varbook PIVOT-VALIDATION: (mono-file EPUB, spine_index=0)")
+        return
+    end
+
+    local spine_index = frag_n - 1
+
+    -- Test getPosFromXPointer on DocFragment boundaries
+    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
+    local ok_start, start_pos = pcall(self.ui.document.getPosFromXPointer,
+        self.ui.document, start_xp)
+    local ok_cur, current_pos = pcall(self.ui.document.getPosFromXPointer,
+        self.ui.document, xpointer)
+
+    -- End boundary: next DocFragment or doc_height
+    local end_pos = self.ui.document.info.doc_height
+    local end_source = "doc_height"
+    local next_xp = "/body/DocFragment[" .. (frag_n + 1) .. "]/body"
+    local next_exists = self.ui.document:isXPointerInDocument(next_xp)
+    if next_exists then
+        local ok_next, next_pos = pcall(self.ui.document.getPosFromXPointer,
+            self.ui.document, next_xp)
+        if ok_next and next_pos then
+            end_pos = next_pos
+            end_source = "DocFragment[" .. (frag_n + 1) .. "]"
+        end
+    end
+
+    -- Compute ratio
+    local ratio = -1
+    if ok_start and ok_cur and start_pos and current_pos and end_pos
+        and end_pos > start_pos then
+        ratio = (current_pos - start_pos) / (end_pos - start_pos)
+    end
+
+    logger.warn("Varbook PIVOT-VALIDATION:",
+        "spine_index=" .. spine_index,
+        "frag=" .. frag_n,
+        "start_xp_ok=" .. tostring(ok_start),
+        "start_pos=" .. tostring(start_pos),
+        "current_pos=" .. tostring(ok_cur and current_pos),
+        "end_pos=" .. tostring(end_pos) .. " (" .. end_source .. ")",
+        "spine_percent=" .. string.format("%.4f", ratio),
+        "global_pct=" .. string.format("%.2f", self:getPercentage() or 0) .. "%")
 end
 
 function Varbook:onCloseDocument()
