@@ -102,13 +102,12 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, e
                     // If server has newer position, sync to it
                     const serverIsNewer = serverTime > localTime;
                     const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
-                    // When last sync is from an external client (koreader, moon), the web CFI may match
-                    // local but the overall progress can be different (synced via percentage)
-                    const externalClientHasDifferentProgress = serverPos.lastSyncClient !== 'web'
-                        && serverPos.lastSyncClient !== null
-                        && Math.abs(serverPos.progress - (localState.lastLocalProgress || 0)) > 1;
+                    // Cross-client sync: always trigger when a non-web client has synced
+                    // (progress % can be nearly identical but map to different positions)
+                    const externalClientSynced = serverPos.lastSyncClient !== 'web'
+                        && serverPos.lastSyncClient !== null;
 
-                    if (serverIsNewer && (serverHasDifferentPosition || externalClientHasDifferentProgress)) {
+                    if (serverIsNewer && (serverHasDifferentPosition || externalClientSynced)) {
                         const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
                         debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
                             serverCfi: serverPos.cfi,
