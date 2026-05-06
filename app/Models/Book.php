@@ -150,7 +150,7 @@ class Book extends Model
     {
         $this->reading_pivot = [
             'spine_index' => (int) $pivot['spine_index'],
-            'spine_href' => $pivot['spine_href'],
+            'spine_href' => $pivot['spine_href'] ?? '',
             'spine_percent' => $pivot['spine_percent'],
             'source' => $pivot['source'],
             'updated_at' => now()->toIso8601String(),

@@ -82,7 +82,7 @@ class VarbookController extends Controller
             'updates.*.position' => 'nullable|string|max:500',
             'pivot' => 'nullable|array',
             'pivot.spine_index' => 'required_with:pivot|numeric|min:0',
-            'pivot.spine_href' => 'required_with:pivot|string|max:500',
+            'pivot.spine_href' => 'nullable|string|max:500',
             'pivot.spine_percent' => 'required_with:pivot|numeric|min:0|max:1',
             'pivot.source' => 'required_with:pivot|string|in:web,koreader',
         ]);

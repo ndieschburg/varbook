@@ -348,7 +348,7 @@ class BookController extends Controller
 
         $validated = $request->validate([
             'spine_index' => ['required', 'numeric', 'min:0'],
-            'spine_href' => ['required', 'string', 'max:500'],
+            'spine_href' => ['nullable', 'string', 'max:500'],
             'spine_percent' => ['required', 'numeric', 'min:0', 'max:1'],
             'source' => ['required', 'string', 'in:web,koreader'],
             'progress' => ['nullable', 'numeric', 'min:0', 'max:100'],
