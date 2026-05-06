@@ -66,6 +66,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/books/{book}/progress', [BookController::class, 'updateProgress'])->name('api.books.progress.update');
     Route::post('/books/{book}/progress', [BookController::class, 'updateProgress'])->name('api.books.progress.beacon'); // For sendBeacon (POST only)
     Route::post('/books/{book}/progress/batch', [BookController::class, 'batchProgress'])->name('api.books.progress.batch');
+    Route::get('/books/{book}/pivot', [BookController::class, 'getPivot'])->name('api.books.pivot.get');
+    Route::put('/books/{book}/pivot', [BookController::class, 'updatePivot'])->name('api.books.pivot.update');
     Route::delete('/books/{book}/stats', [BookController::class, 'resetStats'])->name('api.books.stats.reset');
 
     // User Settings

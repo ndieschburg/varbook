@@ -36,3 +36,11 @@ export interface BookProgress {
     position: string | null;
     last_sync_at: string | null;
 }
+
+export interface PivotData {
+    spine_index: number;
+    spine_href: string;
+    spine_percent: number;
+    source: 'web' | 'koreader';
+    updated_at?: string;
+}

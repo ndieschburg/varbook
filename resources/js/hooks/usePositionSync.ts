@@ -15,11 +15,13 @@ import {
     markAsOnline,
 } from '@/services/networkState';
 import { debugLog, debugWarn, debugError } from '@/services/debugLogger';
+import type { PivotData } from '@/types/book';
 
 export interface ServerPosition {
     cfi: string | null;
     progress: number;
     lastSyncClient: string | null;
+    pivot: PivotData | null;
 }
 
 interface PositionSyncOptions {
@@ -27,6 +29,8 @@ interface PositionSyncOptions {
     debounceMs?: number;
     /** Callback when server has newer position from another device */
     onMultiDeviceSync?: (serverPosition: ServerPosition) => void;
+    /** Extract pivot data from the current epub.js location */
+    extractPivot?: () => PivotData | null;
 }
 
 export interface LoadedPosition {
@@ -34,6 +38,7 @@ export interface LoadedPosition {
     progress: number;
     source: 'local' | 'server';
     lastSyncClient: string | null;
+    pivot: PivotData | null;
 }
 
 
@@ -46,13 +51,15 @@ export interface LoadedPosition {
  * - On load: use local position immediately, check server in background
  * - Detect multi-device sync via timestamp comparison
  */
-export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }: PositionSyncOptions) {
+export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, extractPivot }: PositionSyncOptions) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSavedRef = useRef<{ cfi: string; timestamp: number } | null>(null);
     const isMountedRef = useRef(true);
-    // Store callback in ref to avoid re-creating loadPosition when callback changes
+    // Store callbacks in refs to avoid re-creating loadPosition when they change
     const onMultiDeviceSyncRef = useRef(onMultiDeviceSync);
     onMultiDeviceSyncRef.current = onMultiDeviceSync;
+    const extractPivotRef = useRef(extractPivot);
+    extractPivotRef.current = extractPivot;
 
     // Track mount state and cleanup old positions on mount
     useEffect(() => {
@@ -118,6 +125,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                             cfi: serverPos.cfi,
                             progress: serverPos.progress,
                             lastSyncClient: serverPos.lastSyncClient,
+                            pivot: serverPos.pivot,
                         });
                     }
 
@@ -196,6 +204,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                             cfi: serverPos.cfi,
                             progress: serverPos.progress,
                             lastSyncClient: serverPos.lastSyncClient,
+                            pivot: serverPos.pivot,
                         });
                     }
 
@@ -216,6 +225,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                 progress: localState.lastLocalProgress,
                 source: 'local',
                 lastSyncClient: null,
+                pivot: null,
             };
         }
 
@@ -235,6 +245,7 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
                     progress: serverPos.progress,
                     source: 'server',
                     lastSyncClient: serverPos.lastSyncClient,
+                    pivot: serverPos.pivot,
                 };
             }
         } catch (error) {
@@ -283,8 +294,9 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync }:
 
             timeoutRef.current = setTimeout(() => {
                 if (!isEffectivelyOffline()) {
-                    debugLog('PositionSync', 'Syncing to server', { cfi, progress });
-                    syncToServer(bookId, cfi, progress);
+                    const pivot = extractPivotRef.current?.() || null;
+                    debugLog('PositionSync', 'Syncing to server', { cfi, progress, hasPivot: !!pivot });
+                    syncToServer(bookId, cfi, progress, pivot);
                 } else {
                     debugLog('PositionSync', 'Offline - skipping server sync');
                 }
@@ -307,6 +319,7 @@ async function fetchServerPosition(bookId: number): Promise<{
     progress: number;
     timestamp: Date | null;
     lastSyncClient: string | null;
+    pivot: PivotData | null;
 } | null> {
     try {
         const response = await api.get(`/books/${bookId}/progress`);
@@ -318,12 +331,14 @@ async function fetchServerPosition(bookId: number): Promise<{
                 hasCfi: !!data.position,
                 lastSyncClient: data.last_sync_client,
                 lastSyncAt: data.last_sync_at,
+                hasPivot: !!data.pivot,
             });
             return {
                 cfi: data.position || null,
                 progress: data.progress || 0,
                 timestamp: data.last_sync_at ? new Date(data.last_sync_at) : null,
                 lastSyncClient: data.last_sync_client || null,
+                pivot: data.pivot || null,
             };
         }
     } catch (error) {
@@ -338,14 +353,24 @@ async function fetchServerPosition(bookId: number): Promise<{
 /**
  * Sync position to server (fire-and-forget)
  */
-async function syncToServer(bookId: number, cfi: string, progress: number): Promise<void> {
+async function syncToServer(bookId: number, cfi: string, progress: number, pivot: PivotData | null): Promise<void> {
     try {
+        // Sync progress + CFI
         await api.put(`/books/${bookId}/progress`, {
             progress,
             position: cfi,
             client: 'web',
             timestamp: new Date().toISOString(),
         });
+
+        // Sync pivot alongside (for cross-client navigation)
+        if (pivot) {
+            await api.put(`/books/${bookId}/pivot`, {
+                ...pivot,
+                progress,
+            });
+        }
+
         markAsOnline();
         debugLog('PositionSync', 'Server sync successful');
 

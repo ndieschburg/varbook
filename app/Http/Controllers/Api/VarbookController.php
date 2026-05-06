@@ -44,6 +44,7 @@ class VarbookController extends Controller
             'last_sync_at' => $book->last_read_at?->toIso8601String(),
             'last_sync_client' => $lastSync?->client,
             'timestamp' => $book->last_read_at?->timestamp ?? 0,
+            'pivot' => $book->reading_pivot,
         ];
 
         ProgressLoggingService::log(
@@ -79,6 +80,11 @@ class VarbookController extends Controller
             'updates.*.progress' => 'required|numeric|min:0|max:100',
             'updates.*.timestamp' => 'required|date',
             'updates.*.position' => 'nullable|string|max:500',
+            'pivot' => 'nullable|array',
+            'pivot.spine_index' => 'required_with:pivot|integer|min:0',
+            'pivot.spine_href' => 'required_with:pivot|string|max:500',
+            'pivot.spine_percent' => 'required_with:pivot|numeric|min:0|max:1',
+            'pivot.source' => 'required_with:pivot|string|in:web,koreader',
         ]);
 
         $updates = $validated['updates'];
@@ -104,6 +110,11 @@ class VarbookController extends Controller
                 rawPosition: $update['position'] ?? null,
                 eventTimestamp: Carbon::parse($update['timestamp'])
             );
+        }
+
+        // Update pivot if provided
+        if (! empty($validated['pivot'])) {
+            $book->updatePivot($validated['pivot']);
         }
 
         return response()->json([

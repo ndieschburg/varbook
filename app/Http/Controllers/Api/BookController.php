@@ -221,6 +221,7 @@ class BookController extends Controller
             'position' => $syncIdentifier?->raw_position,
             'last_sync_at' => $lastSync?->last_sync_at?->toIso8601String(),
             'last_sync_client' => $lastSync?->client,
+            'pivot' => $book->reading_pivot,
         ];
 
         ProgressLoggingService::log(
@@ -320,6 +321,46 @@ class BookController extends Controller
                 'synced_count' => count($updates),
             ],
         ]);
+    }
+
+    /**
+     * GET /api/books/{book}/pivot
+     * Get the cross-client reading position pivot
+     */
+    public function getPivot(Book $book): JsonResponse
+    {
+        if (! $this->authorizeBook($book)) {
+            return response()->json(['message' => __('Access denied')], 403);
+        }
+
+        return response()->json(['data' => $book->reading_pivot]);
+    }
+
+    /**
+     * PUT /api/books/{book}/pivot
+     * Update the cross-client reading position pivot
+     */
+    public function updatePivot(Request $request, Book $book): JsonResponse
+    {
+        if (! $this->authorizeBook($book)) {
+            return response()->json(['message' => __('Access denied')], 403);
+        }
+
+        $validated = $request->validate([
+            'spine_index' => ['required', 'integer', 'min:0'],
+            'spine_href' => ['required', 'string', 'max:500'],
+            'spine_percent' => ['required', 'numeric', 'min:0', 'max:1'],
+            'source' => ['required', 'string', 'in:web,koreader'],
+            'progress' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+
+        $book->updatePivot($validated);
+
+        if (isset($validated['progress'])) {
+            $book->updateProgress($validated['progress']);
+        }
+
+        return response()->json(['data' => $book->reading_pivot]);
     }
 
     /**

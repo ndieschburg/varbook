@@ -5,6 +5,7 @@ import { useReaderSettings, themeStyles, fontFamilies, marginValues } from './us
 import { useWakeLock } from './useWakeLock';
 import { useFullscreenLock } from './useFullscreenLock';
 import { getOfflineBook, saveBookOffline } from '@/services/offlineDb';
+import type { PivotData } from '@/types/book';
 
 interface UseEpubReaderOptions {
     bookId: number;
@@ -90,6 +91,87 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
     const { settings, setTheme, setFontSize, setFontFamily, setLineHeight, setMargins, setTextSelection, setFullscreenLock } = useReaderSettings();
 
+    /**
+     * Extract pivot data from the current epub.js location.
+     * Called by usePositionSync before each server sync.
+     */
+    const extractPivot = useCallback((): PivotData | null => {
+        if (!renditionRef.current || !bookRef.current) return null;
+        const location = renditionRef.current.currentLocation() as any;
+        if (!location?.start) return null;
+
+        const start = location.start;
+        const spineItem = bookRef.current.spine.get(start.href);
+        if (!spineItem) return null;
+
+        const total = start.displayed?.total;
+        const page = start.displayed?.page;
+        if (!total || !page) return null;
+
+        const spinePercent = total <= 1 ? 0 : (page - 1) / (total - 1);
+
+        return {
+            spine_index: spineItem.index,
+            spine_href: spineItem.href,
+            spine_percent: Math.round(spinePercent * 10000) / 10000,
+            source: 'web',
+        };
+    }, []);
+
+    /**
+     * Navigate to a pivot position by displaying the spine item then advancing pages.
+     * Used for cross-client sync (koreader → web).
+     */
+    const resolvePivot = useCallback(async (pivot: PivotData) => {
+        if (!renditionRef.current || !bookRef.current) return false;
+        const book = bookRef.current;
+        const rendition = renditionRef.current;
+
+        // Find the spine item by index, fallback by href
+        let spineItem = book.spine.get(pivot.spine_index);
+        if (!spineItem || spineItem.href !== pivot.spine_href) {
+            spineItem = book.spine.get(pivot.spine_href);
+        }
+        if (!spineItem) {
+            debug('Pivot resolve: spine item not found', pivot);
+            return false;
+        }
+
+        debug('Pivot resolve: navigating to spine item', {
+            spineIndex: spineItem.index,
+            href: spineItem.href,
+            spinePercent: pivot.spine_percent,
+        });
+
+        // Navigate to start of spine item
+        skipSaveCountRef.current = 100; // Skip saves during navigation loop
+        await rendition.display(spineItem.href);
+
+        // Read total pages in this spine item
+        const loc = rendition.currentLocation() as any;
+        const totalPages = loc?.start?.displayed?.total || 1;
+        const targetPage = Math.round(pivot.spine_percent * Math.max(1, totalPages - 1));
+
+        debug('Pivot resolve: advancing pages', {
+            totalPages,
+            targetPage,
+            spinePercent: pivot.spine_percent,
+        });
+
+        // Advance to target page
+        for (let i = 0; i < targetPage; i++) {
+            await rendition.next();
+        }
+
+        // Track final position
+        const finalLoc = rendition.currentLocation() as any;
+        if (finalLoc?.start?.cfi) {
+            lastUserCfiRef.current = finalLoc.start.cfi;
+        }
+        skipSaveCountRef.current = 1; // Skip next relocated event from settling
+        return true;
+    }, [debug]);
+
     // Handle multi-device sync: when server has newer position from another device
     const handleMultiDeviceSync = useCallback((serverPosition: ServerPosition) => {
         debug('Multi-device sync available', serverPosition);
@@ -98,46 +180,59 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
         skipSaveCountRef.current = 1; // Skip next save to avoid overwriting
 
-        // Use CFI only when last sync was from web (same position format)
-        // Otherwise fall back to percentage (slower but cross-client compatible)
+        // Use CFI when last sync was from web (same position format)
         const useCfi = serverPosition.lastSyncClient === 'web' && serverPosition.cfi;
+        // Use pivot for cross-client sync (koreader → web)
+        const usePivot = serverPosition.lastSyncClient !== 'web' && serverPosition.pivot;
 
         debug('Multi-device sync decision', {
             lastSyncClient: serverPosition.lastSyncClient,
             hasCfi: !!serverPosition.cfi,
+            hasPivot: !!serverPosition.pivot,
             progress: serverPosition.progress,
-            navigationMode: useCfi ? 'cfi' : 'percentage',
-            reason: useCfi
-                ? 'last sync from web client, using precise CFI'
-                : !serverPosition.cfi
-                    ? 'no CFI available, using percentage'
-                    : `last sync from "${serverPosition.lastSyncClient}" (not web), CFI/xpointer incompatible, using percentage`,
+            navigationMode: useCfi ? 'cfi' : usePivot ? 'pivot' : 'percentage',
         });
 
         if (useCfi) {
             debug('Navigating to server CFI', serverPosition.cfi);
-            lastUserCfiRef.current = serverPosition.cfi; // Track for restoration
+            lastUserCfiRef.current = serverPosition.cfi;
             renditionRef.current.display(serverPosition.cfi!);
-        } else if (locationsReadyRef.current && serverPosition.progress > 0) {
-            const cfi = bookRef.current.locations.cfiFromPercentage(serverPosition.progress / 100);
+        } else if (usePivot) {
+            resolvePivot(serverPosition.pivot!).then((ok) => {
+                if (!ok) {
+                    debug('Pivot resolve failed, falling back to percentage');
+                    fallbackPercentageNavigation(serverPosition.progress);
+                }
+                setState(prev => ({ ...prev, syncingPositionFrom: null }));
+            });
+            setState(prev => ({ ...prev, syncingPositionFrom: serverPosition.lastSyncClient || 'external' }));
+        } else if (serverPosition.progress > 0) {
+            fallbackPercentageNavigation(serverPosition.progress);
+        }
+    }, [debug, resolvePivot]);
+
+    // Fallback: navigate via global percentage (less precise but always works)
+    const fallbackPercentageNavigation = useCallback((progress: number) => {
+        if (!renditionRef.current || !bookRef.current) return;
+
+        if (locationsReadyRef.current) {
+            const cfi = bookRef.current.locations.cfiFromPercentage(progress / 100);
             if (cfi) {
-                debug('Navigating via percentage -> CFI conversion', {
-                    percentage: serverPosition.progress,
-                    resolvedCfi: cfi,
-                });
-                lastUserCfiRef.current = cfi; // Track for restoration
+                debug('Fallback: percentage -> CFI', { progress, cfi });
+                lastUserCfiRef.current = cfi;
                 renditionRef.current.display(cfi);
             }
-        } else if (!locationsReadyRef.current && serverPosition.progress > 0) {
-            debug('Locations not ready yet for percentage navigation, deferring via pendingPercentageRef');
-            pendingPercentageRef.current = serverPosition.progress;
-            setState(prev => ({ ...prev, syncingPositionFrom: serverPosition.lastSyncClient || 'external' }));
+        } else {
+            debug('Fallback: deferring percentage navigation (locations not ready)', { progress });
+            pendingPercentageRef.current = progress;
+            setState(prev => ({ ...prev, syncingPositionFrom: 'external' }));
         }
     }, [debug]);
 
     const { loadPosition, savePosition } = usePositionSync({
         bookId,
         onMultiDeviceSync: handleMultiDeviceSync,
+        extractPivot,
     });
 
     // Prevent screen from sleeping while reading
@@ -275,37 +370,43 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                 debug('Server position loaded', savedPosition);
 
                 // Navigate to saved position or start
-                // Use CFI when last sync was from web (same format); otherwise use percentage
                 skipSaveCountRef.current = 1;
                 const useSavedCfi = savedPosition?.cfi
                     && (savedPosition.source === 'local' || savedPosition.lastSyncClient === 'web');
+                const useSavedPivot = savedPosition?.pivot
+                    && savedPosition.lastSyncClient !== 'web'
+                    && savedPosition.source === 'server';
 
                 if (savedPosition) {
                     debug('Initial position decision', {
                         source: savedPosition.source,
                         lastSyncClient: savedPosition.lastSyncClient,
                         hasCfi: !!savedPosition.cfi,
+                        hasPivot: !!savedPosition.pivot,
                         progress: savedPosition.progress,
-                        navigationMode: useSavedCfi ? 'cfi' : savedPosition.progress > 0 ? 'percentage (deferred)' : 'start',
-                        reason: useSavedCfi
-                            ? savedPosition.source === 'local'
-                                ? 'local position available, using CFI'
-                                : 'server position from web client, using CFI'
-                            : savedPosition.progress > 0
-                                ? `server position from "${savedPosition.lastSyncClient}" (not web), CFI incompatible, will use percentage after locations ready`
-                                : 'no progress, starting from beginning',
+                        navigationMode: useSavedCfi ? 'cfi' : useSavedPivot ? 'pivot' : savedPosition.progress > 0 ? 'percentage (deferred)' : 'start',
                     });
                 }
 
                 if (useSavedCfi && savedPosition?.cfi) {
                     debug(`Navigating to saved CFI: ${savedPosition.cfi}`);
-                    lastUserCfiRef.current = savedPosition.cfi; // Track for restoration
+                    lastUserCfiRef.current = savedPosition.cfi;
                     await rendition.display(savedPosition.cfi);
+                } else if (useSavedPivot && savedPosition?.pivot) {
+                    debug('Navigating via pivot from cross-client sync');
+                    setState(prev => ({ ...prev, syncingPositionFrom: savedPosition.lastSyncClient || 'external' }));
+                    await rendition.display(); // Display start first
+                    // Resolve pivot after rendition is initialized
+                    resolvePivot(savedPosition.pivot).then((ok) => {
+                        if (!ok && savedPosition.progress > 0) {
+                            debug('Pivot resolve failed on init, falling back to percentage');
+                            pendingPercentageRef.current = savedPosition.progress;
+                        }
+                        setState(prev => ({ ...prev, syncingPositionFrom: null }));
+                    });
                 } else if (savedPosition && savedPosition.progress > 0) {
                     debug(`Navigating to saved percentage (lastSyncClient: ${savedPosition.lastSyncClient}): ${savedPosition.progress}%`);
-                    // Percentage navigation requires locations; display start first, then navigate after locations ready
                     await rendition.display();
-                    // Store progress for deferred navigation after locations are generated
                     pendingPercentageRef.current = savedPosition.progress;
                     if (savedPosition.lastSyncClient && savedPosition.lastSyncClient !== 'web') {
                         setState(prev => ({ ...prev, syncingPositionFrom: savedPosition.lastSyncClient }));
@@ -409,29 +510,12 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
                     const currentChapter = findCurrentChapter(location);
 
-                    // PIVOT VALIDATION: log displayed.page/total for spine_percent computation
-                    const spineDisplayedPage = location.start?.displayed?.page;
-                    const spineDisplayedTotal = location.start?.displayed?.total;
-                    const spineHref = location.start?.href;
-                    const spineIndex = spineHref ? book.spine.get(spineHref)?.index : undefined;
-                    const spinePercent = spineDisplayedTotal && spineDisplayedTotal > 1
-                        ? (spineDisplayedPage - 1) / (spineDisplayedTotal - 1)
-                        : 0;
-
                     debug('relocated event', {
                         cfi: currentCfi,
                         progress: progress.toFixed(5) + '%',
                         page: `${currentPage}/${totalPages}`,
                         chapter: currentChapter,
                         locationsReady: locationsReadyRef.current,
-                        // PIVOT VALIDATION fields (remove after validation)
-                        pivotValidation: {
-                            spineIndex,
-                            spineHref,
-                            displayedPage: spineDisplayedPage,
-                            displayedTotal: spineDisplayedTotal,
-                            spinePercent: spinePercent !== undefined ? spinePercent.toFixed(4) : 'N/A',
-                        },
                     });
 
                     progressRef.current = progress;

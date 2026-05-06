@@ -31,6 +31,7 @@ class Book extends Model
         'total_reading_seconds',
         'is_finished',
         'last_read_at',
+        'reading_pivot',
     ];
 
     protected function casts(): array
@@ -41,6 +42,7 @@ class Book extends Model
             'total_reading_seconds' => 'integer',
             'is_finished' => 'boolean',
             'last_read_at' => 'datetime',
+            'reading_pivot' => 'array',
         ];
     }
 
@@ -136,6 +138,23 @@ class Book extends Model
     public function markAsFinished(): void
     {
         $this->is_finished = true;
+        $this->save();
+    }
+
+    /**
+     * Update the reading pivot (cross-client position format)
+     *
+     * @param array{spine_index: int, spine_href: string, spine_percent: float, source: string} $pivot
+     */
+    public function updatePivot(array $pivot): void
+    {
+        $this->reading_pivot = [
+            'spine_index' => $pivot['spine_index'],
+            'spine_href' => $pivot['spine_href'],
+            'spine_percent' => $pivot['spine_percent'],
+            'source' => $pivot['source'],
+            'updated_at' => now()->toIso8601String(),
+        ];
         $this->save();
     }
 
