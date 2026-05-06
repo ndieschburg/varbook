@@ -84,23 +84,36 @@ function VarbookAPI:getProgress(doc_hash)
         return nil, "json_error"
     end
 
+    -- Parse pivot if present
+    local pivot = nil
+    if result.pivot and result.pivot.spine_index then
+        pivot = {
+            spine_index = tonumber(result.pivot.spine_index) or 0,
+            spine_href = result.pivot.spine_href or "",
+            spine_percent = tonumber(result.pivot.spine_percent) or 0,
+            source = result.pivot.source or "unknown",
+        }
+    end
+
     logger.dbg("Varbook: getProgress result: progress=", result.progress,
         "timestamp=", result.timestamp, "last_sync_client=", result.last_sync_client,
-        "position=", result.position)
+        "position=", result.position, "has_pivot=", pivot ~= nil)
     return {
         progress = tonumber(result.progress) or 0,
         timestamp = tonumber(result.timestamp) or 0,
         last_sync_client = result.last_sync_client,
         position = result.position,
+        pivot = pivot,
     }, nil
 end
 
 --- Push a batch of position updates to the server.
 -- @param doc_hash string KOReader partial MD5 hash
 -- @param updates table Array of {percentage, timestamp, xpointer} records
+-- @param pivot table|nil Optional pivot data for cross-client sync
 -- @return number|nil Number of synced positions, or nil on error
 -- @return string|nil Error message
-function VarbookAPI:pushBatch(doc_hash, updates)
+function VarbookAPI:pushBatch(doc_hash, updates, pivot)
     if #updates == 0 then
         return 0, nil
     end
@@ -118,7 +131,12 @@ function VarbookAPI:pushBatch(doc_hash, updates)
         table.insert(formatted, entry)
     end
 
-    local body = JSON.encode({ updates = formatted })
+    local payload = { updates = formatted }
+    if pivot then
+        payload.pivot = pivot
+    end
+
+    local body = JSON.encode(payload)
     local sink = {}
     local request = {
         url = self.server_url .. "/api/varbook/progress/" .. doc_hash .. "/batch",

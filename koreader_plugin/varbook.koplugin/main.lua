@@ -4,7 +4,7 @@
 
     - Tracks page turns locally in SQLite (percentage + timestamp)
     - Manual sync via menu button: pull server position, push local positions
-    - Uses percentage-based navigation for cross-device compatibility
+    - Uses pivot format (spine_index + spine_percent) for cross-device compatibility
 ]]--
 
 local DataStorage = require("datastorage")
@@ -131,6 +131,136 @@ function Varbook:getAPI()
 end
 
 -- ==========================================
+-- Pivot: cross-client position format
+-- ==========================================
+
+--- Extract spine_index from an XPointer.
+-- DocFragment[N] is 1-based in CREngine, spine_index is 0-based.
+-- @param xpointer string XPointer string
+-- @return number 0-based spine index
+local function spineIndexFromXPointer(xpointer)
+    local n = xpointer:match("DocFragment%[(%d+)%]")
+    if n then
+        return tonumber(n) - 1
+    end
+    -- No DocFragment = mono-file EPUB
+    return 0
+end
+
+--- Compute spine_percent: ratio of current position within the current spine item.
+-- Based on pixel positions (rendered layout height).
+-- @param xpointer string Current XPointer
+-- @param spine_index number 0-based spine index
+-- @return number Ratio 0-1
+function Varbook:computeSpinePercent(xpointer, spine_index)
+    local ok_cur, current_pos = pcall(
+        self.ui.document.getPosFromXPointer, self.ui.document, xpointer)
+    if not ok_cur or not current_pos then return 0 end
+
+    local frag_n = spine_index + 1 -- 0-based to 1-based
+    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
+    local ok_start, start_pos = pcall(
+        self.ui.document.getPosFromXPointer, self.ui.document, start_xp)
+    if not ok_start or not start_pos then return 0 end
+
+    -- End boundary: next DocFragment or document height
+    local end_pos = self.ui.document.info.doc_height
+    local next_xp = "/body/DocFragment[" .. (frag_n + 1) .. "]/body"
+    if self.ui.document:isXPointerInDocument(next_xp) then
+        local ok_next, next_pos = pcall(
+            self.ui.document.getPosFromXPointer, self.ui.document, next_xp)
+        if ok_next and next_pos then
+            end_pos = next_pos
+        end
+    end
+
+    if end_pos <= start_pos then return 0 end
+
+    local ratio = (current_pos - start_pos) / (end_pos - start_pos)
+    return math.max(0, math.min(1, ratio))
+end
+
+--- Extract a pivot from the current reading position.
+-- @return table|nil Pivot data {spine_index, spine_href, spine_percent, source}
+function Varbook:extractPivot()
+    if self.ui.document.info.has_pages then return nil end
+
+    local xpointer = self:getXPointer()
+    if not xpointer then return nil end
+
+    local spine_index = spineIndexFromXPointer(xpointer)
+    local spine_percent = self:computeSpinePercent(xpointer, spine_index)
+
+    -- spine_href: from server-provided cache, or empty string as fallback
+    local spine_map = self.settings:readSetting("spine_map", {})
+    local doc_hash = self:getDocHash()
+    local book_spine = doc_hash and spine_map[doc_hash] or nil
+    local spine_href = book_spine and book_spine[spine_index + 1] or ""
+
+    logger.dbg("Varbook: extractPivot spine_index=", spine_index,
+        "spine_percent=", string.format("%.4f", spine_percent),
+        "spine_href=", spine_href)
+
+    return {
+        spine_index = spine_index,
+        spine_href = spine_href,
+        spine_percent = math.floor(spine_percent * 10000) / 10000,
+        source = "koreader",
+    }
+end
+
+--- Navigate to a pivot position.
+-- Computes target pixel position within the DocFragment and navigates there.
+-- @param pivot table {spine_index, spine_href, spine_percent}
+-- @return boolean True if navigation succeeded
+function Varbook:resolvePivot(pivot)
+    if self.ui.document.info.has_pages then return false end
+
+    local frag_n = pivot.spine_index + 1 -- 0-based to 1-based
+    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
+
+    if not self.ui.document:isXPointerInDocument(start_xp) then
+        logger.warn("Varbook: pivot DocFragment[" .. frag_n .. "] not found")
+        return false
+    end
+
+    local ok_start, start_pos = pcall(
+        self.ui.document.getPosFromXPointer, self.ui.document, start_xp)
+    if not ok_start or not start_pos then
+        logger.warn("Varbook: pivot getPosFromXPointer failed for start")
+        return false
+    end
+
+    -- End boundary
+    local end_pos = self.ui.document.info.doc_height
+    local next_xp = "/body/DocFragment[" .. (frag_n + 1) .. "]/body"
+    if self.ui.document:isXPointerInDocument(next_xp) then
+        local ok_next, next_pos = pcall(
+            self.ui.document.getPosFromXPointer, self.ui.document, next_xp)
+        if ok_next and next_pos then
+            end_pos = next_pos
+        end
+    end
+
+    -- Target pixel position
+    local target_pos = start_pos + (end_pos - start_pos) * pivot.spine_percent
+
+    -- Convert to page number and navigate
+    local page_count = self.ui.document:getPageCount()
+    local doc_height = self.ui.document.info.doc_height
+    local target_page = math.floor(target_pos / doc_height * page_count)
+    target_page = math.max(1, math.min(page_count, target_page))
+
+    logger.dbg("Varbook: resolvePivot spine_index=", pivot.spine_index,
+        "spine_percent=", pivot.spine_percent,
+        "target_pos=", target_pos, "target_page=", target_page, "/", page_count)
+
+    local target_xp = self.ui.document:getPageXPointer(target_page)
+    self.ui:handleEvent(Event:new("GotoXPointer", target_xp))
+    return true
+end
+
+-- ==========================================
 -- Page turn tracking
 -- ==========================================
 
@@ -153,65 +283,6 @@ function Varbook:onPageUpdate()
     logger.dbg("Varbook: page update", percentage, "%",
         xpointer and ("xpointer=" .. xpointer) or "no xpointer (paged document)")
     VarbookDB:addPosition(doc_hash, percentage, xpointer)
-
-    -- PIVOT VALIDATION: log spine_percent computation data
-    if xpointer and not self.ui.document.info.has_pages then
-        self:logPivotValidation(xpointer)
-    end
-end
-
---- Temporary validation logging for pivot spine_percent computation.
--- Remove after validation is complete.
-function Varbook:logPivotValidation(xpointer)
-    -- Extract DocFragment number
-    local frag_str = xpointer:match("DocFragment%[(%d+)%]")
-    local frag_n = frag_str and tonumber(frag_str) or nil
-
-    if not frag_n then
-        logger.warn("Varbook PIVOT-VALIDATION: no DocFragment in xpointer:", xpointer)
-        logger.warn("Varbook PIVOT-VALIDATION: (mono-file EPUB, spine_index=0)")
-        return
-    end
-
-    local spine_index = frag_n - 1
-
-    -- Test getPosFromXPointer on DocFragment boundaries
-    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
-    local ok_start, start_pos = pcall(self.ui.document.getPosFromXPointer,
-        self.ui.document, start_xp)
-    local ok_cur, current_pos = pcall(self.ui.document.getPosFromXPointer,
-        self.ui.document, xpointer)
-
-    -- End boundary: next DocFragment or doc_height
-    local end_pos = self.ui.document.info.doc_height
-    local end_source = "doc_height"
-    local next_xp = "/body/DocFragment[" .. (frag_n + 1) .. "]/body"
-    local next_exists = self.ui.document:isXPointerInDocument(next_xp)
-    if next_exists then
-        local ok_next, next_pos = pcall(self.ui.document.getPosFromXPointer,
-            self.ui.document, next_xp)
-        if ok_next and next_pos then
-            end_pos = next_pos
-            end_source = "DocFragment[" .. (frag_n + 1) .. "]"
-        end
-    end
-
-    -- Compute ratio
-    local ratio = -1
-    if ok_start and ok_cur and start_pos and current_pos and end_pos
-        and end_pos > start_pos then
-        ratio = (current_pos - start_pos) / (end_pos - start_pos)
-    end
-
-    logger.warn("Varbook PIVOT-VALIDATION:",
-        "spine_index=" .. spine_index,
-        "frag=" .. frag_n,
-        "start_xp_ok=" .. tostring(ok_start),
-        "start_pos=" .. tostring(start_pos),
-        "current_pos=" .. tostring(ok_cur and current_pos),
-        "end_pos=" .. tostring(end_pos) .. " (" .. end_source .. ")",
-        "spine_percent=" .. string.format("%.4f", ratio),
-        "global_pct=" .. string.format("%.2f", self:getPercentage() or 0) .. "%")
 end
 
 function Varbook:onCloseDocument()
@@ -262,59 +333,81 @@ function Varbook:doSync()
     local server_progress = server and server.progress or 0
     logger.dbg("Varbook: server=", server_progress, "% local=", current, "%",
         "last_sync_client=", server and server.last_sync_client,
-        "position=", server and server.position)
+        "position=", server and server.position,
+        "has_pivot=", server and server.pivot ~= nil)
 
     if server and server_progress > current + 1 then
-        -- Server is ahead: another device has read further, navigate there
+        -- Server is ahead: navigate there
         local use_xpointer = server.last_sync_client == "koreader"
             and server.position
             and not self.ui.document.info.has_pages
 
+        local use_pivot = server.last_sync_client ~= "koreader"
+            and server.pivot
+            and not self.ui.document.info.has_pages
+
         if use_xpointer then
-            logger.dbg("Varbook: navigation decision: XPOINTER",
-                "reason: last_sync_client=koreader, xpointer available, rolling document",
+            -- Same-client sync: use precise XPointer
+            logger.dbg("Varbook: navigation: XPOINTER",
                 "xpointer=", server.position)
             self.ui:handleEvent(Event:new("GotoXPointer", server.position))
+        elseif use_pivot then
+            -- Cross-client sync: use pivot (spine_index + spine_percent)
+            logger.dbg("Varbook: navigation: PIVOT",
+                "spine_index=", server.pivot.spine_index,
+                "spine_percent=", server.pivot.spine_percent,
+                "source=", server.pivot.source)
+            local ok = self:resolvePivot(server.pivot)
+            if not ok then
+                -- Fallback to percentage
+                logger.dbg("Varbook: pivot failed, fallback to PERCENTAGE")
+                local page_count = self.ui.document:getPageCount()
+                local target_page = math.floor(page_count * server_progress / 100)
+                self.ui:handleEvent(Event:new("GotoPage", target_page))
+            end
         else
+            -- Fallback: percentage-based navigation
             local page_count = self.ui.document:getPageCount()
             local target_page = math.floor(page_count * server_progress / 100)
             local reason
             if server.last_sync_client ~= "koreader" then
-                reason = "last_sync_client=" .. tostring(server.last_sync_client) .. " (not koreader)"
+                reason = "last_sync_client=" .. tostring(server.last_sync_client) .. " (no pivot)"
             elseif not server.position then
                 reason = "no xpointer from server"
             elseif self.ui.document.info.has_pages then
-                reason = "paged document (xpointer not supported)"
+                reason = "paged document"
             end
-            logger.dbg("Varbook: navigation decision: PERCENTAGE",
+            logger.dbg("Varbook: navigation: PERCENTAGE",
                 "reason:", reason,
-                "target_page=", target_page, "/", page_count,
-                "(", server_progress, "%)")
+                "target_page=", target_page, "/", page_count)
             self.ui:handleEvent(Event:new("GotoPage", target_page))
         end
         navigated = true
     else
         logger.dbg("Varbook: no navigation needed",
-            "server_progress=", server_progress, "% local=", current, "%",
-            server_progress <= current + 1 and "(server not ahead by >1%)" or "")
+            "server_progress=", server_progress, "% local=", current, "%")
     end
 
     -- Step 3: Handle local unsynced positions
     local positions = VarbookDB:getUnsyncedPositions(doc_hash)
 
     if navigated then
-        -- Server was ahead: discard all local positions (they predate the server state)
+        -- Server was ahead: discard all local positions
         logger.dbg("Varbook: discarding", #positions, "local positions (server was ahead)")
         VarbookDB:markSynced(doc_hash)
     elseif #positions > 0 then
-        -- Local reading is ahead or equal: push positions to server
+        -- Local is ahead: push positions + pivot to server
         local with_xpointer = 0
         for _, p in ipairs(positions) do
             if p.xpointer then with_xpointer = with_xpointer + 1 end
         end
         logger.dbg("Varbook: pushing", #positions, "positions",
             "(", with_xpointer, "with xpointer,", #positions - with_xpointer, "without)")
-        local count, push_err = api:pushBatch(doc_hash, positions)
+
+        -- Extract pivot from current position for cross-client sync
+        local pivot = self:extractPivot()
+
+        local count, push_err = api:pushBatch(doc_hash, positions, pivot)
 
         if push_err == "unauthorized" then
             UIManager:show(InfoMessage:new{
