@@ -134,11 +134,12 @@ end
 -- Pivot: cross-client position format
 -- ==========================================
 
---- Extract spine_index from an XPointer.
--- DocFragment[N] is 1-based in CREngine, spine_index is 0-based.
+--- Extract the 0-based DocFragment index from an XPointer.
+-- CREngine's DocFragment[N] is 1-based; this returns N-1 (0-based).
+-- NOTE: This is NOT the OPF spine index — use getSpineMapping() to convert.
 -- @param xpointer string XPointer string
--- @return number 0-based spine index
-local function spineIndexFromXPointer(xpointer)
+-- @return number 0-based DocFragment index
+local function fragIndexFromXPointer(xpointer)
     local n = xpointer:match("DocFragment%[(%d+)%]")
     if n then
         return tonumber(n) - 1
@@ -147,17 +148,180 @@ local function spineIndexFromXPointer(xpointer)
     return 0
 end
 
---- Compute spine_percent: ratio of current position within the current spine item.
+--- Read the OPF content from the EPUB archive via CREngine.
+-- @return string|nil OPF XML content
+function Varbook:readOpfContent()
+    if not self.ui.document.getDocumentFileContent then
+        logger.warn("Varbook: getDocumentFileContent not available")
+        return nil
+    end
+
+    local ok_c, container = pcall(
+        self.ui.document.getDocumentFileContent,
+        self.ui.document, "META-INF/container.xml")
+    if not ok_c or not container then
+        logger.warn("Varbook: could not read META-INF/container.xml")
+        return nil
+    end
+
+    local opf_path = container:match('full%-path="([^"]+)"')
+    if not opf_path then
+        logger.warn("Varbook: OPF path not found in container.xml")
+        return nil
+    end
+
+    local ok_o, opf = pcall(
+        self.ui.document.getDocumentFileContent,
+        self.ui.document, opf_path)
+    if not ok_o or not opf then
+        logger.warn("Varbook: could not read OPF at", opf_path)
+        return nil
+    end
+
+    return opf
+end
+
+--- Parse the OPF XML to extract spine hrefs in order.
+-- @param opf string OPF XML content
+-- @return table Array of href strings in OPF spine order
+local function parseSpineFromOpf(opf)
+    -- Build manifest lookup: id → href
+    local manifest = {}
+    for tag in opf:gmatch("<item[^>]+>") do
+        local id = tag:match('id="([^"]*)"')
+        local href = tag:match('href="([^"]*)"')
+        if id and href then
+            manifest[id] = href
+        end
+    end
+
+    -- Extract spine itemrefs in order, resolve to hrefs
+    local hrefs = {}
+    for tag in opf:gmatch("<itemref[^>]+>") do
+        local idref = tag:match('idref="([^"]*)"')
+        if idref and manifest[idref] then
+            table.insert(hrefs, manifest[idref])
+        end
+    end
+
+    return hrefs
+end
+
+--- Build the mapping between OPF spine indices and CREngine DocFragment numbers.
+-- Reads the OPF from the EPUB, counts DocFragments, and computes the correspondence.
+-- CREngine may have more or fewer DocFragments than OPF spine items (e.g., older
+-- versions skip non-XHTML items, or extra items from <guide> are included).
+-- Result is cached per document.
+-- @return table {frag_for_spine, spine_for_frag, spine_hrefs, offset, total_frags, spine_count}
+function Varbook:getSpineMapping()
+    local doc_hash = self:getDocHash()
+    if self._spine_map_hash == doc_hash and self._spine_map then
+        return self._spine_map
+    end
+
+    local result = {
+        frag_for_spine = {}, -- OPF spine index (0-based) → DocFragment N (1-based)
+        spine_for_frag = {}, -- DocFragment N (1-based) → OPF spine index (0-based)
+        spine_hrefs = {},    -- OPF spine index (0-based) → href string
+        offset = 0,          -- total_frags - spine_count
+        total_frags = 0,
+        spine_count = 0,
+    }
+
+    -- Count DocFragments by probing
+    for i = 1, 5000 do
+        if self.ui.document:isXPointerInDocument(
+                "/body/DocFragment[" .. i .. "]/body") then
+            result.total_frags = i
+        else
+            break
+        end
+    end
+
+    -- Read and parse OPF spine
+    local opf = self:readOpfContent()
+    local spine_hrefs = opf and parseSpineFromOpf(opf) or {}
+    result.spine_count = #spine_hrefs
+
+    for i, href in ipairs(spine_hrefs) do
+        result.spine_hrefs[i - 1] = href -- store 0-based
+    end
+
+    logger.dbg("Varbook: spine mapping: total_frags=", result.total_frags,
+        "spine_count=", result.spine_count)
+
+    if result.spine_count == 0 then
+        -- No OPF data: assume 1:1 mapping (DocFragment[N] = spine N-1)
+        logger.warn("Varbook: no OPF spine data, assuming 1:1 mapping")
+        for i = 1, result.total_frags do
+            result.frag_for_spine[i - 1] = i
+            result.spine_for_frag[i] = i - 1
+        end
+    elseif result.total_frags == result.spine_count then
+        -- Counts match: 1:1 mapping, no offset
+        result.offset = 0
+        for i = 0, result.spine_count - 1 do
+            result.frag_for_spine[i] = i + 1
+            result.spine_for_frag[i + 1] = i
+        end
+    else
+        -- Counts differ: compute offset (extra DocFragments assumed at beginning)
+        result.offset = result.total_frags - result.spine_count
+        logger.warn("Varbook: DocFragment/spine count mismatch!",
+            "frags=", result.total_frags, "spine=", result.spine_count,
+            "offset=", result.offset)
+        if result.offset > 0 then
+            -- More DocFragments than spine items: extras at the beginning
+            for i = 0, result.spine_count - 1 do
+                local frag_n = i + 1 + result.offset
+                result.frag_for_spine[i] = frag_n
+                result.spine_for_frag[frag_n] = i
+            end
+        else
+            -- Fewer DocFragments: CREngine skipped some spine items
+            -- Map sequentially (DocFragment order matches spine order, gaps skipped)
+            local frag_idx = 1
+            for i = 0, result.spine_count - 1 do
+                if frag_idx <= result.total_frags then
+                    result.frag_for_spine[i] = frag_idx
+                    result.spine_for_frag[frag_idx] = i
+                    frag_idx = frag_idx + 1
+                end
+            end
+        end
+    end
+
+    -- Log a few mappings for debugging
+    local log_count = math.min(5, result.spine_count)
+    for i = 0, log_count - 1 do
+        logger.dbg("Varbook:   spine[" .. i .. "] ("
+            .. (result.spine_hrefs[i] or "?") .. ") → DocFragment["
+            .. (result.frag_for_spine[i] or "?") .. "]")
+    end
+    -- Also log around the middle for large books
+    if result.spine_count > 20 then
+        local mid = math.floor(result.spine_count / 2)
+        logger.dbg("Varbook:   spine[" .. mid .. "] ("
+            .. (result.spine_hrefs[mid] or "?") .. ") → DocFragment["
+            .. (result.frag_for_spine[mid] or "?") .. "]")
+    end
+
+    self._spine_map = result
+    self._spine_map_hash = doc_hash
+    return result
+end
+
+--- Compute spine_percent: ratio of current position within a DocFragment.
 -- Based on pixel positions (rendered layout height).
 -- @param xpointer string Current XPointer
--- @param spine_index number 0-based spine index
+-- @param frag_index number 0-based DocFragment index (frag_n = frag_index + 1)
 -- @return number Ratio 0-1
-function Varbook:computeSpinePercent(xpointer, spine_index)
+function Varbook:computeSpinePercent(xpointer, frag_index)
     local ok_cur, current_pos = pcall(
         self.ui.document.getPosFromXPointer, self.ui.document, xpointer)
     if not ok_cur or not current_pos then return 0 end
 
-    local frag_n = spine_index + 1 -- 0-based to 1-based
+    local frag_n = frag_index + 1
     local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
     local ok_start, start_pos = pcall(
         self.ui.document.getPosFromXPointer, self.ui.document, start_xp)
@@ -181,6 +345,7 @@ function Varbook:computeSpinePercent(xpointer, spine_index)
 end
 
 --- Extract a pivot from the current reading position.
+-- Converts CREngine DocFragment index to OPF spine_index using the spine mapping.
 -- @return table|nil Pivot data {spine_index, spine_href, spine_percent, source}
 function Varbook:extractPivot()
     if self.ui.document.info.has_pages then return nil end
@@ -188,16 +353,26 @@ function Varbook:extractPivot()
     local xpointer = self:getXPointer()
     if not xpointer then return nil end
 
-    local spine_index = spineIndexFromXPointer(xpointer)
-    local spine_percent = self:computeSpinePercent(xpointer, spine_index)
+    local frag_index = fragIndexFromXPointer(xpointer)
+    local spine_percent = self:computeSpinePercent(xpointer, frag_index)
 
-    -- spine_href: from server-provided cache, or empty string as fallback
-    local spine_map = self.settings:readSetting("spine_map", {})
-    local doc_hash = self:getDocHash()
-    local book_spine = doc_hash and spine_map[doc_hash] or nil
-    local spine_href = book_spine and book_spine[spine_index + 1] or ""
+    -- Convert DocFragment index to OPF spine_index via mapping
+    local mapping = self:getSpineMapping()
+    local frag_n = frag_index + 1
+    local spine_index = mapping.spine_for_frag[frag_n]
 
-    logger.dbg("Varbook: extractPivot spine_index=", spine_index,
+    if spine_index == nil then
+        -- Fallback: assume 1:1 if mapping is missing for this fragment
+        logger.warn("Varbook: no spine mapping for DocFragment[" .. frag_n .. "]",
+            "falling back to frag_index")
+        spine_index = frag_index
+    end
+
+    local spine_href = mapping.spine_hrefs[spine_index] or ""
+
+    logger.dbg("Varbook: extractPivot DocFragment[" .. frag_n .. "]",
+        "→ spine_index=", spine_index,
+        "(offset=", mapping.offset, ")",
         "spine_percent=", string.format("%.4f", spine_percent),
         "spine_href=", spine_href)
 
@@ -210,29 +385,68 @@ function Varbook:extractPivot()
 end
 
 --- Navigate to a pivot position.
--- Computes target pixel position within the DocFragment and navigates there.
+-- Converts OPF spine_index to CREngine DocFragment number using the spine mapping,
+-- then applies spine_percent within the fragment boundaries.
 -- @param pivot table {spine_index, spine_href, spine_percent}
 -- @return boolean True if navigation succeeded
 function Varbook:resolvePivot(pivot)
     if self.ui.document.info.has_pages then return false end
 
-    local frag_n = pivot.spine_index + 1 -- 0-based to 1-based
-    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
+    local mapping = self:getSpineMapping()
 
+    -- Resolve spine_index → DocFragment number via mapping
+    local frag_n = mapping.frag_for_spine[pivot.spine_index]
+
+    -- Validate with spine_href if available
+    if frag_n and pivot.spine_href and pivot.spine_href ~= "" then
+        local expected_href = mapping.spine_hrefs[pivot.spine_index]
+        if expected_href and expected_href ~= pivot.spine_href then
+            logger.warn("Varbook: spine_index/href mismatch!",
+                "spine_index=", pivot.spine_index,
+                "expected_href=", expected_href,
+                "pivot_href=", pivot.spine_href)
+            -- Search for the correct spine_index by href
+            frag_n = nil -- force fallback below
+        end
+    end
+
+    -- Fallback: search by spine_href in the mapping
+    if not frag_n and pivot.spine_href and pivot.spine_href ~= "" then
+        logger.dbg("Varbook: searching for spine_href", pivot.spine_href)
+        for si, href in pairs(mapping.spine_hrefs) do
+            if href == pivot.spine_href then
+                frag_n = mapping.frag_for_spine[si]
+                logger.dbg("Varbook: found spine_href at spine_index=", si,
+                    "→ DocFragment[" .. (frag_n or "nil") .. "]")
+                break
+            end
+        end
+    end
+
+    -- Last resort: assume 1:1 mapping
+    if not frag_n then
+        frag_n = pivot.spine_index + 1
+        logger.warn("Varbook: no mapping found, using spine_index+1 =",
+            frag_n, "as DocFragment")
+    end
+
+    -- Verify DocFragment exists
+    local start_xp = "/body/DocFragment[" .. frag_n .. "]/body"
     if not self.ui.document:isXPointerInDocument(start_xp) then
-        logger.warn("Varbook: pivot DocFragment[" .. frag_n .. "] not found")
+        logger.warn("Varbook: DocFragment[" .. frag_n .. "] not in document")
         return false
     end
 
+    -- Get DocFragment boundaries
     local ok_start, start_pos = pcall(
         self.ui.document.getPosFromXPointer, self.ui.document, start_xp)
     if not ok_start or not start_pos then
-        logger.warn("Varbook: pivot getPosFromXPointer failed for start")
+        logger.warn("Varbook: resolvePivot getPosFromXPointer failed")
         return false
     end
 
-    -- End boundary
-    local end_pos = self.ui.document.info.doc_height
+    local doc_height = self.ui.document.info.doc_height
+    local end_pos = doc_height
     local next_xp = "/body/DocFragment[" .. (frag_n + 1) .. "]/body"
     if self.ui.document:isXPointerInDocument(next_xp) then
         local ok_next, next_pos = pcall(
@@ -242,18 +456,17 @@ function Varbook:resolvePivot(pivot)
         end
     end
 
-    -- Target pixel position
+    -- Apply spine_percent within the DocFragment
     local target_pos = start_pos + (end_pos - start_pos) * pivot.spine_percent
-
-    -- Convert to page number and navigate
     local page_count = self.ui.document:getPageCount()
-    local doc_height = self.ui.document.info.doc_height
     local target_page = math.floor(target_pos / doc_height * page_count)
     target_page = math.max(1, math.min(page_count, target_page))
 
     logger.dbg("Varbook: resolvePivot spine_index=", pivot.spine_index,
+        "→ DocFragment[" .. frag_n .. "]",
+        "(offset=", mapping.offset, ")",
         "spine_percent=", pivot.spine_percent,
-        "target_pos=", target_pos, "target_page=", target_page, "/", page_count)
+        "target_page=", target_page, "/", page_count)
 
     local target_xp = self.ui.document:getPageXPointer(target_page)
     self.ui:handleEvent(Event:new("GotoXPointer", target_xp))
