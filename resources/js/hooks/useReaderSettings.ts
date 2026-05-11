@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 
 export type Theme = 'light' | 'dark' | 'sepia';
-export type FontFamily = 'default' | 'literata' | 'merriweather' | 'lora' | 'inter' | 'opensans' | 'dyslexic';
+export type FontFamily = 'epub' | 'default' | 'literata' | 'merriweather' | 'lora' | 'garamond' | 'crimson' | 'inter' | 'opensans' | 'atkinson' | 'dyslexic';
 export type Margins = 'compact' | 'normal' | 'wide';
 
 interface ReaderSettings {
@@ -104,12 +104,16 @@ export const themeBackgrounds: Record<Theme, string> = {
 };
 
 export const fontFamilies: Record<FontFamily, string> = {
+    epub: '',  // Empty string: don't override, let the epub's own CSS apply
     default: 'inherit',
     literata: '"Literata", Georgia, serif',
     merriweather: '"Merriweather", Georgia, serif',
     lora: '"Lora", Georgia, serif',
+    garamond: '"EB Garamond", Garamond, serif',
+    crimson: '"Crimson Pro", Georgia, serif',
     inter: '"Inter", system-ui, sans-serif',
     opensans: '"Open Sans", system-ui, sans-serif',
+    atkinson: '"Atkinson Hyperlegible", system-ui, sans-serif',
     dyslexic: '"OpenDyslexic", Arial, sans-serif',
 };
 

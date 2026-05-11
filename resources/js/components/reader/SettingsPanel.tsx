@@ -41,12 +41,16 @@ export function SettingsPanel({
 
     const themes: Theme[] = ['light', 'dark', 'sepia'];
     const fonts: { key: FontFamily; label: string }[] = [
-        { key: 'default', label: t('Default') },
+        { key: 'epub', label: t('Book default') },
+        { key: 'default', label: t('System') },
         { key: 'literata', label: 'Literata' },
-        { key: 'merriweather', label: 'Merriweather' },
         { key: 'lora', label: 'Lora' },
+        { key: 'merriweather', label: 'Merriweather' },
+        { key: 'garamond', label: 'EB Garamond' },
+        { key: 'crimson', label: 'Crimson Pro' },
         { key: 'inter', label: 'Inter' },
         { key: 'opensans', label: 'Open Sans' },
+        { key: 'atkinson', label: 'Atkinson' },
         { key: 'dyslexic', label: 'Dyslexic' },
     ];
     const marginOptions: Margins[] = ['compact', 'normal', 'wide'];

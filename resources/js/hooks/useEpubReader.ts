@@ -251,7 +251,14 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const applyTypography = useCallback(() => {
         if (!renditionRef.current) return;
         renditionRef.current.themes.fontSize(`${settings.fontSize}%`);
-        renditionRef.current.themes.font(fontFamilies[settings.fontFamily]);
+        const fontValue = fontFamilies[settings.fontFamily];
+        if (fontValue) {
+            renditionRef.current.themes.font(fontValue);
+        } else {
+            // "epub" mode: remove font override to let the book's own CSS apply
+            renditionRef.current.themes.font('inherit');
+            renditionRef.current.themes.override('font-family', '');
+        }
         renditionRef.current.themes.override('line-height', String(settings.lineHeight));
         const margin = marginValues[settings.margins];
         renditionRef.current.themes.override('padding', `${margin.top}px ${margin.side}px`);
@@ -322,6 +329,18 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
                 rendition.hooks.content.register((contents: any) => {
                     const doc = contents.document;
+
+                    // Inject reader fonts into epub.js iframe (fonts loaded in parent page
+                    // are not available inside the iframe)
+                    const fontLink = doc.createElement('link');
+                    fontLink.rel = 'stylesheet';
+                    fontLink.href = 'https://fonts.bunny.net/css?family=atkinson-hyperlegible:400,400i,700|crimson-pro:400,400i,700|eb-garamond:400,400i,700|inter:400,500,600,700|literata:400,400i,700|lora:400,400i,700|merriweather:400,400i,700|open-sans:400,400i,700';
+                    doc.head.appendChild(fontLink);
+
+                    const dyslexicLink = doc.createElement('link');
+                    dyslexicLink.rel = 'stylesheet';
+                    dyslexicLink.href = 'https://fonts.cdnfonts.com/css/opendyslexic';
+                    doc.head.appendChild(dyslexicLink);
 
                     // Block browser navigation gestures via CSS
                     doc.body.style.touchAction = 'pan-y pinch-zoom';
