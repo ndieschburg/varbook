@@ -29,7 +29,7 @@ A self-hosted EPUB library with cross-device reading sync. Read on your e-reader
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/varbook.git
+git clone https://github.com/ndieschburg/varbook.git
 cd varbook
 ```
 

@@ -116,7 +116,7 @@ export function LandingPage() {
                             <span className="text-sm font-medium text-emerald-300">{t('landing.badge.android')}</span>
                         </div>
                         <a
-                            href="https://github.com/your-username/varbook"
+                            href="https://github.com/ndieschburg/varbook"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 px-4 py-2 bg-gray-700/50 border border-gray-600/50 rounded-full hover:bg-gray-600/50 hover:border-gray-500/50 transition-all duration-200"
