@@ -1,19 +1,17 @@
 # Varbook
 
-A self-hosted Laravel + React application for managing personal EPUB libraries with multi-device reading position sync. Features an integrated EPUB reader with offline PWA support, OPDS catalog, WebDAV sync for Moon+ Reader, and kosync API for KOReader.
+A self-hosted EPUB library with cross-device reading sync. Read on your e-reader (KOReader, Moon+ Reader), pick up where you left off in the browser -- and vice versa. Built with Laravel + React, installable as an offline-capable PWA.
 
 ## Features
 
 - **EPUB Library Management**: Upload, organize, and manage your EPUB collection
-- **Integrated EPUB Reader**: Read books directly in the browser with epub.js
+- **Integrated EPUB Reader**: Full-featured browser-based reader with customizable fonts (Literata, EB Garamond, Crimson Pro, Atkinson Hyperlegible...), themes, and layout settings
 - **PWA Support**: Install as a standalone app, read offline with cached books
 - **Automatic Metadata Extraction**: Title, author, description, cover image extracted from EPUB files
 - **Reading Progress Tracking**: Track reading progress and total reading time per book
 - **Reading Sessions**: Detailed history of reading sessions with duration and progress
-- **Multi-Device Sync**: Sync reading positions across devices
+- **Cross-Device Reading Sync**: Read on your e-reader, pick up where you left off in the browser -- and vice versa (see [Multi-Device Sync](#multi-device-sync) below)
 - **OPDS Catalog**: Browse and download books from any OPDS-compatible reader
-- **WebDAV Sync**: Sync reading positions with Moon+ Reader Pro
-- **KOReader Support**: Sync reading positions with KOReader via kosync API
 - **Multi-user Support**: Each user has an isolated library
 - **Admin Dashboard**: Manage users and view statistics
 - **Dark Theme UI**: Modern, responsive interface with Tailwind CSS
@@ -31,7 +29,7 @@ A self-hosted Laravel + React application for managing personal EPUB libraries w
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/ndieschburg/varbook.git
+git clone https://github.com/your-username/varbook.git
 cd varbook
 ```
 
@@ -179,23 +177,68 @@ Each book's detail page shows a history of reading sessions:
 - Progress change (e.g., "32% → 45%")
 - Client used (Web Reader, Moon+ Reader, KOReader, etc.)
 
-## Moon+ Reader Configuration
+## Multi-Device Sync
+
+Varbook's main feature is seamless reading position sync between the web reader and e-reader apps. Read a chapter on your Kobo before bed, open the web app on your phone the next morning, and you're right where you left off.
+
+### How it works
+
+Each client tracks reading position in its own native format (EPUB CFI for the web reader, XPointer for KOReader, percentage for others). Varbook bridges them using a **pivot format** that stores the spine item index and the position within that chapter. This allows accurate cross-device navigation even though each reader engine paginates differently.
+
+| Scenario | Navigation method |
+|----------|------------------|
+| Web → Web (same device) | EPUB CFI (exact position) |
+| KOReader → KOReader | XPointer (exact position) |
+| KOReader → Web | Pivot (spine index + chapter percentage) |
+| Web → KOReader | Pivot (spine index + chapter percentage) |
+| Any client → fallback | Global percentage |
+
+### KOReader Setup
+
+Varbook ships with a dedicated KOReader plugin (`varbook.koplugin`) that replaces the built-in kosync progress sync with richer cross-device support.
+
+1. Copy the `koreader_plugin/varbook.koplugin/` folder to your KOReader `plugins/` directory
+2. Open a book in KOReader
+3. Go to **Tools** → **Varbook**
+4. Configure **Server URL** (`https://your-domain.com`) and **API Token** (generate one from your Profile page in the web app)
+5. Tap **Sync now** to push/pull reading positions
+
+The plugin:
+- Tracks every page turn locally in SQLite (works offline)
+- On manual sync: pushes all unsynced positions to the server, or navigates to the server position if another device has read further
+- Uses binary search on CREngine's page/fragment mapping for accurate pivot resolution
+- Can be assigned to any gesture via **Tools** → **Gestures** → **Varbook Sync**
+
+### Moon+ Reader Setup (Experimental)
+
+> Moon+ Reader sync via WebDAV is experimental and not extensively tested. It works for basic position sync but may have edge cases.
 
 Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV (for syncing reading positions).
 
-### OPDS Setup (Browse & Download Books)
+#### OPDS Setup (Browse & Download Books)
 
 1. Open Moon+ Reader Pro
 2. Go to **Menu** → **Net Library** → **OPDS catalogs**
 3. Tap **+** to add a new catalog
-4. Enter the following:
-   - **Name**: Varbook (or any name you prefer)
+4. Enter:
+   - **Name**: Varbook
    - **URL**: `https://your-domain.com/opds`
    - **Username**: Your Varbook email
    - **Password**: Your Varbook password
-5. Tap **OK** to save
 
-#### OPDS Endpoints
+#### WebDAV Setup (Sync Reading Positions)
+
+1. Go to **Menu** → **Miscellaneous** → **Sync reading positions**
+2. Select **WebDAV** as the sync method
+3. Enter:
+   - **WebDAV URL**: `https://your-domain.com/webdav`
+   - **Username**: Your Varbook email
+   - **Password**: Your Varbook password
+4. Tap **Test** to verify the connection
+
+### OPDS Endpoints
+
+Any OPDS-compatible reader can browse and download books from Varbook:
 
 | Endpoint | Description |
 |----------|-------------|
@@ -205,40 +248,6 @@ Moon+ Reader Pro supports both OPDS (for browsing/downloading books) and WebDAV 
 | `/opds/by-author/{author}` | Books by specific author |
 | `/opds/search?q={query}` | Search by title or author |
 
-### WebDAV Setup (Sync Reading Positions)
-
-1. Open Moon+ Reader Pro
-2. Go to **Menu** → **Miscellaneous** → **Sync reading positions**
-3. Select **WebDAV** as the sync method
-4. Enter the following:
-   - **WebDAV URL**: `https://your-domain.com/webdav`
-   - **Username**: Your Varbook email
-   - **Password**: Your Varbook password
-5. Tap **Test** to verify the connection
-6. Enable **Auto sync** for automatic position syncing
-
-## KOReader Configuration
-
-KOReader syncs reading positions using the kosync protocol.
-
-### kosync Setup
-
-1. Open KOReader
-2. Go to **Tools** → **Progress sync**
-3. Select **Custom sync server**
-4. Enter the following:
-   - **Server URL**: `https://your-domain.com/api/kosync`
-   - **Username**: Your Varbook email
-   - **Password**: Your Varbook password
-5. Tap **Login** to authenticate
-
-### How kosync Works
-
-- KOReader syncs position on book open/close and periodically
-- Varbook tracks these as reading sessions
-- Progress is calculated from the position data
-- Same session grouping logic as WebDAV (10-minute gap)
-
 ## API Reference
 
 ### Authentication
@@ -246,9 +255,10 @@ KOReader syncs reading positions using the kosync protocol.
 | Protocol | Auth Method | Used By |
 |----------|-------------|---------|
 | Web SPA | Sanctum (cookie) | Browser |
+| Varbook API | Bearer token | KOReader plugin |
 | OPDS | HTTP Basic Auth | Moon+ Reader, etc. |
 | WebDAV | HTTP Basic Auth | Moon+ Reader |
-| kosync | Header auth (`x-auth-user`, `x-auth-key`) | KOReader |
+| kosync | Header auth (`x-auth-user`, `x-auth-key`) | KOReader (legacy) |
 
 ### JSON API Endpoints
 

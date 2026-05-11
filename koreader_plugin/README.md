@@ -73,7 +73,7 @@ Safely eject the Kobo, then restart KOReader (or the Kobo itself).
 
 1. Open any book in KOReader
 2. Open the menu (tap the top of the screen)
-3. **Tools > Varbook > Server URL**: enter the server URL (e.g. `https://bookshelf.hophop.be`)
+3. **Tools > Varbook > Server URL**: enter the server URL (e.g. `https://your-domain.com`)
 4. **Tools > Varbook > API Token**: enter the 16-character token
 
 ## Usage

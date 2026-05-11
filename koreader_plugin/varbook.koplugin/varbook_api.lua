@@ -13,7 +13,7 @@ local logger = require("logger")
 local VarbookAPI = {}
 
 --- Initialize with server URL and token.
--- @param server_url string Base server URL (e.g. "https://bookshelf.hophop.be")
+-- @param server_url string Base server URL (e.g. "https://your-domain.com")
 -- @param token string 16-char API token
 function VarbookAPI:new(server_url, token)
     local o = {
