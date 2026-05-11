@@ -24,6 +24,7 @@ Homestead.yaml
 Thumbs.db
 CLAUDE.md
 .gitea/
+docs/
 koreader_plugin/SPECS.md
 
 # Personal dotfiles (symlinked from dotfiles repo)
