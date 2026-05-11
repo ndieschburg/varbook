@@ -65,6 +65,7 @@
     "Back": "Back",
     "Loading book...": "Loading book...",
     "Syncing position from {{client}}...": "Syncing position from {{client}}...",
+    "Sync position to server": "Sync position to server",
     "Table of Contents": "Table of Contents",
     "Theme": "Theme",
     "Light": "Light",

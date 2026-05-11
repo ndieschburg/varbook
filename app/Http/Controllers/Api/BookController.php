@@ -258,13 +258,18 @@ class BookController extends Controller
             requestData: $validated
         );
 
+        $eventTimestamp = isset($validated['timestamp'])
+            ? \Carbon\Carbon::parse($validated['timestamp'])
+            : null;
+
         $this->readingSessionService->processSyncEvent(
             book: $book,
             client: $client,
             externalIdentifier: $book->file_hash,
             progress: $validated['progress'],
             rawPayload: ['source' => 'api', 'timestamp' => $validated['timestamp'] ?? now()->toIso8601String()],
-            rawPosition: $validated['position'] ?? null
+            rawPosition: $validated['position'] ?? null,
+            eventTimestamp: $eventTimestamp
         );
 
         return response()->json([

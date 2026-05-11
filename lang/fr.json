@@ -78,6 +78,7 @@
     "Back": "Retour",
     "Loading book...": "Chargement du livre...",
     "Syncing position from {{client}}...": "Synchronisation de la position depuis {{client}}...",
+    "Sync position to server": "Synchroniser la position vers le serveur",
     "Table of Contents": "Table des matières",
     "Theme": "Thème",
     "Light": "Clair",

@@ -225,7 +225,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         }
     }, [debug]);
 
-    const { loadPosition, savePosition } = usePositionSync({
+    const { loadPosition, savePosition, forceSync } = usePositionSync({
         bookId,
         onMultiDeviceSync: handleMultiDeviceSync,
         extractPivot,
@@ -699,6 +699,15 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         renditionRef.current?.display(result.cfi);
     }, []);
 
+    // Force push current position to server (bypasses debounce)
+    const forceSyncPosition = useCallback(async (): Promise<boolean> => {
+        if (!renditionRef.current) return false;
+        const location = renditionRef.current.currentLocation() as any;
+        const cfi = location?.start?.cfi;
+        if (!cfi) return false;
+        return forceSync(cfi, progressRef.current);
+    }, [forceSync]);
+
     // Keyboard navigation
     useEffect(() => {
         const handleKeydown = (e: KeyboardEvent) => {
@@ -731,6 +740,7 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         goToPercentage,
         search,
         goToSearchResult,
+        forceSyncPosition,
         needsFullscreenRestore,
         restoreFullscreen,
     };

@@ -7,6 +7,7 @@ import {
     getUnsyncedPositions,
     markPositionsSynced,
     cleanupOldPositions,
+    type BookSyncState,
 } from '@/services/offlineDb';
 import {
     isEffectivelyOffline,
@@ -43,13 +44,47 @@ export interface LoadedPosition {
 
 
 /**
+ * Determine if the local reader should navigate to the server position.
+ *
+ * - Web-to-web (same client type): only sync if server progress is strictly AHEAD.
+ *   This prevents going backwards due to clock skew between browser and server.
+ * - Cross-client (koreader/moon → web): sync if server timestamp is newer and
+ *   progress differs, or if the pivot has been updated more recently than local.
+ */
+function shouldSyncFromServer(
+    serverPos: { cfi: string | null; progress: number; timestamp: Date | null; lastSyncClient: string | null; pivot: PivotData | null },
+    localState: BookSyncState
+): boolean {
+    const isCrossClient = serverPos.lastSyncClient !== 'web' && serverPos.lastSyncClient !== null;
+    const localProgress = localState.lastLocalProgress || 0;
+
+    if (isCrossClient) {
+        const serverTime = serverPos.timestamp?.getTime() || 0;
+        const localTime = localState.lastLocalTimestamp?.getTime() || 0;
+        const pivotTime = serverPos.pivot?.updated_at
+            ? new Date(serverPos.pivot.updated_at).getTime() : 0;
+
+        const serverIsNewer = serverTime > localTime || pivotTime > localTime;
+        const progressDiffers = Math.abs(serverPos.progress - localProgress) > 1;
+
+        return serverIsNewer && progressDiffers;
+    }
+
+    // Web-to-web: only sync forward, never backwards
+    const serverIsAhead = serverPos.progress > localProgress + 1;
+    const hasDifferentPosition = !!serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
+
+    return serverIsAhead && hasDifferentPosition;
+}
+
+/**
  * Local-first position synchronization hook
  *
  * Strategy:
  * - Always save to IndexedDB first (guaranteed persistence)
  * - Sync to server in background (best effort)
  * - On load: use local position immediately, check server in background
- * - Detect multi-device sync via timestamp comparison
+ * - Cross-client sync via timestamp, same-client sync via progress comparison
  */
 export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, extractPivot }: PositionSyncOptions) {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,34 +131,13 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, e
                     const localState = await getBookSyncState(bookId);
                     if (!localState) return;
 
-                    const serverTime = serverPos.timestamp?.getTime() || 0;
-                    const localTime = localState.lastLocalTimestamp?.getTime() || 0;
-
-                    // If server has newer position, sync to it
-                    const serverIsNewer = serverTime > localTime;
-                    const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
-                    // Cross-client pivot sync: compare pivot timestamp with local reading
-                    // The pivot.updated_at reflects when the external client actually synced,
-                    // not when the web client last opened the book
-                    const pivotTime = serverPos.pivot?.updated_at
-                        ? new Date(serverPos.pivot.updated_at).getTime() : 0;
-                    const externalClientHasNewerPivot = serverPos.lastSyncClient !== 'web'
-                        && serverPos.lastSyncClient !== null
-                        && !!serverPos.pivot
-                        && pivotTime > localTime;
-
-                    if ((serverIsNewer && serverHasDifferentPosition) || externalClientHasNewerPivot) {
-                        const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
+                    if (shouldSyncFromServer(serverPos, localState)) {
                         debugLog('PositionSync', 'Server position changed while app was hidden, syncing', {
                             serverCfi: serverPos.cfi,
                             localCfi: localState.lastLocalCfi,
                             serverProgress: serverPos.progress,
                             localProgress: localState.lastLocalProgress,
                             lastSyncClient: serverPos.lastSyncClient,
-                            navigationMode: willUseCfi ? 'cfi' : 'percentage',
-                            reason: willUseCfi
-                                ? 'last sync from web, CFI available'
-                                : `last sync from ${serverPos.lastSyncClient || 'unknown'}, falling back to percentage`,
                         });
                         onMultiDeviceSyncRef.current?.({
                             cfi: serverPos.cfi,
@@ -175,32 +189,13 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, e
                 .then((serverPos) => {
                     if (!serverPos || !isMountedRef.current) return;
 
-                    const serverTime = serverPos.timestamp?.getTime() || 0;
-                    const localTime = localState.lastLocalTimestamp?.getTime() || 0;
-
-                    // Use server position if it's more recent (handles same-device sync issues)
-                    // This fixes the case where IndexedDB wasn't updated due to page close during debounce
-                    const serverIsNewer = serverTime > localTime;
-                    const serverHasDifferentPosition = serverPos.cfi && serverPos.cfi !== localState.lastLocalCfi;
-                    // When last sync is from an external client (koreader, moon), the web CFI may match
-                    // local but the overall progress can be different (synced via percentage)
-                    const externalClientHasDifferentProgress = serverPos.lastSyncClient !== 'web'
-                        && serverPos.lastSyncClient !== null
-                        && Math.abs(serverPos.progress - (localState.lastLocalProgress || 0)) > 1;
-
-                    if (serverIsNewer && (serverHasDifferentPosition || externalClientHasDifferentProgress)) {
-                        const willUseCfi = serverPos.lastSyncClient === 'web' && !!serverPos.cfi;
+                    if (shouldSyncFromServer(serverPos, localState)) {
                         debugLog('PositionSync', 'Server position is more recent, syncing', {
                             serverProgress: serverPos.progress,
                             localProgress: localState.lastLocalProgress,
                             serverCfi: serverPos.cfi,
                             localCfi: localState.lastLocalCfi,
-                            timeDiff: serverTime - localTime,
                             lastSyncClient: serverPos.lastSyncClient,
-                            navigationMode: willUseCfi ? 'cfi' : 'percentage',
-                            reason: willUseCfi
-                                ? 'last sync from web, CFI available'
-                                : `last sync from ${serverPos.lastSyncClient || 'unknown'}, falling back to percentage`,
                         });
 
                         // Notify reader to navigate to server position
@@ -309,9 +304,40 @@ export function usePositionSync({ bookId, debounceMs = 500, onMultiDeviceSync, e
         [bookId, debounceMs]
     );
 
+    /**
+     * Force-push the current local position to the server immediately.
+     * Useful after browsing ahead and returning to original position.
+     */
+    const forceSync = useCallback(
+        async (cfi: string, progress: number): Promise<boolean> => {
+            if (isEffectivelyOffline()) {
+                debugWarn('PositionSync', 'Cannot force sync: offline');
+                return false;
+            }
+
+            debugLog('PositionSync', 'Force sync triggered', { cfi, progress });
+
+            // Save locally first
+            await saveLocalPosition(bookId, cfi, progress);
+
+            // Sync to server immediately (no debounce)
+            const pivot = extractPivotRef.current?.() || null;
+            try {
+                await syncToServer(bookId, cfi, progress, pivot);
+                debugLog('PositionSync', 'Force sync successful');
+                return true;
+            } catch (error) {
+                debugError('PositionSync', 'Force sync failed', error);
+                return false;
+            }
+        },
+        [bookId]
+    );
+
     return {
         loadPosition,
         savePosition,
+        forceSync,
     };
 }
 

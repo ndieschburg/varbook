@@ -6,7 +6,7 @@ import { useEpubReader } from '@/hooks';
 import { themeBackgrounds } from '@/hooks/useReaderSettings';
 import { LoadingSpinner } from '@/components/ui';
 import { TocPanel, SearchPanel, SettingsPanel } from '@/components/reader';
-import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from '@/components/icons';
+import { ArrowLeftIcon, MenuIcon, CogIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, CloudSyncIcon } from '@/components/icons';
 import { setDebugMode } from '@/services/debugLogger';
 
 type ActivePanel = 'toc' | 'search' | 'settings' | null;
@@ -44,6 +44,7 @@ export function ReaderPage() {
         searchResults,
         isSearching,
         syncingPositionFrom,
+        forceSyncPosition,
         settings,
         setTheme,
         setFontSize,
@@ -74,6 +75,16 @@ export function ReaderPage() {
 
     const [activePanel, setActivePanel] = useState<ActivePanel>(null);
     const [showControls, setShowControls] = useState(true);
+    const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'done'>('idle');
+
+    const handleForceSync = async () => {
+        setSyncState('syncing');
+        const ok = await forceSyncPosition();
+        setSyncState(ok ? 'done' : 'idle');
+        if (ok) {
+            setTimeout(() => setSyncState('idle'), 1500);
+        }
+    };
 
     // Toggle panel: close if already open, open and close others if closed
     const togglePanel = (panel: ActivePanel) => {
@@ -161,6 +172,20 @@ export function ReaderPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                onClick={handleForceSync}
+                                disabled={syncState === 'syncing'}
+                                className={`p-2 transition-colors ${
+                                    syncState === 'done'
+                                        ? 'text-green-400'
+                                        : syncState === 'syncing'
+                                            ? 'text-indigo-400 animate-pulse'
+                                            : 'text-gray-400 hover:text-white'
+                                }`}
+                                title={t('Sync position to server')}
+                            >
+                                <CloudSyncIcon className={`h-5 w-5 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
+                            </button>
                             <button
                                 onClick={() => togglePanel('search')}
                                 className={`p-2 transition-colors ${activePanel === 'search' ? 'text-indigo-400' : 'text-gray-400 hover:text-white'}`}
