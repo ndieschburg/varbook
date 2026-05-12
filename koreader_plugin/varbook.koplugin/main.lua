@@ -533,48 +533,70 @@ function Varbook:doSync()
         return
     end
 
-    -- Step 2: Compare server progress with local position
-    local current = self:getPercentage() or 0
+    -- Step 2: Check if server has a newer sync than our last koreader sync
+    local last_local_sync = self:getLastSyncTimestamp()
+    local server_timestamp = server and server.timestamp or 0
+    local server_client = server and server.last_sync_client
     local server_progress = server and server.progress or 0
-    logger.dbg("Varbook: sync server=", server_progress, "% local=", current, "%",
-        "client=", server and server.last_sync_client,
-        "has_pivot=", server and server.pivot ~= nil)
+    local current = self:getPercentage() or 0
 
-    if server and server_progress > current + 1 then
-        -- Server is ahead: navigate there
-        local use_xpointer = server.last_sync_client == "koreader"
-            and server.position
-            and not self.ui.document.info.has_pages
+    logger.dbg("Varbook: === SYNC DECISION ===")
+    logger.dbg("Varbook:   server_client=", server_client)
+    logger.dbg("Varbook:   server_timestamp=", server_timestamp,
+        "(", server_timestamp > 0 and os.date("%Y-%m-%d %H:%M:%S", server_timestamp) or "N/A", ")")
+    logger.dbg("Varbook:   last_local_sync=", last_local_sync,
+        "(", last_local_sync > 0 and os.date("%Y-%m-%d %H:%M:%S", last_local_sync) or "never", ")")
+    logger.dbg("Varbook:   server_progress=", server_progress, "% local=", current, "%")
+    logger.dbg("Varbook:   has_pivot=", server and server.pivot ~= nil,
+        "has_xpointer=", server and server.position ~= nil and server.position ~= "")
+    logger.dbg("Varbook:   server_is_newer=", server_timestamp > last_local_sync)
 
-        local use_pivot = server.last_sync_client ~= "koreader"
-            and server.pivot
-            and not self.ui.document.info.has_pages
-
-        if use_xpointer then
-            logger.dbg("Varbook: nav XPOINTER →", server.position)
-            self.ui:handleEvent(Event:new("GotoXPointer", server.position))
-        elseif use_pivot then
-            logger.dbg("Varbook: nav PIVOT",
-                "spine_index=", server.pivot.spine_index,
-                "spine_href=", server.pivot.spine_href,
-                "spine_percent=", server.pivot.spine_percent,
-                "source=", server.pivot.source)
-            local ok = self:resolvePivot(server.pivot)
-            if not ok then
-                logger.dbg("Varbook: pivot failed → fallback PERCENTAGE")
+    if server and server_timestamp > last_local_sync then
+        -- Server has a sync strictly more recent than our last koreader sync
+        if server_client == "koreader" then
+            -- Last sync came from koreader (another device): use xpointer
+            if server.position and server.position ~= ""
+                and not self.ui.document.info.has_pages then
+                logger.dbg("Varbook: nav XPOINTER (from another koreader device)")
+                logger.dbg("Varbook:   xpointer=", server.position)
+                self.ui:handleEvent(Event:new("GotoXPointer", server.position))
+                navigated = true
+            else
+                logger.dbg("Varbook: koreader sync but no usable xpointer, fallback PERCENTAGE")
                 local page_count = self.ui.document:getPageCount()
                 local target_page = math.floor(page_count * server_progress / 100)
+                logger.dbg("Varbook:   target_page=", target_page, "/", page_count)
                 self.ui:handleEvent(Event:new("GotoPage", target_page))
+                navigated = true
             end
         else
-            local page_count = self.ui.document:getPageCount()
-            local target_page = math.floor(page_count * server_progress / 100)
-            logger.dbg("Varbook: nav PERCENTAGE → page", target_page, "/", page_count)
-            self.ui:handleEvent(Event:new("GotoPage", target_page))
+            -- Last sync came from another client (web, moon, etc.): use pivot (spine)
+            if server.pivot and not self.ui.document.info.has_pages then
+                logger.dbg("Varbook: nav PIVOT (from client:", server_client, ")")
+                logger.dbg("Varbook:   spine_index=", server.pivot.spine_index,
+                    "spine_href=", server.pivot.spine_href,
+                    "spine_percent=", server.pivot.spine_percent,
+                    "source=", server.pivot.source)
+                local ok = self:resolvePivot(server.pivot)
+                if not ok then
+                    logger.dbg("Varbook: pivot resolve FAILED → fallback PERCENTAGE")
+                    local page_count = self.ui.document:getPageCount()
+                    local target_page = math.floor(page_count * server_progress / 100)
+                    logger.dbg("Varbook:   target_page=", target_page, "/", page_count)
+                    self.ui:handleEvent(Event:new("GotoPage", target_page))
+                end
+            else
+                logger.dbg("Varbook: no pivot available, fallback PERCENTAGE")
+                local page_count = self.ui.document:getPageCount()
+                local target_page = math.floor(page_count * server_progress / 100)
+                logger.dbg("Varbook:   target_page=", target_page, "/", page_count)
+                self.ui:handleEvent(Event:new("GotoPage", target_page))
+            end
+            navigated = true
         end
-        navigated = true
     else
-        logger.dbg("Varbook: no navigation needed")
+        logger.dbg("Varbook: no navigation needed",
+            "(server_timestamp <= last_local_sync or no server data)")
     end
 
     -- Step 3: Handle local unsynced positions
@@ -613,7 +635,10 @@ function Varbook:doSync()
     self:setLastSyncTimestamp(os.time())
 
     local msg
-    if navigated then
+    if navigated and server.pivot and server_client ~= "koreader" then
+        msg = string.format(_("Navigated to spine %d position %.0f%%."),
+            server.pivot.spine_index, server.pivot.spine_percent * 100)
+    elseif navigated then
         msg = string.format(_("Synced to %.2f%%."), server.progress)
     elseif synced_count > 0 then
         msg = string.format(_("Pushed %d positions."), synced_count)
