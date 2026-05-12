@@ -541,8 +541,10 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
                     const currentChapter = findCurrentChapter(location);
 
-                    // Chapter-level page info from epub.js displayed property
-                    const chapterDisplayed = location.start?.displayed;
+                    // Chapter-level page info: use currentLocation() which reliably
+                    // exposes the displayed property (the relocated event param may not)
+                    const currentLoc = rendition.currentLocation() as any;
+                    const chapterDisplayed = currentLoc?.start?.displayed;
                     const chapterCurrentPage = chapterDisplayed?.page || 0;
                     const chapterPagesTotal = chapterDisplayed?.total || 0;
 
