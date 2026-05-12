@@ -31,6 +31,12 @@ interface LocationInfo {
     currentPage: number;
     totalPages: number;
     currentChapter: string;
+    /** Pages remaining in the current spine item (chapter) */
+    chapterPagesLeft: number;
+    /** Total pages in the current spine item (chapter) */
+    chapterPagesTotal: number;
+    /** Current page within the spine item (chapter) */
+    chapterCurrentPage: number;
 }
 
 interface EpubReaderState {
@@ -83,6 +89,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
             currentPage: 0,
             totalPages: 0,
             currentChapter: '',
+            chapterPagesLeft: 0,
+            chapterPagesTotal: 0,
+            chapterCurrentPage: 0,
         },
         searchResults: [],
         isSearching: false,
@@ -463,6 +472,11 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                             page: `${currentPage}/${totalPages}`,
                         });
 
+                        // Extract chapter-level page info
+                        const chapterDisplayed = currentLocation.start?.displayed;
+                        const chapterCurrentPage = chapterDisplayed?.page || 0;
+                        const chapterPagesTotal = chapterDisplayed?.total || 0;
+
                         progressRef.current = accurateProgress;
                         setState(prev => ({
                             ...prev,
@@ -472,6 +486,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                                 ...prev.locationInfo,
                                 currentPage,
                                 totalPages,
+                                chapterCurrentPage,
+                                chapterPagesTotal,
+                                chapterPagesLeft: Math.max(0, chapterPagesTotal - chapterCurrentPage),
                             },
                         }));
                     } else {
@@ -524,11 +541,17 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
 
                     const currentChapter = findCurrentChapter(location);
 
+                    // Chapter-level page info from epub.js displayed property
+                    const chapterDisplayed = location.start?.displayed;
+                    const chapterCurrentPage = chapterDisplayed?.page || 0;
+                    const chapterPagesTotal = chapterDisplayed?.total || 0;
+
                     debug('relocated event', {
                         cfi: currentCfi,
                         progress: progress.toFixed(5) + '%',
                         page: `${currentPage}/${totalPages}`,
                         chapter: currentChapter,
+                        chapterPage: `${chapterCurrentPage}/${chapterPagesTotal}`,
                         locationsReady: locationsReadyRef.current,
                     });
 
@@ -540,6 +563,9 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                             currentPage,
                             totalPages,
                             currentChapter,
+                            chapterCurrentPage,
+                            chapterPagesTotal,
+                            chapterPagesLeft: Math.max(0, chapterPagesTotal - chapterCurrentPage),
                         },
                     }));
 
@@ -642,6 +668,34 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const goTo = useCallback((href: string) => {
         shouldSaveOnNextRelocateRef.current = true;
         renditionRef.current?.display(href);
+    }, []);
+
+    const goToNextChapter = useCallback(() => {
+        if (!bookRef.current || !renditionRef.current) return;
+        const location = renditionRef.current.currentLocation() as any;
+        if (!location?.start?.href) return;
+        const currentHref = location.start.href;
+        const spineItem = bookRef.current.spine.get(currentHref);
+        if (!spineItem) return;
+        const nextItem = (bookRef.current.spine as any).get(spineItem.index + 1);
+        if (nextItem) {
+            shouldSaveOnNextRelocateRef.current = true;
+            renditionRef.current.display(nextItem.href);
+        }
+    }, []);
+
+    const goToPrevChapter = useCallback(() => {
+        if (!bookRef.current || !renditionRef.current) return;
+        const location = renditionRef.current.currentLocation() as any;
+        if (!location?.start?.href) return;
+        const currentHref = location.start.href;
+        const spineItem = bookRef.current.spine.get(currentHref);
+        if (!spineItem || spineItem.index <= 0) return;
+        const prevItem = (bookRef.current.spine as any).get(spineItem.index - 1);
+        if (prevItem) {
+            shouldSaveOnNextRelocateRef.current = true;
+            renditionRef.current.display(prevItem.href);
+        }
     }, []);
 
     const goToPercentage = useCallback((percentage: number) => {
@@ -757,6 +811,8 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
         prevPage,
         goTo,
         goToPercentage,
+        goToNextChapter,
+        goToPrevChapter,
         search,
         goToSearchResult,
         forceSyncPosition,

@@ -235,6 +235,30 @@ export function RssIcon({ className }: IconProps) {
     );
 }
 
+export function SkipBackIcon({ className }: IconProps) {
+    return (
+        <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+        </svg>
+    );
+}
+
+export function SkipForwardIcon({ className }: IconProps) {
+    return (
+        <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+            <path d="M16 18h2V6h-2v12zM6 18l8.5-6L6 6v12z" />
+        </svg>
+    );
+}
+
+export function ChapterEndIcon({ className }: IconProps) {
+    return (
+        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 12h14M20 5v14" />
+        </svg>
+    );
+}
+
 export function ChevronDownIcon({ className }: IconProps) {
     return (
         <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
