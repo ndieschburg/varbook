@@ -372,7 +372,7 @@ function Varbook:extractPivot()
         spine_index = frag_n - 1
     end
 
-    local spine_percent = self:computeSpinePercent(xpointer, frag_n)
+    local spine_percent = self:computeSpinePercent(frag_n)
     local spine_href = mapping.spine_hrefs[spine_index] or ""
 
     logger.dbg("Varbook: extractPivot",
