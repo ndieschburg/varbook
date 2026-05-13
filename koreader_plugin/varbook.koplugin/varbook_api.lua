@@ -84,9 +84,9 @@ function VarbookAPI:getProgress(doc_hash)
         return nil, "json_error"
     end
 
-    -- Parse pivot if present
+    -- Parse pivot if present (JSON null decodes as json.null which is a function, not a table)
     local pivot = nil
-    if result.pivot and result.pivot.spine_index then
+    if type(result.pivot) == "table" and result.pivot.spine_index then
         pivot = {
             spine_index = tonumber(result.pivot.spine_index) or 0,
             spine_href = result.pivot.spine_href or "",
