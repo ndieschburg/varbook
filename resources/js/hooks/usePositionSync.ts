@@ -48,8 +48,8 @@ export interface LoadedPosition {
  *
  * - Web-to-web (same client type): only sync if server progress is strictly AHEAD.
  *   This prevents going backwards due to clock skew between browser and server.
- * - Cross-client (koreader/moon → web): sync if server timestamp is newer and
- *   progress differs, or if the pivot has been updated more recently than local.
+ * - Cross-client (koreader/moon → web): sync if server timestamp is newer.
+ *   The other device's position is authoritative regardless of progress delta.
  */
 function shouldSyncFromServer(
     serverPos: { cfi: string | null; progress: number; timestamp: Date | null; lastSyncClient: string | null; pivot: PivotData | null },
@@ -65,9 +65,11 @@ function shouldSyncFromServer(
             ? new Date(serverPos.pivot.updated_at).getTime() : 0;
 
         const serverIsNewer = serverTime > localTime || pivotTime > localTime;
-        const progressDiffers = Math.abs(serverPos.progress - localProgress) > 1;
 
-        return serverIsNewer && progressDiffers;
+        // For cross-client sync, timestamp alone is sufficient.
+        // The position from another device is authoritative when newer,
+        // even if progress difference is small (e.g. < 1%).
+        return serverIsNewer;
     }
 
     // Web-to-web: only sync forward, never backwards
