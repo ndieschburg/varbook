@@ -315,7 +315,8 @@ class BookController extends Controller
                 externalIdentifier: $book->file_hash,
                 progress: $update['progress'],
                 rawPayload: ['source' => 'offline_sync', 'timestamp' => $update['timestamp']],
-                rawPosition: $update['cfi']
+                rawPosition: $update['cfi'],
+                eventTimestamp: \Carbon\Carbon::parse($update['timestamp'])
             );
         }
 
