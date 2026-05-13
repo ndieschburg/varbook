@@ -126,6 +126,9 @@ class AuthController extends Controller
     {
         $locale = $request->validated('locale');
 
+        // Persist locale in user model for cross-device/session consistency
+        $request->user()->update(['locale' => $locale]);
+
         if ($request->hasSession()) {
             session(['locale' => $locale]);
         }

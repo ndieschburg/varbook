@@ -16,6 +16,7 @@ class UserResource extends JsonResource
             'is_admin' => $this->is_admin,
             'email_verified' => $this->hasVerifiedEmail(),
             'timezone' => $this->timezone,
+            'locale' => $this->locale,
             'total_reading_seconds' => $this->total_reading_time,
             'formatted_reading_time' => $this->formatted_reading_time,
             'books_count' => $this->when(isset($this->books_count), $this->books_count),

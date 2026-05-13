@@ -1,4 +1,5 @@
 import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUser, useLogin, useLogout } from '@/api/hooks';
 import type { User, LoginCredentials } from '@/types';
 
@@ -37,6 +38,7 @@ function setCachedUser(user: User | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+    const { i18n } = useTranslation();
     const { data: user, isLoading, isError, error } = useUser();
     const loginMutation = useLogin();
     const logoutMutation = useLogout();
@@ -56,12 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    // Cache user when successfully fetched
+    // Cache user and sync locale when successfully fetched
     useEffect(() => {
         if (user) {
             setCachedUser(user);
+            // Sync i18n locale with the user's persisted locale preference
+            if (user.locale && user.locale !== i18n.language) {
+                i18n.changeLanguage(user.locale);
+            }
         }
-    }, [user]);
+    }, [user, i18n]);
 
     const login = async (credentials: LoginCredentials) => {
         const result = await loginMutation.mutateAsync(credentials);

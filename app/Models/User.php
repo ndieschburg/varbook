@@ -23,6 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'kosync_password_hash',
         'is_admin',
         'timezone',
+        'locale',
     ];
 
     protected $hidden = [
