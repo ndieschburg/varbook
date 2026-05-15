@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useAdminUsers, useCreateUser, useUpdateUser, useDeleteUser, useVerifyUserEmail } from '@/api/hooks';
 import { LoadingSpinner, Button, ConfirmModal } from '@/components/ui';
-import { UserIcon, PlusIcon } from '@/components/icons';
+import { UserIcon, PlusIcon, PencilIcon, TrashIcon, ShieldCheckIcon } from '@/components/icons';
 import type { User } from '@/types';
 
 interface UserFormData {
@@ -148,13 +148,13 @@ export function UsersPage() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('User')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('Books')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('Role')}
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('Created')}
                                 </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
@@ -189,10 +189,10 @@ export function UsersPage() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                    <td className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                         {user.books_count || 0}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm">
                                         {user.is_admin ? (
                                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-600 text-white">
                                                 {t('Administrator')}
@@ -203,31 +203,36 @@ export function UsersPage() {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                                    <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                        {!user.email_verified && (
+                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
+                                        <div className="flex items-center justify-end gap-1">
+                                            {!user.email_verified && (
+                                                <button
+                                                    onClick={() => handleVerifyEmail(user)}
+                                                    disabled={verifyEmailMutation.isPending}
+                                                    title={t('Verify')}
+                                                    className="p-1.5 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                                                >
+                                                    <ShieldCheckIcon className="h-5 w-5" />
+                                                </button>
+                                            )}
                                             <button
-                                                onClick={() => handleVerifyEmail(user)}
-                                                disabled={verifyEmailMutation.isPending}
-                                                className="text-green-600 dark:text-green-400 hover:text-green-500 dark:hover:text-green-300 mr-4"
+                                                onClick={() => openEditModal(user)}
+                                                title={t('Edit')}
+                                                className="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
                                             >
-                                                {t('Verify')}
+                                                <PencilIcon className="h-5 w-5" />
                                             </button>
-                                        )}
-                                        <button
-                                            onClick={() => openEditModal(user)}
-                                            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 mr-4"
-                                        >
-                                            {t('Edit')}
-                                        </button>
-                                        <button
-                                            onClick={() => setDeletingUser(user)}
-                                            className="text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300"
-                                        >
-                                            {t('Delete')}
-                                        </button>
+                                            <button
+                                                onClick={() => setDeletingUser(user)}
+                                                title={t('Delete')}
+                                                className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                            >
+                                                <TrashIcon className="h-5 w-5" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
