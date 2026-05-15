@@ -16,31 +16,159 @@ A self-hosted EPUB library with cross-device reading sync. Read on your e-reader
 - **Admin Dashboard**: Manage users and view statistics
 - **Dark Theme UI**: Modern, responsive interface with Tailwind CSS
 
-## Requirements
-
-- PHP 8.2+
-- MySQL 8.0+ or MariaDB 10.6+
-- Composer
-- Node.js 18+ (for building assets)
-- PHP Extensions: `mbstring`, `xml`, `dom`, `gd`, `zip`, `pdo_mysql`
-
 ## Installation
 
-### 1. Clone the repository
+### Docker (recommended)
+
+The simplest way to run Varbook. A single container with everything included.
+
+#### Database Modes
+
+Varbook supports two database backends:
+
+| Mode | Command | Best for |
+|------|---------|----------|
+| **SQLite** (default) | `docker compose up -d` | Single user, simple setup, low resource usage |
+| **MySQL/MariaDB** | `docker compose -f docker-compose.yml -f docker-compose.mysql.yml up -d` | Multiple concurrent users, larger libraries |
+
+> **Note:** Varbook has been extensively tested and is used in production with MySQL/MariaDB. SQLite support is newer and works well for typical usage, but if you encounter any issue specific to SQLite, please [open an issue on GitHub](https://github.com/ndieschburg/varbook/issues).
+
+#### Quick Start (SQLite)
+
+```bash
+git clone https://github.com/ndieschburg/varbook.git
+cd varbook
+docker compose up -d
+```
+
+That's it. Varbook is running at **http://localhost:8080** with SQLite -- no external database needed.
+
+Create your admin account:
+
+```bash
+docker exec -it bookshelf php artisan varbook:create-admin
+```
+
+#### Quick Start (MySQL/MariaDB)
+
+```bash
+git clone https://github.com/ndieschburg/varbook.git
+cd varbook
+
+# Set database passwords
+cat > .env <<EOF
+DB_PASSWORD=your_secure_password
+DB_ROOT_PASSWORD=your_root_password
+EOF
+
+docker compose -f docker-compose.yml -f docker-compose.mysql.yml up -d
+```
+
+Create your admin account:
+
+```bash
+docker exec -it bookshelf php artisan varbook:create-admin
+```
+
+#### Configuration
+
+Create a `.env` file next to `docker-compose.yml` to customize settings:
+
+```env
+# Public URL (required if behind a reverse proxy)
+APP_URL=https://books.example.com
+SANCTUM_STATEFUL_DOMAINS=books.example.com
+
+# Port mapping (default: 8080)
+BOOKSHELF_PORT=8080
+
+# Laravel app key (auto-generated on first run if empty)
+APP_KEY=
+
+# Reading session settings
+BOOKSHELF_MAX_UPLOAD_SIZE_MB=50
+BOOKSHELF_MAX_SESSION_HOURS=4
+BOOKSHELF_SESSION_GAP_MINUTES=10
+BOOKSHELF_FINISHED_THRESHOLD=95
+```
+
+#### Docker Volumes
+
+| Volume | Path in container | Content |
+|--------|-------------------|---------|
+| `bookshelf_storage` | `/var/www/html/storage/app` | EPUBs, covers, WebDAV locks |
+| `bookshelf_logs` | `/var/www/html/storage/logs` | Application logs |
+| `bookshelf_database` | `/var/www/html/database` | SQLite database (SQLite mode only) |
+| `bookshelf_db` | `/var/lib/mysql` | MariaDB data (MySQL mode only) |
+
+#### Useful Commands
+
+```bash
+# View logs
+docker compose logs -f bookshelf
+
+# Run artisan commands
+docker exec -it bookshelf php artisan <command>
+
+# Backup SQLite database
+docker cp bookshelf:/var/www/html/database/database.sqlite ./backup.sqlite
+
+# Rebuild after update
+git pull
+docker compose build
+docker compose up -d
+```
+
+#### Reverse Proxy (Nginx)
+
+If you run Varbook behind a reverse proxy, make sure to set `APP_URL` and `SANCTUM_STATEFUL_DOMAINS` in your `.env` and forward the proper headers:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name books.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 100M;
+    }
+}
+```
+
+---
+
+### Manual Installation
+
+<details>
+<summary>Install without Docker on a bare server</summary>
+
+#### Requirements
+
+- PHP 8.2+
+- MySQL 8.0+ / MariaDB 10.6+ (or SQLite)
+- Composer
+- Node.js 18+ (for building assets)
+- PHP Extensions: `mbstring`, `xml`, `dom`, `gd`, `zip`, `pdo_mysql` or `pdo_sqlite`
+
+#### 1. Clone the repository
 
 ```bash
 git clone https://github.com/ndieschburg/varbook.git
 cd varbook
 ```
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 ```bash
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 ```
 
-### 3. Configure environment
+#### 3. Configure environment
 
 ```bash
 cp .env.example .env
@@ -74,26 +202,26 @@ BOOKSHELF_FINISHED_THRESHOLD=95
 BOOKSHELF_MAX_UPLOAD_SIZE_MB=50
 ```
 
-### 4. Run migrations
+#### 4. Run migrations
 
 ```bash
 php artisan migrate --force
 ```
 
-### 5. Set permissions
+#### 5. Set permissions
 
 ```bash
 chmod -R 775 storage bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 ```
 
-### 6. Create admin user
+#### 6. Create admin user
 
 ```bash
 php artisan varbook:create-admin
 ```
 
-### 7. Optimize for production
+#### 7. Optimize for production
 
 ```bash
 php artisan config:cache
@@ -101,35 +229,7 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-## Web Server Configuration
-
-### Nginx
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    root /var/www/varbook/public;
-
-    index index.php;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-
-    client_max_body_size 100M;
-}
-```
+</details>
 
 ## Usage
 
@@ -321,7 +421,7 @@ php artisan view:cache
 
 ### Backend
 - **Framework**: Laravel 12 (PHP 8.2+)
-- **Database**: MySQL/MariaDB
+- **Database**: SQLite (default) or MySQL/MariaDB
 - **Auth**: Laravel Sanctum (SPA), HTTP Basic (OPDS/WebDAV)
 - **WebDAV**: sabre/dav
 - **EPUB Parsing**: kiwilan/php-ebook

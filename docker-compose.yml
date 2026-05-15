@@ -1,0 +1,37 @@
+services:
+  bookshelf:
+    build: .
+    container_name: bookshelf
+    restart: unless-stopped
+    ports:
+      - "${BOOKSHELF_PORT:-8080}:80"
+    environment:
+      APP_NAME: BookShelf
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: "${APP_URL:-http://localhost:8080}"
+      APP_KEY: "${APP_KEY:-}"
+
+      # SQLite by default — no external database needed
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /var/www/html/database/database.sqlite
+
+      SESSION_DRIVER: database
+      QUEUE_CONNECTION: database
+      CACHE_STORE: file
+
+      SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS:-localhost:8080}"
+
+      BOOKSHELF_MAX_UPLOAD_SIZE_MB: "${BOOKSHELF_MAX_UPLOAD_SIZE_MB:-50}"
+      BOOKSHELF_MAX_SESSION_HOURS: "${BOOKSHELF_MAX_SESSION_HOURS:-4}"
+      BOOKSHELF_SESSION_GAP_MINUTES: "${BOOKSHELF_SESSION_GAP_MINUTES:-10}"
+      BOOKSHELF_FINISHED_THRESHOLD: "${BOOKSHELF_FINISHED_THRESHOLD:-95}"
+    volumes:
+      - bookshelf_storage:/var/www/html/storage/app
+      - bookshelf_logs:/var/www/html/storage/logs
+      - bookshelf_database:/var/www/html/database
+
+volumes:
+  bookshelf_storage:
+  bookshelf_logs:
+  bookshelf_database:

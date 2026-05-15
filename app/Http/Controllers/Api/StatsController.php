@@ -43,7 +43,7 @@ class StatsController extends Controller
         })
             ->where('started_at', '>=', now()->subMonths(12))
             ->select(
-                DB::raw("DATE_FORMAT(started_at, '%Y-%m') as month"),
+                DB::raw($this->dateFormatMonth('started_at').' as month'),
                 DB::raw('SUM(duration_seconds) as total_seconds'),
                 DB::raw('COUNT(*) as sessions')
             )
@@ -95,7 +95,7 @@ class StatsController extends Controller
             ->select(
                 'users.id as user_id',
                 'users.name',
-                DB::raw("DATE_FORMAT(reading_sessions.started_at, '%Y-%m') as month"),
+                DB::raw($this->dateFormatMonth('reading_sessions.started_at').' as month'),
                 DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds')
             )
             ->whereIn('users.id', $topUserIds)
@@ -204,6 +204,19 @@ class StatsController extends Controller
             'koreader' => 'KOReader',
             'web' => 'Web Reader',
             default => ucfirst($client),
+        };
+    }
+
+    /**
+     * Return a DB-agnostic expression to format a date column as 'YYYY-MM'.
+     */
+    protected function dateFormatMonth(string $column): string
+    {
+        $driver = DB::getDriverName();
+
+        return match ($driver) {
+            'sqlite' => "strftime('%Y-%m', $column)",
+            default => "DATE_FORMAT($column, '%Y-%m')",
         };
     }
 }
