@@ -45,6 +45,7 @@ class CreateAdminCommand extends Command
             'password' => Hash::make($password),
             'kosync_password_hash' => Hash::make(md5($password)),
             'is_admin' => true,
+            'email_verified_at' => now(),
         ]);
 
         $this->info("Admin user '{$user->name}' created successfully!");
