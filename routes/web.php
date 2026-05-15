@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\PairingCodeController;
 use App\Http\Controllers\Api\VarbookController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\KosyncController;
@@ -118,6 +119,18 @@ Route::prefix('api/varbook')
     ->group(function () {
         Route::get('progress/{documentHash}', [VarbookController::class, 'getProgress']);
         Route::post('progress/{documentHash}/batch', [VarbookController::class, 'batchProgress']);
+    });
+
+// Pairing code claim (public, no auth - for KOReader devices)
+Route::prefix('api/pairing')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->middleware(['throttle:10,1'])
+    ->group(function () {
+        Route::post('claim', [PairingCodeController::class, 'claim'])->name('api.pairing.claim');
     });
 
 require __DIR__.'/auth.php';

@@ -35,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'opds/*',
             'api/kosync/*',
             'api/varbook/*',
+            'api/pairing/*',
             'api/books/*/progress', // For sendBeacon (can't send CSRF header)
         ]);
     })

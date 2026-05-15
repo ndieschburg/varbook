@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import api from '@/api/client';
 import { Button, ConfirmModal } from '@/components/ui';
+import { PairingCodeDialog } from '@/components/PairingCodeDialog';
 
 interface ApiToken {
     id: number;
@@ -22,6 +23,7 @@ export function ApiTokenManager() {
     const [copied, setCopied] = useState(false);
     const [revokeTarget, setRevokeTarget] = useState<ApiToken | null>(null);
     const [isRevoking, setIsRevoking] = useState(false);
+    const [isPairingOpen, setIsPairingOpen] = useState(false);
 
     const fetchTokens = useCallback(async () => {
         try {
@@ -136,6 +138,14 @@ export function ApiTokenManager() {
                 <Button type="submit" size="sm" isLoading={isCreating}>
                     {t('Generate new token')}
                 </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setIsPairingOpen(true)}
+                >
+                    {t('Pair a device')}
+                </Button>
             </form>
 
             {/* Token list */}
@@ -179,6 +189,15 @@ export function ApiTokenManager() {
                     ))}
                 </div>
             )}
+
+            {/* Pairing code dialog */}
+            <PairingCodeDialog
+                isOpen={isPairingOpen}
+                onClose={() => {
+                    setIsPairingOpen(false);
+                    fetchTokens();
+                }}
+            />
 
             {/* Revoke confirmation modal */}
             <ConfirmModal

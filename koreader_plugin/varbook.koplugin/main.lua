@@ -687,6 +687,13 @@ function Varbook:addToMainMenu(menu_items)
                 callback = function(touchmenu_instance)
                     self:showTokenDialog(touchmenu_instance)
                 end,
+            },
+            {
+                text = _("Pair with code"),
+                keep_menu_open = true,
+                callback = function(touchmenu_instance)
+                    self:showPairingDialog(touchmenu_instance)
+                end,
                 separator = true,
             },
             {
@@ -765,6 +772,84 @@ function Varbook:showTokenDialog(touchmenu_instance)
                     UIManager:close(dialog)
                     if touchmenu_instance then
                         touchmenu_instance:updateItems()
+                    end
+                end,
+            },
+        }},
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function Varbook:showPairingDialog(touchmenu_instance)
+    local server_url = self.settings:readSetting("server_url")
+    if not server_url or server_url == "" or server_url == "https://" then
+        -- Ask for server URL first, then re-call pairing dialog
+        UIManager:show(InfoMessage:new{
+            text = _("Please set the server URL first."),
+        })
+        self:showServerURLDialog(touchmenu_instance)
+        return
+    end
+
+    local dialog
+    dialog = InputDialog:new{
+        title = _("Pair with code"),
+        description = _("Enter the 5-digit code from the web interface."),
+        input = "",
+        input_hint = "12345",
+        input_type = "number",
+        buttons = {{
+            {
+                text = _("Cancel"),
+                id = "close",
+                callback = function()
+                    UIManager:close(dialog)
+                end,
+            },
+            {
+                text = _("Pair"),
+                is_enter_default = true,
+                callback = function()
+                    local code = dialog:getInputText()
+                    if not code or code == "" or #code ~= 5 then
+                        UIManager:show(InfoMessage:new{
+                            text = _("Please enter a 5-digit code."),
+                        })
+                        return
+                    end
+
+                    UIManager:close(dialog)
+
+                    if not VarbookAPI then
+                        UIManager:show(InfoMessage:new{
+                            text = _("Varbook API module not loaded."),
+                        })
+                        return
+                    end
+
+                    local token, err = VarbookAPI.claimPairingCode(server_url, code)
+                    if token then
+                        self.settings:saveSetting("token", token)
+                        self.settings:flush()
+                        UIManager:show(InfoMessage:new{
+                            text = _("Pairing successful! Token has been saved."),
+                        })
+                        if touchmenu_instance then
+                            touchmenu_instance:updateItems()
+                        end
+                    elseif err == "invalid_code" then
+                        UIManager:show(InfoMessage:new{
+                            text = _("Invalid or expired pairing code."),
+                        })
+                    elseif err == "rate_limited" then
+                        UIManager:show(InfoMessage:new{
+                            text = _("Too many attempts. Please try again later."),
+                        })
+                    else
+                        UIManager:show(InfoMessage:new{
+                            text = _("Network error. Please check your connection and server URL."),
+                        })
                     end
                 end,
             },

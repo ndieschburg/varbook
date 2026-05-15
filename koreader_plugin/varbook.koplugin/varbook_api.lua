@@ -183,4 +183,59 @@ function VarbookAPI:pushBatch(doc_hash, updates, pivot)
     return result.data.synced_count or #updates, nil
 end
 
+--- Claim a pairing code to receive an API token.
+-- Standalone function (no auth needed).
+-- @param server_url string Base server URL (e.g. "https://your-domain.com")
+-- @param code string 5-digit pairing code
+-- @return string|nil Plain API token on success
+-- @return string|nil Error type: "invalid_code", "rate_limited", "network_error"
+function VarbookAPI.claimPairingCode(server_url, code)
+    local payload = JSON.encode({ code = code })
+    local sink = {}
+    local request = {
+        url = server_url .. "/api/pairing/claim",
+        method = "POST",
+        headers = {
+            ["Accept"] = "application/json",
+            ["Content-Type"] = "application/json",
+            ["Content-Length"] = tostring(#payload),
+        },
+        source = ltn12.source.string(payload),
+        sink = ltn12.sink.table(sink),
+    }
+
+    logger.dbg("Varbook: POST", request.url, "(pairing claim)")
+    socketutil:set_timeout(10, 30)
+    local resp_code, resp_headers, status = socket.skip(1, http.request(request))
+    socketutil:reset_timeout()
+    logger.dbg("Varbook: claimPairingCode response code:", resp_code)
+
+    if resp_headers == nil then
+        logger.warn("Varbook: network error on claimPairingCode:", status or resp_code)
+        return nil, "network_error"
+    end
+
+    if resp_code == 404 or resp_code == 422 then
+        return nil, "invalid_code"
+    end
+
+    if resp_code == 429 then
+        return nil, "rate_limited"
+    end
+
+    if resp_code ~= 200 then
+        logger.warn("Varbook: claimPairingCode HTTP", resp_code)
+        return nil, "http_" .. tostring(resp_code)
+    end
+
+    local body = table.concat(sink)
+    local ok, result = pcall(JSON.decode, body)
+    if not ok or not result or not result.data or not result.data.token then
+        logger.warn("Varbook: failed to decode claimPairingCode response:", body)
+        return nil, "json_error"
+    end
+
+    return result.data.token, nil
+end
+
 return VarbookAPI

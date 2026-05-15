@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\DebugLogController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\PairingCodeController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StatsController;
@@ -79,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tokens', [ApiTokenController::class, 'index'])->name('api.tokens.index');
     Route::post('/tokens', [ApiTokenController::class, 'store'])->name('api.tokens.store');
     Route::delete('/tokens/{id}', [ApiTokenController::class, 'destroy'])->name('api.tokens.destroy');
+    Route::post('/tokens/pairing-code', [PairingCodeController::class, 'store'])->name('api.tokens.pairing-code.store');
 
     // Debug Logs - POST is for any authenticated user (to send logs)
     Route::post('/debug/logs', [DebugLogController::class, 'store'])->name('api.debug.logs.store');
