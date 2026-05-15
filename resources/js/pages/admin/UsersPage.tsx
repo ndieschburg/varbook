@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { useAdminUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/api/hooks';
+import { useAdminUsers, useCreateUser, useUpdateUser, useDeleteUser, useVerifyUserEmail } from '@/api/hooks';
 import { LoadingSpinner, Button, ConfirmModal } from '@/components/ui';
 import { UserIcon, PlusIcon } from '@/components/icons';
 import type { User } from '@/types';
@@ -28,6 +28,7 @@ export function UsersPage() {
     const createMutation = useCreateUser();
     const updateMutation = useUpdateUser();
     const deleteMutation = useDeleteUser();
+    const verifyEmailMutation = useVerifyUserEmail();
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -93,6 +94,15 @@ export function UsersPage() {
             await deleteMutation.mutateAsync(deletingUser.id);
             toast.success(t('User deleted successfully'));
             setDeletingUser(null);
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || 'Error');
+        }
+    };
+
+    const handleVerifyEmail = async (user: User) => {
+        try {
+            await verifyEmailMutation.mutateAsync(user.id);
+            toast.success(t('Email Verified Successfully'));
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Error');
         }
@@ -164,8 +174,17 @@ export function UsersPage() {
                                                 <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                                                     {user.name}
                                                 </div>
-                                                <div className="text-sm text-gray-500 dark:text-slate-400">
+                                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
                                                     {user.email}
+                                                    {user.email_verified ? (
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                                                            {t('Verified')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                                            {t('Unverified')}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -188,6 +207,15 @@ export function UsersPage() {
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                        {!user.email_verified && (
+                                            <button
+                                                onClick={() => handleVerifyEmail(user)}
+                                                disabled={verifyEmailMutation.isPending}
+                                                className="text-green-600 dark:text-green-400 hover:text-green-500 dark:hover:text-green-300 mr-4"
+                                            >
+                                                {t('Verify')}
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => openEditModal(user)}
                                             className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 mr-4"

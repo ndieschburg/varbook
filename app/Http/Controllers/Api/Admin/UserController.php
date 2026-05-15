@@ -100,6 +100,26 @@ class UserController extends Controller
     }
 
     /**
+     * POST /api/admin/users/{user}/verify-email
+     * Manually verify a user's email address
+     */
+    public function verifyEmail(User $user): JsonResponse
+    {
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => __('Email already verified'),
+            ], 422);
+        }
+
+        $user->markEmailAsVerified();
+
+        return response()->json([
+            'message' => __('Email Verified Successfully'),
+            'user' => new UserResource($user),
+        ]);
+    }
+
+    /**
      * DELETE /api/admin/users/{user}
      * Delete user and all their books
      */

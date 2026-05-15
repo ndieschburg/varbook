@@ -67,6 +67,20 @@ export function useUpdateUser() {
     });
 }
 
+export function useVerifyUserEmail() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (id: number): Promise<User> => {
+            const { data } = await api.post(`/admin/users/${id}/verify-email`);
+            return data.user;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+        },
+    });
+}
+
 export function useDeleteUser() {
     const queryClient = useQueryClient();
 

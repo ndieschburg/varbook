@@ -92,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin Routes
     Route::middleware('admin')->prefix('admin')->name('api.admin.')->group(function () {
         Route::apiResource('users', AdminUserController::class);
+        Route::post('/users/{user}/verify-email', [AdminUserController::class, 'verifyEmail'])->name('users.verify-email');
         Route::get('/stats', [AdminStatsController::class, 'index'])->name('stats');
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/{key}', [AdminSettingsController::class, 'update'])->name('settings.update');

@@ -22,6 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'kosync_password_hash',
         'is_admin',
+        'email_verified_at',
         'timezone',
         'locale',
     ];
