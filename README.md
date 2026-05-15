@@ -46,7 +46,7 @@ That's it. Varbook is running at **http://localhost:8080** with SQLite -- no ext
 Create your admin account:
 
 ```bash
-docker exec -it bookshelf php artisan varbook:create-admin
+docker exec -it varbook php artisan varbook:create-admin
 ```
 
 #### Quick Start (MySQL/MariaDB)
@@ -55,8 +55,8 @@ docker exec -it bookshelf php artisan varbook:create-admin
 git clone https://github.com/ndieschburg/varbook.git
 cd varbook
 
-# Set database passwords
-cat > .env <<EOF
+# Set database passwords in .env.docker.local
+cat > .env.docker.local <<EOF
 DB_PASSWORD=your_secure_password
 DB_ROOT_PASSWORD=your_root_password
 EOF
@@ -67,23 +67,17 @@ docker compose -f docker-compose.yml -f docker-compose.mysql.yml up -d
 Create your admin account:
 
 ```bash
-docker exec -it bookshelf php artisan varbook:create-admin
+docker exec -it varbook php artisan varbook:create-admin
 ```
 
 #### Configuration
 
-Create a `.env` file next to `docker-compose.yml` to customize settings:
+Default settings are in `.env.docker`. To customize, create a `.env.docker.local` file (it overrides `.env.docker`):
 
 ```env
 # Public URL (required if behind a reverse proxy)
 APP_URL=https://books.example.com
 SANCTUM_STATEFUL_DOMAINS=books.example.com
-
-# Port mapping (default: 8080)
-BOOKSHELF_PORT=8080
-
-# Laravel app key (auto-generated on first run if empty)
-APP_KEY=
 
 # Reading session settings
 BOOKSHELF_MAX_UPLOAD_SIZE_MB=50
@@ -92,26 +86,32 @@ BOOKSHELF_SESSION_GAP_MINUTES=10
 BOOKSHELF_FINISHED_THRESHOLD=95
 ```
 
+To change the host port, set `VARBOOK_PORT` in a `.env` file (read by Docker Compose itself):
+
+```env
+VARBOOK_PORT=9090
+```
+
 #### Docker Volumes
 
 | Volume | Path in container | Content |
 |--------|-------------------|---------|
-| `bookshelf_storage` | `/var/www/html/storage/app` | EPUBs, covers, WebDAV locks |
-| `bookshelf_logs` | `/var/www/html/storage/logs` | Application logs |
-| `bookshelf_database` | `/var/www/html/database` | SQLite database (SQLite mode only) |
-| `bookshelf_db` | `/var/lib/mysql` | MariaDB data (MySQL mode only) |
+| `varbook_storage` | `/var/www/html/storage/app` | EPUBs, covers, WebDAV locks |
+| `varbook_logs` | `/var/www/html/storage/logs` | Application logs |
+| `varbook_database` | `/var/www/html/database` | SQLite database (SQLite mode only) |
+| `varbook_db` | `/var/lib/mysql` | MariaDB data (MySQL mode only) |
 
 #### Useful Commands
 
 ```bash
 # View logs
-docker compose logs -f bookshelf
+docker compose logs -f varbook
 
 # Run artisan commands
-docker exec -it bookshelf php artisan <command>
+docker exec -it varbook php artisan <command>
 
 # Backup SQLite database
-docker cp bookshelf:/var/www/html/database/database.sqlite ./backup.sqlite
+docker cp varbook:/var/www/html/database/database.sqlite ./backup.sqlite
 
 # Rebuild after update
 git pull

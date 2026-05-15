@@ -2,13 +2,13 @@
 #   docker compose -f docker-compose.yml -f docker-compose.mysql.yml up -d
 
 services:
-  bookshelf:
+  varbook:
     environment:
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: bookshelf
-      DB_USERNAME: bookshelf
+      DB_DATABASE: varbook
+      DB_USERNAME: varbook
       DB_PASSWORD: "${DB_PASSWORD:-changeme}"
     depends_on:
       db:
@@ -16,15 +16,15 @@ services:
 
   db:
     image: mariadb:11
-    container_name: bookshelf-db
+    container_name: varbook-db
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-rootchangeme}"
-      MARIADB_DATABASE: bookshelf
-      MARIADB_USER: bookshelf
+      MARIADB_DATABASE: varbook
+      MARIADB_USER: varbook
       MARIADB_PASSWORD: "${DB_PASSWORD:-changeme}"
     volumes:
-      - bookshelf_db:/var/lib/mysql
+      - varbook_db:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
@@ -32,4 +32,4 @@ services:
       retries: 10
 
 volumes:
-  bookshelf_db:
+  varbook_db:
