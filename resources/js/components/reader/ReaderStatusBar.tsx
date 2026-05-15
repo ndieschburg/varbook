@@ -82,7 +82,7 @@ export function ReaderStatusBar({
                 </button>
 
                 {/* Info items */}
-                <div className="flex-1 flex items-center justify-center gap-3 sm:gap-4 min-w-0 overflow-hidden">
+                <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-4 min-w-0 overflow-hidden text-xs sm:text-sm">
                     {/* Page counter */}
                     {locationsReady && locationInfo.totalPages > 0 ? (
                         <span className="flex-shrink-0 text-gray-300 tabular-nums">
