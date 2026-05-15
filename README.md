@@ -316,8 +316,11 @@ Varbook ships with a dedicated KOReader plugin (`varbook.koplugin`) that replace
 1. Copy the `koreader_plugin/varbook.koplugin/` folder to your KOReader `plugins/` directory
 2. Open a book in KOReader
 3. Go to **Tools** → **Varbook**
-4. Configure **Server URL** (`https://your-domain.com`) and **API Token** (generate one from your Profile page in the web app)
-5. Tap **Sync now** to push/pull reading positions
+4. Configure **Server URL** (`https://your-domain.com`)
+5. Set up your **API Token** using one of two methods:
+   - **Pairing code (recommended)**: On the web app Profile page, click "Pair a device", enter a device name, and note the 5-digit code. On KOReader, tap **Pair with code** and enter the code — the token is transferred automatically. The code expires after 2 minutes.
+   - **Manual entry**: Generate a token from your Profile page, then copy and paste it into the **API Token** field on KOReader.
+6. Tap **Sync now** to push/pull reading positions
 
 The plugin:
 - Tracks every page turn locally in SQLite (works offline)
@@ -400,6 +403,15 @@ GET    /api/books/{id}/sessions      # Reading sessions
 GET    /api/books/{id}/progress      # Get progress
 PUT    /api/books/{id}/progress      # Update progress
 POST   /api/books/{id}/progress/batch# Batch sync (PWA offline)
+
+# API Tokens
+GET    /api/tokens                   # List tokens
+POST   /api/tokens                   # Create token
+DELETE /api/tokens/{id}              # Revoke token
+POST   /api/tokens/pairing-code     # Generate 5-digit pairing code
+
+# Pairing (public, no auth)
+POST   /api/pairing/claim           # Claim code, receive token
 
 # Admin only
 GET    /api/admin/users              # List users
