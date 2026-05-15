@@ -3,6 +3,13 @@ set -e
 
 cd /var/www/html
 
+# Derive SANCTUM_STATEFUL_DOMAINS from APP_URL if not explicitly set
+if [ -z "$SANCTUM_STATEFUL_DOMAINS" ]; then
+    APP_URL_VALUE="${APP_URL:-http://localhost:8080}"
+    # Extract host:port from URL (strip protocol and trailing slash)
+    SANCTUM_STATEFUL_DOMAINS=$(echo "$APP_URL_VALUE" | sed -E 's|https?://||; s|/.*||')
+fi
+
 # Build .env from Docker environment variables
 # This ensures Laravel has a single source of truth
 cat > .env <<EOF
@@ -24,7 +31,7 @@ SESSION_DRIVER=${SESSION_DRIVER:-database}
 QUEUE_CONNECTION=${QUEUE_CONNECTION:-database}
 CACHE_STORE=${CACHE_STORE:-file}
 
-SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS:-localhost:8080}
+SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
 
 BOOKSHELF_MAX_UPLOAD_SIZE_MB=${BOOKSHELF_MAX_UPLOAD_SIZE_MB:-50}
 BOOKSHELF_MAX_SESSION_HOURS=${BOOKSHELF_MAX_SESSION_HOURS:-4}
