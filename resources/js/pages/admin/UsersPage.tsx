@@ -141,11 +141,11 @@ export function UsersPage() {
 
             {/* Users Table */}
             {users.length > 0 ? (
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                    <table className="w-full">
+                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-x-auto">
+                    <table className="w-full min-w-0">
                         <thead>
                             <tr className="border-b border-gray-200 dark:border-slate-700">
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('User')}
                                 </th>
                                 <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
@@ -157,7 +157,7 @@ export function UsersPage() {
                                 <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('Created')}
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     {t('Actions')}
                                 </th>
                             </tr>
@@ -165,23 +165,23 @@ export function UsersPage() {
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                             {users.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-3 sm:px-6 py-4">
                                         <div className="flex items-center">
-                                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-600 flex items-center justify-center">
+                                            <div className="hidden sm:flex flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 dark:bg-slate-600 items-center justify-center">
                                                 <UserIcon className="h-5 w-5 text-gray-500 dark:text-slate-400" />
                                             </div>
-                                            <div className="ml-4">
-                                                <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                                            <div className="sm:ml-4 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                                                     {user.name}
                                                 </div>
                                                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
-                                                    {user.email}
+                                                    <span className="truncate">{user.email}</span>
                                                     {user.email_verified ? (
-                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                                                        <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
                                                             {t('Verified')}
                                                         </span>
                                                     ) : (
-                                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                                        <span className="flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                                                             {t('Unverified')}
                                                         </span>
                                                     )}
@@ -206,7 +206,7 @@ export function UsersPage() {
                                     <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                                         {new Date(user.created_at).toLocaleDateString()}
                                     </td>
-                                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
+                                    <td className="px-2 sm:px-4 py-4 whitespace-nowrap text-right text-sm">
                                         <div className="flex items-center justify-end gap-1">
                                             {!user.email_verified && (
                                                 <button
