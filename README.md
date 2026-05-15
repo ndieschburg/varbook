@@ -72,24 +72,40 @@ docker exec -it varbook php artisan varbook:create-admin
 
 #### Configuration
 
-Default settings are in `.env.docker`. To customize, create a `.env.docker.local` file (it overrides `.env.docker`):
+There are two config files, each with a different purpose:
 
-```env
-# Public URL (required if behind a reverse proxy)
-APP_URL=https://books.example.com
-SANCTUM_STATEFUL_DOMAINS=books.example.com
+| File | Read by | Purpose |
+|------|---------|---------|
+| `.env` | Docker Compose | Host-level settings (port mapping) |
+| `.env.docker.local` | Container (app) | Application settings (URL, DB passwords, etc.) |
 
-# Reading session settings
-BOOKSHELF_MAX_UPLOAD_SIZE_MB=50
-BOOKSHELF_MAX_SESSION_HOURS=4
-BOOKSHELF_SESSION_GAP_MINUTES=10
-BOOKSHELF_FINISHED_THRESHOLD=95
+**Changing the port** (e.g. if 8080 is already in use):
+
+```bash
+# .env (create at project root)
+VARBOOK_PORT=3002
 ```
 
-To change the host port, set `VARBOOK_PORT` in a `.env` file (read by Docker Compose itself):
+**Changing application settings** (URL, limits, etc.):
 
-```env
-VARBOOK_PORT=9090
+Default values are in `.env.docker`. To override, create `.env.docker.local`:
+
+```bash
+# .env.docker.local
+APP_URL=http://localhost:3002
+BOOKSHELF_MAX_UPLOAD_SIZE_MB=100
+```
+
+> **Note:** `SANCTUM_STATEFUL_DOMAINS` is automatically derived from `APP_URL` — you don't need to set it manually. Just make sure `APP_URL` matches how you access Varbook in your browser (including the port).
+
+**Example — running on port 3002:**
+
+```bash
+# .env
+VARBOOK_PORT=3002
+
+# .env.docker.local
+APP_URL=http://localhost:3002
 ```
 
 #### Docker Volumes
