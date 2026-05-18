@@ -311,16 +311,27 @@ Each client tracks reading position in its own native format (EPUB CFI for the w
 
 ### KOReader Setup
 
-Varbook ships with a dedicated KOReader plugin (`varbook.koplugin`) that replaces the built-in kosync progress sync with richer cross-device support.
+Varbook ships with a dedicated KOReader plugin ([varbook.koplugin](https://github.com/ndieschburg/varbook.koplugin)) that replaces the built-in kosync progress sync with richer cross-device support.
 
-1. Copy the `koreader_plugin/varbook.koplugin/` folder to your KOReader `plugins/` directory
-2. Open a book in KOReader
-3. Go to **Tools** → **Varbook**
-4. Configure **Server URL** (`https://your-domain.com`)
-5. Set up your **API Token** using one of two methods:
+#### Installation
+
+**Via the KOReader App Store (recommended):**
+
+1. Install the [App Store plugin](https://github.com/omer-faruq/appstore.koplugin) if you don't have it yet
+2. Open KOReader → **Search** → **Plugin store**
+3. Search for **Varbook Sync** and tap **Install**
+
+**Manual installation:** see the [plugin README](https://github.com/ndieschburg/varbook.koplugin#manual-installation) for instructions.
+
+#### Configuration
+
+1. Open a book in KOReader
+2. Go to **Tools** → **Varbook**
+3. Configure **Server URL** (`https://your-domain.com`)
+4. Set up your **API Token** using one of two methods:
    - **Pairing code (recommended)**: On the web app Profile page, click "Pair a device", enter a device name, and note the 5-digit code. On KOReader, tap **Pair with code** and enter the code — the token is transferred automatically. The code expires after 2 minutes.
    - **Manual entry**: Generate a token from your Profile page, then copy and paste it into the **API Token** field on KOReader.
-6. Tap **Sync now** to push/pull reading positions
+5. Tap **Sync now** to push/pull reading positions
 
 The plugin:
 - Tracks every page turn locally in SQLite (works offline)
