@@ -2,6 +2,8 @@
 
 A self-hosted EPUB library with cross-device reading sync. Read on your e-reader (KOReader, Moon+ Reader), pick up where you left off in the browser -- and vice versa. Built with Laravel + React, installable as an offline-capable PWA.
 
+![Varbook mobile screenshots — Library, Reader, and Statistics](.github/screenshots-mobile.png)
+
 ## Features
 
 - **EPUB Library Management**: Upload, organize, and manage your EPUB collection
