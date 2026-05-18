@@ -380,6 +380,109 @@ class KosyncTest extends TestCase
     }
 
     // ==========================================
+    // Fallback to filename Tests
+    // ==========================================
+
+    public function test_update_progress_falls_back_to_filename_when_hash_changes(): void
+    {
+        $book = Book::factory()->create([
+            'user_id' => $this->user->id,
+            'file_hash' => 'original_hash_abcdef1234567890ab',
+            'koreader_file_hash' => 'original_koreader_hash_abcdef12',
+            'filename' => 'my-fanfic-book.epub',
+            'progress' => 10,
+        ]);
+
+        // Hash has changed (e.g. FanFicFare updated the book), but filename is the same
+        $response = $this->withKosyncAuth()
+            ->putJson('/api/kosync/syncs/progress', [
+                'document' => 'completely_new_hash_after_update1',
+                'progress' => '55.0',
+                'metadata' => [
+                    'filename' => 'my-fanfic-book.epub',
+                ],
+            ]);
+
+        $response->assertStatus(200);
+
+        $book->refresh();
+        $this->assertEquals(55.0, $book->progress);
+    }
+
+    public function test_get_progress_falls_back_to_filename_when_hash_changes(): void
+    {
+        $book = Book::factory()->create([
+            'user_id' => $this->user->id,
+            'file_hash' => 'original_hash_abcdef1234567890ab',
+            'koreader_file_hash' => 'original_koreader_hash_abcdef12',
+            'filename' => 'my-fanfic-book.epub',
+            'progress' => 42.5,
+        ]);
+
+        $response = $this->withKosyncAuth()
+            ->getJson('/api/kosync/syncs/progress/completely_new_hash_after_update1?filename=my-fanfic-book.epub');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'percentage' => 0.425,
+            ]);
+    }
+
+    public function test_filename_fallback_does_not_match_other_users_books(): void
+    {
+        $otherUser = User::factory()->create();
+        Book::factory()->create([
+            'user_id' => $otherUser->id,
+            'file_hash' => 'other_user_hash_abcdef1234567890',
+            'filename' => 'shared-name-book.epub',
+            'progress' => 50,
+        ]);
+
+        $response = $this->withKosyncAuth()
+            ->putJson('/api/kosync/syncs/progress', [
+                'document' => 'unknown_hash_that_wont_match_any1',
+                'progress' => '30.0',
+                'metadata' => [
+                    'filename' => 'shared-name-book.epub',
+                ],
+            ]);
+
+        $response->assertStatus(404);
+    }
+
+    public function test_hash_match_takes_priority_over_filename(): void
+    {
+        $bookByHash = Book::factory()->create([
+            'user_id' => $this->user->id,
+            'file_hash' => 'exact_hash_match_abcdef12345678',
+            'koreader_file_hash' => null,
+            'filename' => 'different-name.epub',
+            'progress' => 0,
+        ]);
+
+        Book::factory()->create([
+            'user_id' => $this->user->id,
+            'file_hash' => 'another_hash_that_wont_match_here',
+            'filename' => 'same-filename.epub',
+            'progress' => 0,
+        ]);
+
+        $response = $this->withKosyncAuth()
+            ->putJson('/api/kosync/syncs/progress', [
+                'document' => 'exact_hash_match_abcdef12345678',
+                'progress' => '60.0',
+                'metadata' => [
+                    'filename' => 'same-filename.epub',
+                ],
+            ]);
+
+        $response->assertStatus(200);
+
+        $bookByHash->refresh();
+        $this->assertEquals(60.0, $bookByHash->progress);
+    }
+
+    // ==========================================
     // Cross-User Security Tests
     // ==========================================
 

@@ -42,10 +42,19 @@ end
 -- @param doc_hash string KOReader partial MD5 hash
 -- @return table|nil {progress, timestamp} or nil on error
 -- @return string|nil Error message
-function VarbookAPI:getProgress(doc_hash)
+--- Fetch server progress for a document.
+-- @param doc_hash string KOReader partial MD5 hash
+-- @param filename string|nil Original filename for fallback matching
+-- @return table|nil {progress, timestamp} or nil on error
+-- @return string|nil Error message
+function VarbookAPI:getProgress(doc_hash, filename)
+    local url = self.server_url .. "/api/varbook/progress/" .. doc_hash
+    if filename then
+        url = url .. "?filename=" .. filename
+    end
     local sink = {}
     local request = {
-        url = self.server_url .. "/api/varbook/progress/" .. doc_hash,
+        url = url,
         method = "GET",
         headers = self:headers(),
         sink = ltn12.sink.table(sink),
@@ -113,7 +122,14 @@ end
 -- @param pivot table|nil Optional pivot data for cross-client sync
 -- @return number|nil Number of synced positions, or nil on error
 -- @return string|nil Error message
-function VarbookAPI:pushBatch(doc_hash, updates, pivot)
+--- Push a batch of position updates to the server.
+-- @param doc_hash string KOReader partial MD5 hash
+-- @param updates table Array of {percentage, timestamp, xpointer} records
+-- @param pivot table|nil Optional pivot data for cross-client sync
+-- @param filename string|nil Original filename for fallback matching
+-- @return number|nil Number of synced positions, or nil on error
+-- @return string|nil Error message
+function VarbookAPI:pushBatch(doc_hash, updates, pivot, filename)
     if #updates == 0 then
         return 0, nil
     end
@@ -134,6 +150,9 @@ function VarbookAPI:pushBatch(doc_hash, updates, pivot)
     local payload = { updates = formatted }
     if pivot then
         payload.pivot = pivot
+    end
+    if filename then
+        payload.filename = filename
     end
 
     local body = JSON.encode(payload)

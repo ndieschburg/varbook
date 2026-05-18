@@ -82,6 +82,8 @@ class KosyncController extends Controller
             'percentage' => 'nullable|numeric|min:0|max:1',
             'device' => 'nullable|string|max:100',
             'device_id' => 'nullable|string|max:100',
+            'metadata' => 'nullable|array',
+            'metadata.filename' => 'nullable|string|max:500',
         ]);
 
         $documentHash = $validated['document'];
@@ -95,8 +97,9 @@ class KosyncController extends Controller
             $progressPercent = floatval($validated['percentage']) * 100;
         }
 
-        // Find book by koreader partial hash
-        $book = $this->readingSessionService->findBookByKoreaderHash($user->id, $documentHash);
+        // Find book by hash, fall back to filename from metadata if available
+        $filename = $validated['metadata']['filename'] ?? null;
+        $book = $this->readingSessionService->findBookByHashOrFilename($user->id, $documentHash, $filename);
 
         if (!$book) {
             return response()->json([
@@ -148,8 +151,9 @@ class KosyncController extends Controller
 
         $documentHash = $document;
 
-        // Find book by koreader partial hash
-        $book = $this->readingSessionService->findBookByKoreaderHash($user->id, $documentHash);
+        // Find book by hash, fall back to filename from query param if available
+        $filename = $request->query('filename');
+        $book = $this->readingSessionService->findBookByHashOrFilename($user->id, $documentHash, $filename);
 
         if (!$book) {
             return response()->json([

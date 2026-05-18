@@ -25,7 +25,8 @@ class VarbookController extends Controller
      */
     public function getProgress(Request $request, string $documentHash): JsonResponse
     {
-        $book = $this->readingSessionService->findBookByKoreaderHash(Auth::id(), $documentHash);
+        $filename = $request->query('filename');
+        $book = $this->readingSessionService->findBookByHashOrFilename(Auth::id(), $documentHash, $filename);
 
         if (! $book) {
             return response()->json([
@@ -67,25 +68,30 @@ class VarbookController extends Controller
      */
     public function batchProgress(Request $request, string $documentHash): JsonResponse
     {
-        $book = $this->readingSessionService->findBookByKoreaderHash(Auth::id(), $documentHash);
-
-        if (! $book) {
-            return response()->json([
-                'message' => __('Document not found'),
-            ], 404);
-        }
-
         $validated = $request->validate([
             'updates' => 'required|array|min:1|max:500',
             'updates.*.progress' => 'required|numeric|min:0|max:100',
             'updates.*.timestamp' => 'required|date',
             'updates.*.position' => 'nullable|string|max:500',
+            'filename' => 'nullable|string|max:500',
             'pivot' => 'nullable|array',
             'pivot.spine_index' => 'required_with:pivot|numeric|min:0',
             'pivot.spine_href' => 'nullable|string|max:500',
             'pivot.spine_percent' => 'required_with:pivot|numeric|min:0|max:1',
             'pivot.source' => 'required_with:pivot|string|in:web,koreader',
         ]);
+
+        $book = $this->readingSessionService->findBookByHashOrFilename(
+            Auth::id(),
+            $documentHash,
+            $validated['filename'] ?? null
+        );
+
+        if (! $book) {
+            return response()->json([
+                'message' => __('Document not found'),
+            ], 404);
+        }
 
         $updates = $validated['updates'];
 

@@ -75,6 +75,14 @@ function Varbook:getDocHash()
     return self.doc_hash
 end
 
+--- Get the basename of the current document file.
+-- @return string|nil Filename without path (e.g. "book.epub")
+function Varbook:getFilename()
+    local filepath = self.ui.document.file
+    if not filepath then return nil end
+    return filepath:match("([^/]+)$")
+end
+
 --- Get current reading percentage (0-100).
 function Varbook:getPercentage()
     local pct
@@ -515,11 +523,12 @@ function Varbook:doSync()
     end
 
     local api = self:getAPI()
+    local filename = self:getFilename()
     local navigated = false
     local synced_count = 0
 
     -- Step 1: Pull server progress
-    local server, err = api:getProgress(doc_hash)
+    local server, err = api:getProgress(doc_hash, filename)
 
     if err == "unauthorized" then
         UIManager:show(InfoMessage:new{
@@ -609,7 +618,7 @@ function Varbook:doSync()
         logger.dbg("Varbook: pushing", #positions, "positions")
         local pivot = self:extractPivot()
 
-        local count, push_err = api:pushBatch(doc_hash, positions, pivot)
+        local count, push_err = api:pushBatch(doc_hash, positions, pivot, filename)
 
         if push_err == "unauthorized" then
             UIManager:show(InfoMessage:new{

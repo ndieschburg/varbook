@@ -191,6 +191,29 @@ class ReadingSessionService
     }
 
     /**
+     * Find a book by KOReader hash with fallback to filename.
+     *
+     * Useful when the MD5 hash changes (e.g. books updated by Calibre plugins
+     * like FanFicFare) but the filename remains stable.
+     *
+     * @param int $userId Owner user ID
+     * @param string $hash KOReader partial MD5 hash
+     * @param string|null $filename Original filename to use as fallback
+     */
+    public function findBookByHashOrFilename(int $userId, string $hash, ?string $filename = null): ?Book
+    {
+        $book = $this->findBookByKoreaderHash($userId, $hash);
+
+        if ($book || !$filename) {
+            return $book;
+        }
+
+        return Book::where('user_id', $userId)
+            ->where('filename', $filename)
+            ->first();
+    }
+
+    /**
      * Get the most recent sync identifier for a book across all clients.
      *
      * Used to determine which client last synced, so readers can decide
