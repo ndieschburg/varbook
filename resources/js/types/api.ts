@@ -138,3 +138,35 @@ export interface ProgressLogsStats {
     by_client: Record<string, number>;
     logging_enabled: boolean;
 }
+
+export interface AdminActivityClient {
+    key: string;
+    label: string;
+}
+
+export interface AdminActivityUserClient {
+    hours: number;
+    label: string;
+}
+
+export interface AdminActivityUser {
+    user_id: number;
+    user_name: string;
+    total_hours: number;
+    total_formatted: string;
+    clients: Record<string, AdminActivityUserClient>;
+}
+
+export interface AdminBooksByDay {
+    date: string;
+    total: number;
+}
+
+export interface AdminActivityStats {
+    active_users_this_month: number;
+    total_hours_this_month: number;
+    total_formatted_this_month: string;
+    clients: AdminActivityClient[];
+    users: AdminActivityUser[];
+    books_by_day: AdminBooksByDay[];
+}

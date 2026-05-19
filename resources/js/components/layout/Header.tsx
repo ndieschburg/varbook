@@ -50,6 +50,7 @@ export function Header() {
     ];
 
     const adminLinks = user?.is_admin ? [
+        { path: '/admin/stats', label: t('Admin Statistics') },
         { path: '/admin/users', label: t('Users Management') },
         { path: '/admin/settings', label: t('System Settings') },
     ] : [];

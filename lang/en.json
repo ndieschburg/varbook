@@ -324,5 +324,12 @@
     "settings.options.library.default_sort.recent": "Recent",
     "settings.options.library.default_sort.title": "Title",
     "settings.reader.debug_mode": "Debug mode",
-    "settings.reader.debug_mode_description": "Expose epub.js objects to browser console for debugging"
+    "settings.reader.debug_mode_description": "Expose epub.js objects to browser console for debugging",
+    "Admin Statistics": "Admin Statistics",
+    "Active Users This Month": "Active Users This Month",
+    "Total Hours This Month": "Total Hours This Month",
+    "Reading Time by User": "Reading Time by User",
+    "No reading activity this month": "No reading activity this month",
+    "Failed to load stats": "Failed to load stats",
+    "This month": "This month"
 }

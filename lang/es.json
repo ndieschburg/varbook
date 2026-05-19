@@ -336,5 +336,12 @@
     "settings.options.library.default_sort.recent": "Reciente",
     "settings.options.library.default_sort.title": "Título",
     "settings.reader.debug_mode": "Modo debug",
-    "settings.reader.debug_mode_description": "Exponer objetos epub.js en la consola del navegador para depuración"
+    "settings.reader.debug_mode_description": "Exponer objetos epub.js en la consola del navegador para depuración",
+    "Admin Statistics": "Estadísticas Admin",
+    "Active Users This Month": "Usuarios activos este mes",
+    "Total Hours This Month": "Horas totales este mes",
+    "Reading Time by User": "Tiempo de lectura por usuario",
+    "No reading activity this month": "Sin actividad de lectura este mes",
+    "Failed to load stats": "Error al cargar las estadísticas",
+    "This month": "Este mes"
 }

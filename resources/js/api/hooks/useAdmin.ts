@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../client';
-import type { User, PaginatedResponse, ProgressLog, ProgressLogsStats } from '@/types';
+import type { User, PaginatedResponse, ProgressLog, ProgressLogsStats, AdminActivityStats } from '@/types';
 
 export function useAdminUsers() {
     return useQuery({
@@ -90,6 +90,17 @@ export function useDeleteUser() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+        },
+    });
+}
+
+// Admin Activity Stats
+export function useAdminActivityStats() {
+    return useQuery({
+        queryKey: ['admin', 'stats', 'activity'],
+        queryFn: async (): Promise<AdminActivityStats> => {
+            const { data } = await api.get('/admin/stats/activity');
+            return data.data;
         },
     });
 }

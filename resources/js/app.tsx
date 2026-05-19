@@ -23,6 +23,7 @@ import {
     SettingsPage,
     UsersPage,
     AdminSettingsPage,
+    AdminStatsPage,
     ProgressLogsPage,
 } from '@/pages';
 import { usePublicConfig, useUser } from '@/api/hooks';
@@ -109,6 +110,14 @@ function App() {
                                 element={
                                     <ProtectedRoute requireAdmin>
                                         <UsersPage />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/admin/stats"
+                                element={
+                                    <ProtectedRoute requireAdmin>
+                                        <AdminStatsPage />
                                     </ProtectedRoute>
                                 }
                             />
