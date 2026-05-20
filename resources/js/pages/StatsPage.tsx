@@ -67,7 +67,6 @@ const CHART_COLORS: Record<string, string> = {
     web: '#6366f1',
     koreader: '#10b981',
     moon: '#ef4444',
-    moonreader: '#ef4444',
 };
 
 /**

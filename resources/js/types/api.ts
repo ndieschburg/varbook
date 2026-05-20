@@ -91,11 +91,6 @@ export interface TopReadersData {
     readers: TopReader[];
 }
 
-export interface DailyTotal {
-    date: string;
-    total: number;
-}
-
 export interface ReadingHoursDayEntry {
     date: string;
     total: number;
@@ -121,7 +116,6 @@ export interface UserStats {
     reading_by_month: MonthlyReading[];
     reading_by_client: ClientReading[];
     reading_hours_by_day: ReadingHoursByDayData;
-    top_readers: TopReadersData;
     recent_sessions: RecentSession[];
 }
 
