@@ -347,7 +347,7 @@ export function AdminStatsPage() {
             </div>
 
             {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-5">
                 {stats.verified_users_by_day.length > 1 && (
                     <DailyChart
                         data={stats.verified_users_by_day}
