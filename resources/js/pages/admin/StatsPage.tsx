@@ -124,7 +124,7 @@ function DailyChart({ data, title, color, gradientId, icon, tooltipLabel }: Dail
                         return (
                             <g key={i}>
                                 <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="1" strokeDasharray={i === 0 ? undefined : '4 4'} />
-                                <text x={padL - 8} y={yPos + 4} textAnchor="end" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                                <text x={padL - 8} y={yPos + 4} textAnchor="end" className="fill-gray-500 dark:fill-slate-400" fontSize="9" fontFamily="ui-monospace, monospace">
                                     {Math.round(val)}
                                 </text>
                             </g>
@@ -133,7 +133,7 @@ function DailyChart({ data, title, color, gradientId, icon, tooltipLabel }: Dail
 
                     {/* X labels */}
                     {labelIndices.map((idx) => (
-                        <text key={idx} x={x(idx)} y={chartH - 4} textAnchor="middle" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                        <text key={idx} x={x(idx)} y={chartH - 4} textAnchor="middle" className="fill-gray-500 dark:fill-slate-400" fontSize="9" fontFamily="ui-monospace, monospace">
                             {data[idx].date.slice(5)}
                         </text>
                     ))}
@@ -500,14 +500,14 @@ export function AdminStatsPage() {
                                     return (
                                         <g key={i}>
                                             <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="1" strokeDasharray={i === 0 ? undefined : '4 4'} />
-                                            <text x={padL - 6} y={yPos + 4} textAnchor="end" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                                            <text x={padL - 6} y={yPos + 4} textAnchor="end" className="fill-gray-500 dark:fill-slate-400" fontSize="9" fontFamily="ui-monospace, monospace">
                                                 {Math.round(val)}h
                                             </text>
                                         </g>
                                     );
                                 })}
                                 {months.map((month, i) => (
-                                    <text key={month} x={cx(i)} y={chartH - 4} textAnchor="middle" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                                    <text key={month} x={cx(i)} y={chartH - 4} textAnchor="middle" className="fill-gray-500 dark:fill-slate-400" fontSize="9" fontFamily="ui-monospace, monospace">
                                         {month.slice(5)}
                                     </text>
                                 ))}
