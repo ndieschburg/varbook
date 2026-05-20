@@ -70,66 +70,60 @@ const CHART_COLORS: Record<string, string> = {
 };
 
 /**
- * Build a smooth bezier SVG path from a series of points
+ * Format a YYYY-MM-DD date string to DD/MM for readable X-axis labels
  */
-function buildSmoothPath(points: { x: number; y: number }[]): string {
-    if (points.length < 2) return `M ${points[0].x},${points[0].y}`;
-    let path = `M ${points[0].x},${points[0].y}`;
-    for (let i = 0; i < points.length - 1; i++) {
-        const cp1x = points[i].x + (points[i + 1].x - points[i].x) / 3;
-        const cp2x = points[i].x + 2 * (points[i + 1].x - points[i].x) / 3;
-        path += ` C ${cp1x},${points[i].y} ${cp2x},${points[i + 1].y} ${points[i + 1].x},${points[i + 1].y}`;
-    }
-    return path;
+function formatDateLabel(dateStr: string): string {
+    const parts = dateStr.split('-');
+    return `${parts[2]}/${parts[1]}`;
 }
 
 /**
- * Multi-line SVG chart showing cumulative reading hours per device + total
+ * Bar chart showing daily reading hours per device, stacked
  */
 function ReadingHoursChart({ data }: { data: ReadingHoursByDayData }) {
     const { t } = useTranslation();
     const { clients, days } = data;
 
     const chartW = 800;
-    const chartH = 260;
-    const padL = 48;
+    const chartH = 240;
+    const padL = 40;
     const padR = 12;
     const padT = 12;
     const padB = 36;
     const innerW = chartW - padL - padR;
     const innerH = chartH - padT - padB;
 
-    const maxVal = Math.max(...days.map(d => d.total), 1);
+    const maxDayHours = Math.max(...days.map(d => d.day_hours), 0.1);
 
     const x = (i: number) => padL + (i / Math.max(days.length - 1, 1)) * innerW;
-    const y = (val: number) => padT + innerH - (val / maxVal) * innerH;
-
-    // Total line + area
-    const totalPts = days.map((d, i) => ({ x: x(i), y: y(d.total) }));
-    const totalPath = buildSmoothPath(totalPts);
-    const totalArea = `${totalPath} L ${x(days.length - 1)},${y(0)} L ${x(0)},${y(0)} Z`;
-
-    // Client lines
-    const clientLines = clients.map(c => {
-        const pts = days.map((d, i) => ({ x: x(i), y: y(d.clients[c.key] ?? 0) }));
-        return { key: c.key, label: c.label, path: buildSmoothPath(pts), lastVal: days[days.length - 1]?.clients[c.key] ?? 0 };
-    });
+    const y = (val: number) => padT + innerH - (val / maxDayHours) * innerH;
 
     const stepCount = 4;
-    const ySteps = Array.from({ length: stepCount + 1 }, (_, i) => (maxVal / stepCount) * i);
+    const ySteps = Array.from({ length: stepCount + 1 }, (_, i) => (maxDayHours / stepCount) * i);
 
-    const labelCount = Math.min(6, days.length);
+    const labelCount = Math.min(10, days.length);
     const labelIndices = days.length > 1
         ? Array.from({ length: labelCount }, (_, i) => Math.round((i / (labelCount - 1)) * (days.length - 1)))
         : [0];
 
     const currentTotal = days[days.length - 1]?.total ?? 0;
 
-    // Legend entries: total + each client
-    const legendEntries = [
-        { key: 'total', label: t('Total'), color: CHART_COLORS.total, value: currentTotal },
-        ...clientLines.map(c => ({ key: c.key, label: c.label, color: CHART_COLORS[c.key] ?? '#8b5cf6', value: c.lastVal })),
-    ];
+    const barW = Math.max(innerW / days.length * 0.7, 1.5);
+
+    // Compute per-client daily hours (non-cumulative) from the cumulative data
+    const clientDailyHours = (dayIndex: number, clientKey: string): number => {
+        const current = days[dayIndex]?.clients[clientKey] ?? 0;
+        const prev = dayIndex > 0 ? (days[dayIndex - 1]?.clients[clientKey] ?? 0) : 0;
+        return Math.max(round1(current - prev), 0);
+    };
+
+    function round1(n: number) { return Math.round(n * 10) / 10; }
+
+    // Legend: total hours (cumulative) + per client total
+    const clientTotals = clients.map(c => {
+        const lastVal = days[days.length - 1]?.clients[c.key] ?? 0;
+        return { key: c.key, label: c.label, color: CHART_COLORS[c.key] ?? '#8b5cf6', value: lastVal };
+    });
 
     return (
         <div className="group bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5 transition-all hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50">
@@ -141,13 +135,14 @@ function ReadingHoursChart({ data }: { data: ReadingHoursByDayData }) {
                     <div>
                         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{t('Reading Journey')}</h2>
                         <p className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">
-                            {days[0].date} — {days[days.length - 1].date}
+                            {formatDateLabel(days[0].date)} — {formatDateLabel(days[days.length - 1].date)}
                         </p>
                     </div>
                 </div>
-                <span className="text-xl font-bold text-amber-500 tabular-nums">
-                    {currentTotal}h
-                </span>
+                <div className="text-right">
+                    <span className="text-xl font-bold text-amber-500 tabular-nums">{currentTotal}h</span>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-500">{t('Total')}</p>
+                </div>
             </div>
 
             <div className="overflow-x-auto -mx-5 px-5">
@@ -159,59 +154,86 @@ function ReadingHoursChart({ data }: { data: ReadingHoursByDayData }) {
                             <g key={i}>
                                 <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="1" strokeDasharray={i === 0 ? undefined : '4 4'} />
                                 <text x={padL - 8} y={yPos + 4} textAnchor="end" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
-                                    {Math.round(val)}h
+                                    {round1(val)}h
                                 </text>
                             </g>
                         );
                     })}
 
-                    {/* X labels */}
-                    {labelIndices.map((idx) => (
-                        <text key={idx} x={x(idx)} y={chartH - 4} textAnchor="middle" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
-                            {days[idx].date.slice(5)}
-                        </text>
-                    ))}
+                    {/* Stacked bars per day */}
+                    {days.map((d, i) => {
+                        if (d.day_hours === 0) return null;
 
-                    {/* Total area fill */}
-                    <path d={totalArea} fill="url(#readingJourneyFill)" />
-                    <defs>
-                        <linearGradient id="readingJourneyFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={CHART_COLORS.total} stopOpacity="0.12" />
-                            <stop offset="100%" stopColor={CHART_COLORS.total} stopOpacity="0.01" />
-                        </linearGradient>
-                    </defs>
+                        // Stack client bars
+                        let stackY = y(0);
+                        const segments: { key: string; color: string; height: number; hours: number; yStart: number }[] = [];
 
-                    {/* Client lines (behind total) */}
-                    {clientLines.map(c => {
-                        const color = CHART_COLORS[c.key] ?? '#8b5cf6';
-                        const lastPt = days[days.length - 1];
-                        const lastVal = lastPt?.clients[c.key] ?? 0;
+                        for (const c of clients) {
+                            const h = clientDailyHours(i, c.key);
+                            if (h <= 0) continue;
+                            const barHeight = (h / maxDayHours) * innerH;
+                            stackY -= barHeight;
+                            segments.push({
+                                key: c.key,
+                                color: CHART_COLORS[c.key] ?? '#8b5cf6',
+                                height: barHeight,
+                                hours: h,
+                                yStart: stackY,
+                            });
+                        }
+
+                        // Build tooltip
+                        const parts = segments.map(s => `${clients.find(c => c.key === s.key)?.label}: ${s.hours}h`).join(' | ');
+                        const tooltip = `${formatDateLabel(d.date)} — ${d.day_hours}h${parts ? `\n${parts}` : ''}`;
+
                         return (
-                            <g key={c.key}>
-                                <path d={c.path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6 3" opacity="0.7" />
-                                <circle cx={x(days.length - 1)} cy={y(lastVal)} r="3" fill="white" stroke={color} strokeWidth="2" />
+                            <g key={`bar-${i}`}>
+                                {segments.length > 0 ? (
+                                    segments.map((seg, si) => (
+                                        <rect
+                                            key={seg.key}
+                                            x={x(i) - barW / 2}
+                                            y={seg.yStart}
+                                            width={barW}
+                                            height={seg.height}
+                                            rx={si === segments.length - 1 ? Math.min(barW / 2, 2) : 0}
+                                            fill={seg.color}
+                                            opacity="0.7"
+                                            className="group-hover:opacity-90 transition-opacity"
+                                        >
+                                            <title>{tooltip}</title>
+                                        </rect>
+                                    ))
+                                ) : (
+                                    <rect
+                                        x={x(i) - barW / 2}
+                                        y={y(d.day_hours)}
+                                        width={barW}
+                                        height={(d.day_hours / maxDayHours) * innerH}
+                                        rx={Math.min(barW / 2, 2)}
+                                        fill={CHART_COLORS.total}
+                                        opacity="0.5"
+                                        className="group-hover:opacity-80 transition-opacity"
+                                    >
+                                        <title>{tooltip}</title>
+                                    </rect>
+                                )}
                             </g>
                         );
                     })}
 
-                    {/* Total line (on top) */}
-                    <path d={totalPath} fill="none" stroke={CHART_COLORS.total} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-
-                    {/* Total dots on hover */}
-                    {days.length <= 365 && days.map((d, i) => (
-                        <circle key={i} cx={x(i)} cy={y(d.total)} r="2.5" fill={CHART_COLORS.total} stroke="white" strokeWidth="1.5" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <title>{`${d.date}: ${d.total}h`}</title>
-                        </circle>
+                    {/* X labels - DD/MM format */}
+                    {labelIndices.map((idx) => (
+                        <text key={idx} x={x(idx)} y={chartH - 4} textAnchor="middle" className="fill-gray-400 dark:fill-slate-500" fontSize="9" fontFamily="ui-monospace, monospace">
+                            {formatDateLabel(days[idx].date)}
+                        </text>
                     ))}
-
-                    {/* Total last point */}
-                    <circle cx={x(days.length - 1)} cy={y(currentTotal)} r="4" fill="white" stroke={CHART_COLORS.total} strokeWidth="2.5" />
                 </svg>
             </div>
 
             {/* Legend */}
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 justify-center">
-                {legendEntries.map(entry => (
+                {clientTotals.map(entry => (
                     <div key={entry.key} className="flex items-center gap-1.5">
                         <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span className="text-[11px] text-gray-500 dark:text-slate-400 font-medium">{entry.label}</span>

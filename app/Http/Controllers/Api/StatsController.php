@@ -116,7 +116,8 @@ class StatsController extends Controller
 
             foreach ($period as $day) {
                 $dayStr = $day->format('Y-m-d');
-                $cumulativeTotal += (int) ($totalPerDay[$dayStr] ?? 0);
+                $daySeconds = (int) ($totalPerDay[$dayStr] ?? 0);
+                $cumulativeTotal += $daySeconds;
 
                 $clientValues = [];
                 foreach ($clientKeys as $clientKey => $clientLabel) {
@@ -127,6 +128,7 @@ class StatsController extends Controller
                 $readingHoursByDay[] = [
                     'date' => $dayStr,
                     'total' => round($cumulativeTotal / 3600, 1),
+                    'day_hours' => round($daySeconds / 3600, 1),
                     'clients' => $clientValues,
                 ];
             }

@@ -94,6 +94,7 @@ export interface TopReadersData {
 export interface ReadingHoursDayEntry {
     date: string;
     total: number;
+    day_hours: number;
     clients: Record<string, number>;
 }
 
