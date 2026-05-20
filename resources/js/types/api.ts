@@ -91,6 +91,22 @@ export interface TopReadersData {
     readers: TopReader[];
 }
 
+export interface DailyTotal {
+    date: string;
+    total: number;
+}
+
+export interface ReadingHoursDayEntry {
+    date: string;
+    total: number;
+    clients: Record<string, number>;
+}
+
+export interface ReadingHoursByDayData {
+    clients: { key: string; label: string }[];
+    days: ReadingHoursDayEntry[];
+}
+
 export interface UserStats {
     total_books: number;
     books_finished: number;
@@ -99,8 +115,12 @@ export interface UserStats {
     total_reading_seconds: number;
     total_reading_time: string;
     total_sessions: number;
+    monthly_rank: number | null;
+    monthly_rank_total: number;
+    monthly_rank_hours: number;
     reading_by_month: MonthlyReading[];
     reading_by_client: ClientReading[];
+    reading_hours_by_day: ReadingHoursByDayData;
     top_readers: TopReadersData;
     recent_sessions: RecentSession[];
 }
@@ -163,10 +183,17 @@ export interface AdminBooksByDay {
 }
 
 export interface AdminActivityStats {
-    active_users_this_month: number;
-    total_hours_this_month: number;
-    total_formatted_this_month: string;
+    total_books: number;
+    active_users_count: number;
+    total_hours: number;
+    total_formatted: string;
+    start_date: string;
+    end_date: string;
+    earliest_date: string | null;
     clients: AdminActivityClient[];
     users: AdminActivityUser[];
     books_by_day: AdminBooksByDay[];
+    verified_users_by_day: AdminBooksByDay[];
+    reading_hours_by_day: AdminBooksByDay[];
+    top_readers: TopReadersData;
 }

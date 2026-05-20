@@ -7,7 +7,10 @@ use App\Models\Book;
 use App\Models\ReadingSession;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class StatsController extends Controller
@@ -40,18 +43,33 @@ class StatsController extends Controller
 
     /**
      * GET /api/admin/stats/activity
-     * Get user activity stats: active users this month, total hours, per-user per-client breakdown
+     * Get user activity stats with optional date range filtering
+     *
+     * @param Request $request Query params: start_date (Y-m-d), end_date (Y-m-d)
      */
-    public function activity(): JsonResponse
+    public function activity(Request $request): JsonResponse
     {
-        $startOfMonth = Carbon::now()->startOfMonth();
-        $endOfMonth = Carbon::now()->endOfMonth();
+        $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d',
+        ]);
 
-        // Per-user, per-client reading time this month
+        // Determine the earliest data point to compute default start
+        $earliestDate = $this->getEarliestDate();
+
+        $startDate = $request->query('start_date')
+            ? Carbon::parse($request->query('start_date'))->startOfDay()
+            : ($earliestDate ?? Carbon::now()->startOfMonth());
+
+        $endDate = $request->query('end_date')
+            ? Carbon::parse($request->query('end_date'))->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        // Per-user, per-client reading time in range
         $userClientStats = DB::table('reading_sessions')
             ->join('books', 'reading_sessions.book_id', '=', 'books.id')
             ->join('users', 'books.user_id', '=', 'users.id')
-            ->whereBetween('reading_sessions.started_at', [$startOfMonth, $endOfMonth])
+            ->whereBetween('reading_sessions.started_at', [$startDate, $endDate])
             ->select(
                 'users.id as user_id',
                 'users.name as user_name',
@@ -86,7 +104,6 @@ class StatsController extends Controller
             ];
         }
 
-        // Sort by total hours descending, filter out 0h users
         $users = collect($usersMap)
             ->filter(fn ($u) => $u['total_seconds'] > 0)
             ->sortByDesc('total_seconds')
@@ -101,36 +118,111 @@ class StatsController extends Controller
             ->all();
 
         $activeUsersCount = count($users);
-        $totalMonthSeconds = (int) collect($usersMap)->sum('total_seconds');
+        $totalRangeSeconds = (int) collect($usersMap)->sum('total_seconds');
 
-        // Daily total book count (cumulative) for the current month
-        $booksBeforeMonth = Book::where('created_at', '<', $startOfMonth)->count();
+        $endOfRange = min($endDate->copy(), Carbon::now());
 
-        $booksAddedPerDay = Book::whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as count'))
-            ->groupBy('day')
-            ->orderBy('day')
-            ->pluck('count', 'day');
+        // Books cumulative day by day
+        $booksByDay = $this->buildCumulativeSeries(
+            table: 'books',
+            dateColumn: 'created_at',
+            startDate: $startDate,
+            endDate: $endOfRange,
+        );
 
-        $today = Carbon::now();
-        $daysInRange = $startOfMonth->daysUntil($today->copy()->addDay());
-        $booksByDay = [];
-        $cumulative = $booksBeforeMonth;
+        // Verified users cumulative day by day
+        $verifiedByDay = $this->buildCumulativeSeries(
+            table: 'users',
+            dateColumn: 'email_verified_at',
+            startDate: $startDate,
+            endDate: $endOfRange,
+            whereNotNull: 'email_verified_at',
+        );
 
-        foreach ($daysInRange as $day) {
-            $dayStr = $day->format('Y-m-d');
-            $cumulative += $booksAddedPerDay[$dayStr] ?? 0;
-            $booksByDay[] = [
-                'date' => $dayStr,
-                'total' => $cumulative,
-            ];
+        // Reading hours cumulative day by day
+        $readingHoursByDay = $this->buildCumulativeHoursSeries($startDate, $endOfRange);
+
+        $lastBookEntry = end($booksByDay);
+
+        // Top 5 readers (last 12 months) with monthly breakdown
+        $twelveMonthsAgo = Carbon::now()->subMonths(12);
+
+        $topUserIds = User::query()
+            ->select('users.id')
+            ->join('books', 'books.user_id', '=', 'users.id')
+            ->join('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
+            ->where('reading_sessions.started_at', '>=', $twelveMonthsAgo)
+            ->groupBy('users.id')
+            ->orderByDesc(DB::raw('SUM(reading_sessions.duration_seconds)'))
+            ->limit(5)
+            ->pluck('users.id');
+
+        $monthFormat = DB::getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', reading_sessions.started_at)"
+            : "DATE_FORMAT(reading_sessions.started_at, '%Y-%m')";
+
+        $monthlyData = DB::table('reading_sessions')
+            ->join('books', 'books.id', '=', 'reading_sessions.book_id')
+            ->join('users', 'users.id', '=', 'books.user_id')
+            ->select(
+                'users.id as user_id',
+                'users.name',
+                DB::raw("{$monthFormat} as month"),
+                DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds')
+            )
+            ->whereIn('users.id', $topUserIds)
+            ->where('reading_sessions.started_at', '>=', $twelveMonthsAgo)
+            ->groupBy('users.id', 'users.name', 'month')
+            ->get();
+
+        $months = collect();
+        for ($i = 11; $i >= 0; $i--) {
+            $months->push(Carbon::now()->subMonths($i)->format('Y-m'));
         }
+
+        $readersByUser = [];
+        foreach ($monthlyData as $row) {
+            if (! isset($readersByUser[$row->user_id])) {
+                $readersByUser[$row->user_id] = [
+                    'name' => $row->name,
+                    'total_seconds' => 0,
+                    'monthly' => [],
+                ];
+            }
+            $hours = round($row->total_seconds / 3600, 1);
+            $readersByUser[$row->user_id]['monthly'][$row->month] = $hours;
+            $readersByUser[$row->user_id]['total_seconds'] += $row->total_seconds;
+        }
+
+        $topReaders = collect($readersByUser)
+            ->sortByDesc('total_seconds')
+            ->values()
+            ->map(function ($reader) use ($months) {
+                $monthlyHours = [];
+                foreach ($months as $month) {
+                    $monthlyHours[] = $reader['monthly'][$month] ?? 0;
+                }
+                return [
+                    'name' => $reader['name'],
+                    'total_hours' => round($reader['total_seconds'] / 3600, 1),
+                    'monthly_hours' => $monthlyHours,
+                ];
+            });
+
+        $topReadersData = [
+            'months' => $months->values()->all(),
+            'readers' => $topReaders->all(),
+        ];
 
         return response()->json([
             'data' => [
-                'active_users_this_month' => $activeUsersCount,
-                'total_hours_this_month' => round($totalMonthSeconds / 3600, 1),
-                'total_formatted_this_month' => $this->formatDuration($totalMonthSeconds),
+                'total_books' => $lastBookEntry ? $lastBookEntry['total'] : 0,
+                'active_users_count' => $activeUsersCount,
+                'total_hours' => round($totalRangeSeconds / 3600, 1),
+                'total_formatted' => $this->formatDuration($totalRangeSeconds),
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
+                'earliest_date' => $earliestDate?->format('Y-m-d'),
                 'clients' => array_values(array_map(
                     fn ($key, $label) => ['key' => $key, 'label' => $label],
                     array_keys($allClients),
@@ -138,8 +230,109 @@ class StatsController extends Controller
                 )),
                 'users' => $users,
                 'books_by_day' => $booksByDay,
+                'verified_users_by_day' => $verifiedByDay,
+                'reading_hours_by_day' => $readingHoursByDay,
+                'top_readers' => $topReadersData,
             ],
         ]);
+    }
+
+    /**
+     * Build a cumulative count series for a given table/column over a date range
+     */
+    protected function buildCumulativeSeries(
+        string $table,
+        string $dateColumn,
+        Carbon $startDate,
+        Carbon $endDate,
+        ?string $whereNotNull = null,
+    ): array {
+        $query = DB::table($table)->where($dateColumn, '<', $startDate);
+        if ($whereNotNull) {
+            $query->whereNotNull($whereNotNull);
+        }
+        $countBefore = $query->count();
+
+        $perDayQuery = DB::table($table)
+            ->whereBetween($dateColumn, [$startDate, $endDate])
+            ->select(DB::raw("DATE({$dateColumn}) as day"), DB::raw('COUNT(*) as count'))
+            ->groupBy('day')
+            ->orderBy('day');
+        if ($whereNotNull) {
+            $perDayQuery->whereNotNull($whereNotNull);
+        }
+        $perDay = $perDayQuery->pluck('count', 'day');
+
+        return $this->expandCumulative($startDate, $endDate, $countBefore, $perDay);
+    }
+
+    /**
+     * Build a cumulative reading hours series over a date range
+     */
+    protected function buildCumulativeHoursSeries(Carbon $startDate, Carbon $endDate): array
+    {
+        $secondsBefore = (int) ReadingSession::where('started_at', '<', $startDate)
+            ->sum('duration_seconds');
+
+        $perDay = ReadingSession::whereBetween('started_at', [$startDate, $endDate])
+            ->select(DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('total_seconds', 'day');
+
+        $result = [];
+        $cumulative = $secondsBefore;
+        $period = CarbonPeriod::create($startDate->copy()->startOfDay(), $endDate->copy()->startOfDay());
+
+        foreach ($period as $day) {
+            $dayStr = $day->format('Y-m-d');
+            $cumulative += (int) ($perDay[$dayStr] ?? 0);
+            $result[] = [
+                'date' => $dayStr,
+                'total' => round($cumulative / 3600, 1),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Expand daily counts into a cumulative series filling every day in range
+     */
+    protected function expandCumulative(Carbon $startDate, Carbon $endDate, int $initialCount, Collection $perDay): array
+    {
+        $result = [];
+        $cumulative = $initialCount;
+        $period = CarbonPeriod::create($startDate->copy()->startOfDay(), $endDate->copy()->startOfDay());
+
+        foreach ($period as $day) {
+            $dayStr = $day->format('Y-m-d');
+            $cumulative += $perDay[$dayStr] ?? 0;
+            $result[] = [
+                'date' => $dayStr,
+                'total' => $cumulative,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Find the earliest date across books, users, and reading sessions
+     */
+    protected function getEarliestDate(): ?Carbon
+    {
+        $dates = array_filter([
+            Book::min('created_at'),
+            User::min('created_at'),
+            ReadingSession::min('started_at'),
+        ]);
+
+        if (empty($dates)) {
+            return null;
+        }
+
+        return Carbon::parse(min($dates))->startOfDay();
     }
 
     /**

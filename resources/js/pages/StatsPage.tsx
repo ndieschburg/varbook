@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStats } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
-import { BookIcon, ClockIcon, CheckCircleIcon, ChevronDownIcon, TrophyIcon } from '@/components/icons';
+import { BookIcon, ClockIcon, CheckCircleIcon, ChevronDownIcon, TrophyIcon, DevicesIcon, BookOpenIcon } from '@/components/icons';
+import type { ReadingHoursByDayData } from '@/types';
 
 /**
  * Get date key for grouping sessions (YYYY-MM-DD format)
@@ -26,21 +27,201 @@ function formatDuration(seconds: number): string {
     return `${minutes}m`;
 }
 
-/**
- * Check if date is today
- */
 function isToday(dateKey: string): boolean {
-    const today = new Date().toISOString().split('T')[0];
-    return dateKey === today;
+    return dateKey === new Date().toISOString().split('T')[0];
 }
 
-/**
- * Check if date is yesterday
- */
 function isYesterday(dateKey: string): boolean {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     return dateKey === yesterday.toISOString().split('T')[0];
+}
+
+/**
+ * KPI stat card with gradient icon
+ */
+function KpiCard({ label, value, icon, gradient, shadowColor }: {
+    label: string;
+    value: string | number;
+    icon: React.ReactNode;
+    gradient: string;
+    shadowColor: string;
+}) {
+    return (
+        <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5 transition-all hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50">
+            <div className="flex items-center gap-4">
+                <div className={`flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} shadow-lg ${shadowColor}`}>
+                    {icon}
+                </div>
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wider">{label}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5 tabular-nums">{value}</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+const CHART_COLORS: Record<string, string> = {
+    total: '#f59e0b',
+    web: '#6366f1',
+    koreader: '#10b981',
+    moon: '#ef4444',
+    moonreader: '#ef4444',
+};
+
+/**
+ * Build a smooth bezier SVG path from a series of points
+ */
+function buildSmoothPath(points: { x: number; y: number }[]): string {
+    if (points.length < 2) return `M ${points[0].x},${points[0].y}`;
+    let path = `M ${points[0].x},${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+        const cp1x = points[i].x + (points[i + 1].x - points[i].x) / 3;
+        const cp2x = points[i].x + 2 * (points[i + 1].x - points[i].x) / 3;
+        path += ` C ${cp1x},${points[i].y} ${cp2x},${points[i + 1].y} ${points[i + 1].x},${points[i + 1].y}`;
+    }
+    return path;
+}
+
+/**
+ * Multi-line SVG chart showing cumulative reading hours per device + total
+ */
+function ReadingHoursChart({ data }: { data: ReadingHoursByDayData }) {
+    const { t } = useTranslation();
+    const { clients, days } = data;
+
+    const chartW = 800;
+    const chartH = 260;
+    const padL = 48;
+    const padR = 12;
+    const padT = 12;
+    const padB = 36;
+    const innerW = chartW - padL - padR;
+    const innerH = chartH - padT - padB;
+
+    const maxVal = Math.max(...days.map(d => d.total), 1);
+
+    const x = (i: number) => padL + (i / Math.max(days.length - 1, 1)) * innerW;
+    const y = (val: number) => padT + innerH - (val / maxVal) * innerH;
+
+    // Total line + area
+    const totalPts = days.map((d, i) => ({ x: x(i), y: y(d.total) }));
+    const totalPath = buildSmoothPath(totalPts);
+    const totalArea = `${totalPath} L ${x(days.length - 1)},${y(0)} L ${x(0)},${y(0)} Z`;
+
+    // Client lines
+    const clientLines = clients.map(c => {
+        const pts = days.map((d, i) => ({ x: x(i), y: y(d.clients[c.key] ?? 0) }));
+        return { key: c.key, label: c.label, path: buildSmoothPath(pts), lastVal: days[days.length - 1]?.clients[c.key] ?? 0 };
+    });
+
+    const stepCount = 4;
+    const ySteps = Array.from({ length: stepCount + 1 }, (_, i) => (maxVal / stepCount) * i);
+
+    const labelCount = Math.min(6, days.length);
+    const labelIndices = days.length > 1
+        ? Array.from({ length: labelCount }, (_, i) => Math.round((i / (labelCount - 1)) * (days.length - 1)))
+        : [0];
+
+    const currentTotal = days[days.length - 1]?.total ?? 0;
+
+    // Legend entries: total + each client
+    const legendEntries = [
+        { key: 'total', label: t('Total'), color: CHART_COLORS.total, value: currentTotal },
+        ...clientLines.map(c => ({ key: c.key, label: c.label, color: CHART_COLORS[c.key] ?? '#8b5cf6', value: c.lastVal })),
+    ];
+
+    return (
+        <div className="group bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5 transition-all hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-slate-900/50">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/20">
+                        <ClockIcon className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{t('Reading Journey')}</h2>
+                        <p className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">
+                            {days[0].date} — {days[days.length - 1].date}
+                        </p>
+                    </div>
+                </div>
+                <span className="text-xl font-bold text-amber-500 tabular-nums">
+                    {currentTotal}h
+                </span>
+            </div>
+
+            <div className="overflow-x-auto -mx-5 px-5">
+                <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full min-w-[400px]" preserveAspectRatio="xMidYMid meet">
+                    {/* Grid */}
+                    {ySteps.map((val, i) => {
+                        const yPos = y(val);
+                        return (
+                            <g key={i}>
+                                <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-100 dark:text-slate-700/50" strokeWidth="1" strokeDasharray={i === 0 ? undefined : '4 4'} />
+                                <text x={padL - 8} y={yPos + 4} textAnchor="end" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                                    {Math.round(val)}h
+                                </text>
+                            </g>
+                        );
+                    })}
+
+                    {/* X labels */}
+                    {labelIndices.map((idx) => (
+                        <text key={idx} x={x(idx)} y={chartH - 4} textAnchor="middle" className="fill-gray-300 dark:fill-slate-600" fontSize="9" fontFamily="ui-monospace, monospace">
+                            {days[idx].date.slice(5)}
+                        </text>
+                    ))}
+
+                    {/* Total area fill */}
+                    <path d={totalArea} fill="url(#readingJourneyFill)" />
+                    <defs>
+                        <linearGradient id="readingJourneyFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={CHART_COLORS.total} stopOpacity="0.12" />
+                            <stop offset="100%" stopColor={CHART_COLORS.total} stopOpacity="0.01" />
+                        </linearGradient>
+                    </defs>
+
+                    {/* Client lines (behind total) */}
+                    {clientLines.map(c => {
+                        const color = CHART_COLORS[c.key] ?? '#8b5cf6';
+                        const lastPt = days[days.length - 1];
+                        const lastVal = lastPt?.clients[c.key] ?? 0;
+                        return (
+                            <g key={c.key}>
+                                <path d={c.path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6 3" opacity="0.7" />
+                                <circle cx={x(days.length - 1)} cy={y(lastVal)} r="3" fill="white" stroke={color} strokeWidth="2" />
+                            </g>
+                        );
+                    })}
+
+                    {/* Total line (on top) */}
+                    <path d={totalPath} fill="none" stroke={CHART_COLORS.total} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                    {/* Total dots on hover */}
+                    {days.length <= 365 && days.map((d, i) => (
+                        <circle key={i} cx={x(i)} cy={y(d.total)} r="2.5" fill={CHART_COLORS.total} stroke="white" strokeWidth="1.5" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <title>{`${d.date}: ${d.total}h`}</title>
+                        </circle>
+                    ))}
+
+                    {/* Total last point */}
+                    <circle cx={x(days.length - 1)} cy={y(currentTotal)} r="4" fill="white" stroke={CHART_COLORS.total} strokeWidth="2.5" />
+                </svg>
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 justify-center">
+                {legendEntries.map(entry => (
+                    <div key={entry.key} className="flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                        <span className="text-[11px] text-gray-500 dark:text-slate-400 font-medium">{entry.label}</span>
+                        <span className="text-[11px] font-bold tabular-nums" style={{ color: entry.color }}>{entry.value}h</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 export function StatsPage() {
@@ -76,303 +257,217 @@ export function StatsPage() {
         );
     }
 
+    const totalBooks = stats.total_books;
+    const bookStatusData = [
+        { count: stats.books_finished, label: t('Finished'), color: 'from-emerald-500 to-teal-600', textColor: 'text-emerald-500 dark:text-emerald-400' },
+        { count: stats.books_reading, label: t('Reading'), color: 'from-amber-500 to-orange-600', textColor: 'text-amber-500 dark:text-amber-400' },
+        { count: stats.books_not_started, label: t('Not Started'), color: 'from-gray-400 to-gray-500', textColor: 'text-gray-400 dark:text-slate-500' },
+    ];
+
     return (
-        <div className="space-y-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('Reading Statistics')}</h1>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm">{t('Total Books')}</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.total_books}</p>
-                        </div>
-                        <div className="p-3 bg-indigo-600/20 rounded-xl">
-                            <BookIcon className="h-6 w-6 text-indigo-400" />
-                        </div>
-                    </div>
+        <div className="space-y-6">
+            {/* Page Header */}
+            <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-purple-600 shadow-lg shadow-accent/20">
+                    <BookOpenIcon className="w-5 h-5 text-white" />
                 </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm">{t('Finished')}</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.books_finished}</p>
-                        </div>
-                        <div className="p-3 bg-emerald-600/20 rounded-xl">
-                            <CheckCircleIcon className="h-6 w-6 text-emerald-400" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm">{t('Reading Time')}</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.total_reading_time}</p>
-                        </div>
-                        <div className="p-3 bg-amber-600/20 rounded-xl">
-                            <ClockIcon className="h-6 w-6 text-amber-400" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400 text-sm">{t('Sessions')}</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.total_sessions}</p>
-                        </div>
-                        <div className="p-3 bg-purple-600/20 rounded-xl">
-                            <ClockIcon className="h-6 w-6 text-purple-400" />
-                        </div>
-                    </div>
+                <div>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('Reading Statistics')}</h1>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{t('Your reading activity at a glance')}</p>
                 </div>
             </div>
 
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard
+                    label={t('Total Books')}
+                    value={stats.total_books}
+                    icon={<BookIcon className="w-5 h-5 text-white" />}
+                    gradient="from-indigo-500 to-blue-600"
+                    shadowColor="shadow-indigo-500/20"
+                />
+                <KpiCard
+                    label={t('Finished')}
+                    value={stats.books_finished}
+                    icon={<CheckCircleIcon className="w-5 h-5 text-white" />}
+                    gradient="from-emerald-500 to-teal-600"
+                    shadowColor="shadow-emerald-500/20"
+                />
+                <KpiCard
+                    label={t('Reading Time')}
+                    value={stats.total_reading_time}
+                    icon={<ClockIcon className="w-5 h-5 text-white" />}
+                    gradient="from-amber-500 to-orange-600"
+                    shadowColor="shadow-amber-500/20"
+                />
+                <KpiCard
+                    label={t('Sessions')}
+                    value={stats.total_sessions}
+                    icon={<DevicesIcon className="w-5 h-5 text-white" />}
+                    gradient="from-violet-500 to-purple-600"
+                    shadowColor="shadow-violet-500/20"
+                />
+            </div>
+
+            {/* Monthly Rank */}
+            {stats.monthly_rank !== null && (
+                <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
+                                <TrophyIcon className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wider">{t('Monthly Rank')}</p>
+                                <div className="flex items-baseline gap-1.5 mt-0.5">
+                                    <span className="text-3xl font-bold text-gray-900 dark:text-white tabular-nums">
+                                        #{stats.monthly_rank}
+                                    </span>
+                                    <span className="text-sm text-gray-400 dark:text-slate-500">
+                                        / {stats.monthly_rank_total}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-lg font-bold text-amber-500 tabular-nums">{stats.monthly_rank_hours}h</p>
+                            <p className="text-[11px] text-gray-400 dark:text-slate-500">{t('This month')}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Book Status Breakdown */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('Book Status')}</h2>
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                        <p className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">{stats.books_finished}</p>
-                        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{t('Finished')}</p>
+            <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5">
+                <div className="flex items-center gap-2.5 mb-4">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10">
+                        <BookIcon className="h-4 w-4 text-indigo-500" />
                     </div>
-                    <div className="text-center p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                        <p className="text-2xl font-bold text-amber-500 dark:text-amber-400">{stats.books_reading}</p>
-                        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{t('Reading')}</p>
+                    <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">{t('Book Status')}</h2>
+                </div>
+
+                {/* Progress bar */}
+                {totalBooks > 0 && (
+                    <div className="flex h-2.5 rounded-full overflow-hidden mb-4 bg-gray-100 dark:bg-slate-700">
+                        {bookStatusData.map((s) => {
+                            const pct = (s.count / totalBooks) * 100;
+                            if (pct === 0) return null;
+                            return (
+                                <div
+                                    key={s.label}
+                                    className={`h-full bg-gradient-to-r ${s.color} transition-all duration-500`}
+                                    style={{ width: `${pct}%` }}
+                                    title={`${s.label}: ${s.count} (${Math.round(pct)}%)`}
+                                />
+                            );
+                        })}
                     </div>
-                    <div className="text-center p-4 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-500 dark:text-slate-400">{stats.books_not_started}</p>
-                        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{t('Not Started')}</p>
-                    </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-3">
+                    {bookStatusData.map((s) => (
+                        <div key={s.label} className="text-center p-3 rounded-xl bg-gray-50 dark:bg-slate-700/30">
+                            <p className={`text-xl font-bold tabular-nums ${s.textColor}`}>{s.count}</p>
+                            <p className="text-[11px] font-medium text-gray-400 dark:text-slate-500 mt-0.5 uppercase tracking-wider">{s.label}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
             {/* Reading by Client */}
             {stats.reading_by_client.length > 0 && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('Reading by Device')}</h2>
-                    <div className="space-y-3">
-                        {stats.reading_by_client.map((client) => (
-                            <div key={client.client} className="flex items-center justify-between p-3 bg-gray-100 dark:bg-slate-700/50 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-gray-900 dark:text-white">{client.label}</p>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">{client.sessions} {t('sessions')}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-medium text-indigo-600 dark:text-indigo-400">{client.hours}h</p>
-                                </div>
-                            </div>
-                        ))}
+                <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5">
+                    <div className="flex items-center gap-2.5 mb-4">
+                        <div className="p-1.5 rounded-lg bg-violet-500/10">
+                            <DevicesIcon className="h-4 w-4 text-violet-500" />
+                        </div>
+                        <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">{t('Reading by Device')}</h2>
+                    </div>
+                    <div className="space-y-2">
+                        {(() => {
+                            const maxClientHours = Math.max(...stats.reading_by_client.map(c => c.hours), 1);
+                            const clientColors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+                            return stats.reading_by_client.map((client, i) => {
+                                const barPct = Math.max((client.hours / maxClientHours) * 100, 2);
+                                const color = clientColors[i % clientColors.length];
+
+                                return (
+                                    <div key={client.client} className="group flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/20 transition-colors">
+                                        <div className="w-2 h-8 rounded-full" style={{ backgroundColor: color }} />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-baseline justify-between mb-1.5">
+                                                <span className="text-sm font-medium text-gray-900 dark:text-white">{client.label}</span>
+                                                <span className="text-sm font-bold tabular-nums" style={{ color }}>{client.hours}h</span>
+                                            </div>
+                                            <div className="h-1.5 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full rounded-full transition-all duration-500"
+                                                    style={{ width: `${barPct}%`, backgroundColor: color }}
+                                                />
+                                            </div>
+                                            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1 tabular-nums">{client.sessions} {t('sessions')}</p>
+                                        </div>
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
                 </div>
             )}
 
-            {/* Top Readers (Last 12 Months) - Heatmap */}
-            {stats.top_readers.readers.length > 0 && (() => {
-                const { months, readers } = stats.top_readers;
-                const allHours = readers.flatMap(r => r.monthly_hours);
-                const maxHours = Math.max(...allHours, 1);
+            {/* Cumulative Reading Hours Chart */}
+            {stats.reading_hours_by_day?.days?.length > 1 && (
+                <ReadingHoursChart data={stats.reading_hours_by_day} />
+            )}
 
-                /**
-                 * Get heatmap cell background based on hours value relative to max
-                 */
-                const getCellStyle = (hours: number) => {
-                    if (hours === 0) return {};
-                    const intensity = Math.min(hours / maxHours, 1);
-                    const opacity = 0.15 + intensity * 0.85;
-                    return { backgroundColor: `rgba(99, 102, 241, ${opacity})` };
-                };
+
+            {/* Monthly Reading Chart */}
+            {stats.reading_by_month.length > 0 && (() => {
+                const maxHours = Math.max(...stats.reading_by_month.map(m => m.hours), 1);
 
                 return (
-                    <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                        <div className="flex items-center gap-2 mb-5">
-                            <TrophyIcon className="h-5 w-5 text-amber-500" />
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('Top Readers')}</h2>
-                            <span className="text-sm text-gray-400 dark:text-slate-500">({t('Last 12 months')})</span>
+                    <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 p-5">
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="p-1.5 rounded-lg bg-amber-500/10">
+                                <ClockIcon className="h-4 w-4 text-amber-500" />
+                            </div>
+                            <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">{t('Reading History')}</h2>
                         </div>
+                        <div className="flex items-end gap-1.5 h-44">
+                            {stats.reading_by_month.map((month) => {
+                                const height = maxHours > 0 ? (month.hours / maxHours) * 100 : 0;
+                                const isCurrentMonth = month.month === new Date().toISOString().slice(0, 7);
 
-                        <div className="overflow-x-auto -mx-6 px-6">
-                            <table className="w-full min-w-[640px]">
-                                <thead>
-                                    <tr>
-                                        <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 pb-2 pr-3 w-32"></th>
-                                        {months.map((month) => (
-                                            <th key={month} className="text-center text-xs font-medium text-gray-400 dark:text-slate-500 pb-2 px-0.5">
-                                                {month.slice(5)}
-                                            </th>
-                                        ))}
-                                        <th className="text-right text-xs font-medium text-gray-500 dark:text-slate-400 pb-2 pl-3">{t('Total')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {readers.map((reader, index) => {
-                                        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
-
-                                        return (
-                                            <tr key={reader.name}>
-                                                <td className="py-1.5 pr-3">
-                                                    <div className="flex items-center gap-2">
-                                                        {medal ? (
-                                                            <span className="text-sm">{medal}</span>
-                                                        ) : (
-                                                            <span className="text-xs text-gray-400 dark:text-slate-500 w-5 text-center">{index + 1}</span>
-                                                        )}
-                                                        <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                            {reader.name}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                {reader.monthly_hours.map((hours, i) => (
-                                                    <td key={months[i]} className="py-1.5 px-0.5">
-                                                        <div
-                                                            className={`rounded h-8 flex items-center justify-center text-xs tabular-nums transition-colors ${
-                                                                hours > 0
-                                                                    ? 'text-white font-medium'
-                                                                    : 'bg-gray-50 dark:bg-slate-700/30 text-gray-300 dark:text-slate-600'
-                                                            }`}
-                                                            style={getCellStyle(hours)}
-                                                            title={`${reader.name} — ${months[i]}: ${hours}h`}
-                                                        >
-                                                            {hours > 0 ? `${hours}` : ''}
-                                                        </div>
-                                                    </td>
-                                                ))}
-                                                <td className="py-1.5 pl-3 text-right">
-                                                    <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                                                        {reader.total_hours}h
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Line Chart */}
-                        {(() => {
-                            const chartW = 800;
-                            const chartH = 240;
-                            const padL = 40;
-                            const padR = 16;
-                            const padT = 16;
-                            const padB = 32;
-                            const innerW = chartW - padL - padR;
-                            const innerH = chartH - padT - padB;
-                            const chartMax = Math.max(...readers.flatMap(r => r.monthly_hours), 1);
-                            const stepCount = 4;
-
-                            const lineColors = [
-                                '#6366f1', // indigo
-                                '#f59e0b', // amber
-                                '#10b981', // emerald
-                                '#ef4444', // red
-                                '#8b5cf6', // violet
-                            ];
-
-                            const x = (i: number) => padL + (i / (months.length - 1)) * innerW;
-                            const y = (val: number) => padT + innerH - (val / chartMax) * innerH;
-
-                            return (
-                                <div className="mt-6 overflow-x-auto -mx-6 px-6">
-                                    <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full min-w-[500px]" preserveAspectRatio="xMidYMid meet">
-                                        {/* Horizontal grid lines + Y labels */}
-                                        {Array.from({ length: stepCount + 1 }, (_, i) => {
-                                            const val = (chartMax / stepCount) * i;
-                                            const yPos = y(val);
-                                            return (
-                                                <g key={i}>
-                                                    <line x1={padL} x2={chartW - padR} y1={yPos} y2={yPos} stroke="currentColor" className="text-gray-200 dark:text-slate-700" strokeWidth="1" />
-                                                    <text x={padL - 6} y={yPos + 4} textAnchor="end" className="fill-gray-400 dark:fill-slate-500" fontSize="10">
-                                                        {Math.round(val)}h
-                                                    </text>
-                                                </g>
-                                            );
-                                        })}
-
-                                        {/* X labels (months) */}
-                                        {months.map((month, i) => (
-                                            <text key={month} x={x(i)} y={chartH - 6} textAnchor="middle" className="fill-gray-400 dark:fill-slate-500" fontSize="10">
-                                                {month.slice(5)}
-                                            </text>
-                                        ))}
-
-                                        {/* Lines + dots per reader */}
-                                        {readers.map((reader, ri) => {
-                                            const color = lineColors[ri % lineColors.length];
-                                            const points = reader.monthly_hours.map((h, i) => `${x(i)},${y(h)}`).join(' ');
-
-                                            return (
-                                                <g key={reader.name}>
-                                                    <polyline
-                                                        points={points}
-                                                        fill="none"
-                                                        stroke={color}
-                                                        strokeWidth="2.5"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    />
-                                                    {reader.monthly_hours.map((h, i) => (
-                                                        <circle key={i} cx={x(i)} cy={y(h)} r="3.5" fill={color} stroke="white" strokeWidth="1.5">
-                                                            <title>{`${reader.name}: ${h}h`}</title>
-                                                        </circle>
-                                                    ))}
-                                                </g>
-                                            );
-                                        })}
-                                    </svg>
-
-                                    {/* Legend */}
-                                    <div className="flex flex-wrap gap-4 mt-3 justify-center">
-                                        {readers.map((reader, ri) => (
-                                            <div key={reader.name} className="flex items-center gap-1.5">
-                                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: lineColors[ri % lineColors.length] }} />
-                                                <span className="text-xs text-gray-600 dark:text-slate-400">{reader.name}</span>
-                                            </div>
-                                        ))}
+                                return (
+                                    <div key={month.month} className="group flex-1 flex flex-col items-center gap-1" title={`${month.month}: ${month.hours}h`}>
+                                        <div className="w-full flex flex-col items-center justify-end h-32">
+                                            <span className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums font-mono">
+                                                {month.hours}h
+                                            </span>
+                                            <div
+                                                className={`w-full rounded-t-md transition-all duration-500 ${
+                                                    isCurrentMonth
+                                                        ? 'bg-gradient-to-t from-indigo-600 to-indigo-400'
+                                                        : 'bg-gradient-to-t from-indigo-600/60 to-indigo-400/40 group-hover:from-indigo-600/80 group-hover:to-indigo-400/60'
+                                                }`}
+                                                style={{ height: `${Math.max(height, 3)}%` }}
+                                            />
+                                        </div>
+                                        <span className={`text-[10px] font-mono ${isCurrentMonth ? 'text-indigo-500 font-semibold' : 'text-gray-300 dark:text-slate-600'}`}>
+                                            {month.month.slice(5)}
+                                        </span>
                                     </div>
-                                </div>
-                            );
-                        })()}
+                                );
+                            })}
+                        </div>
                     </div>
                 );
             })()}
 
-            {/* Monthly Reading Chart */}
-            {stats.reading_by_month.length > 0 && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('Reading History')}</h2>
-                    <div className="flex items-end gap-2 h-48">
-                        {stats.reading_by_month.map((month) => {
-                            const maxHours = Math.max(...stats.reading_by_month.map(m => m.hours));
-                            const height = maxHours > 0 ? (month.hours / maxHours) * 100 : 0;
-                            return (
-                                <div key={month.month} className="flex-1 flex flex-col items-center gap-2">
-                                    <div className="w-full flex flex-col items-center justify-end h-36">
-                                        <span className="text-xs text-gray-500 dark:text-slate-400 mb-1">{month.hours}h</span>
-                                        <div
-                                            className="w-full bg-indigo-600 rounded-t-md transition-all"
-                                            style={{ height: `${Math.max(height, 4)}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-gray-400 dark:text-slate-500 rotate-45 origin-left">
-                                        {month.month.slice(5)}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
             {/* Recent Sessions - Grouped by Day */}
             {stats.recent_sessions.length > 0 && (() => {
-                // Filter out 0-duration sessions and group by day
                 const filteredSessions = stats.recent_sessions.filter((s) => s.duration_seconds > 0);
-
                 if (filteredSessions.length === 0) return null;
 
                 const groupedSessions = filteredSessions.reduce((acc, session) => {
@@ -384,18 +479,21 @@ export function StatsPage() {
                     return acc;
                 }, {} as Record<string, typeof filteredSessions>);
 
-                // Sort days (most recent first)
                 const sortedDays = Object.keys(groupedSessions).sort((a, b) => b.localeCompare(a));
 
                 return (
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('Recent Sessions')}</h2>
-                        <div className="space-y-4">
+                        <div className="flex items-center gap-2.5 mb-4">
+                            <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                                <ClockIcon className="h-4 w-4 text-emerald-500" />
+                            </div>
+                            <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">{t('Recent Sessions')}</h2>
+                        </div>
+                        <div className="space-y-3">
                             {sortedDays.map((dateKey) => {
                                 const daySessions = groupedSessions[dateKey];
                                 const totalSeconds = daySessions.reduce((sum, s) => sum + s.duration_seconds, 0);
 
-                                // Format day label
                                 let dayLabel: string;
                                 if (isToday(dateKey)) {
                                     dayLabel = t('Today');
@@ -413,56 +511,56 @@ export function StatsPage() {
                                 const isExpanded = expandedDays.has(dateKey);
 
                                 return (
-                                    <div key={dateKey} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                                        {/* Day Header - Clickable */}
+                                    <div key={dateKey} className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 overflow-hidden transition-all hover:border-gray-300 dark:hover:border-slate-600">
                                         <button
                                             onClick={() => toggleDay(dateKey)}
-                                            className="w-full px-6 py-3 bg-gray-50 dark:bg-slate-700/50 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                            className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-slate-700/20 transition-colors cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2.5">
                                                 <ChevronDownIcon
-                                                    className={`h-5 w-5 text-gray-500 dark:text-slate-400 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                                                    className={`h-4 w-4 text-gray-400 dark:text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
                                                 />
-                                                <span className="font-medium text-gray-900 dark:text-slate-100 capitalize">
+                                                <span className="text-sm font-medium text-gray-900 dark:text-slate-100 capitalize">
                                                     {dayLabel}
                                                 </span>
-                                                <span className="text-sm text-gray-500 dark:text-slate-400">
-                                                    ({daySessions.length})
+                                                <span className="text-xs text-gray-300 dark:text-slate-600 tabular-nums">
+                                                    {daySessions.length}
                                                 </span>
                                             </div>
-                                            <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-1">
-                                                <ClockIcon className="h-4 w-4" />
+                                            <span className="text-xs font-semibold text-accent tabular-nums flex items-center gap-1.5">
+                                                <ClockIcon className="h-3.5 w-3.5" />
                                                 {formatDuration(totalSeconds)}
                                             </span>
                                         </button>
 
-                                        {/* Sessions - Collapsible */}
                                         {isExpanded && (
-                                            <div className="border-t border-gray-200 dark:border-slate-700 divide-y divide-gray-200 dark:divide-slate-700">
-                                                {daySessions.map((session) => (
+                                            <div className="border-t border-gray-100 dark:border-slate-700/30">
+                                                {daySessions.map((session, i) => (
                                                     <Link
                                                         key={session.id}
                                                         to={`/books/${session.book.id}`}
-                                                        className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                                                        className={`flex items-center gap-4 px-5 py-3 hover:bg-gray-50/50 dark:hover:bg-slate-700/20 transition-colors ${
+                                                            i > 0 ? 'border-t border-gray-50 dark:border-slate-700/20' : ''
+                                                        }`}
                                                     >
                                                         {session.book.cover_url ? (
                                                             <img
                                                                 src={session.book.cover_url}
                                                                 alt={session.book.title}
-                                                                className="w-10 h-14 object-cover rounded"
+                                                                className="w-9 h-13 object-cover rounded-md shadow-sm"
                                                             />
                                                         ) : (
-                                                            <div className="w-10 h-14 bg-gray-200 dark:bg-slate-600 rounded flex items-center justify-center">
-                                                                <BookIcon className="h-5 w-5 text-gray-400 dark:text-slate-500" />
+                                                            <div className="w-9 h-13 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 rounded-md flex items-center justify-center">
+                                                                <BookIcon className="h-4 w-4 text-gray-400 dark:text-slate-500" />
                                                             </div>
                                                         )}
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="font-medium text-gray-900 dark:text-white truncate">{session.book.title}</p>
-                                                            <p className="text-sm text-gray-500 dark:text-slate-400 truncate">{session.book.author}</p>
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{session.book.title}</p>
+                                                            <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{session.book.author}</p>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-sm font-medium text-gray-700 dark:text-slate-300">{session.formatted_duration}</p>
-                                                            <p className="text-xs text-gray-400 dark:text-slate-500">
+                                                        <div className="text-right flex-shrink-0">
+                                                            <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 tabular-nums">{session.formatted_duration}</p>
+                                                            <p className="text-[11px] text-gray-300 dark:text-slate-600 font-mono">
                                                                 {new Date(session.started_at).toLocaleTimeString(undefined, {
                                                                     hour: '2-digit',
                                                                     minute: '2-digit',

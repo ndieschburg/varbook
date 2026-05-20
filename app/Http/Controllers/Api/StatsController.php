@@ -146,6 +146,74 @@ class StatsController extends Controller
             'readers' => $topReaders->all(),
         ];
 
+        // Cumulative reading hours by day per client (from first session to now)
+        $firstSession = ReadingSession::whereHas('book', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->orderBy('started_at')->first();
+
+        $readingHoursByDay = [];
+        if ($firstSession) {
+            $startDate = $firstSession->started_at->copy()->startOfDay();
+            $endDate = now()->startOfDay();
+
+            // Total per day (all clients)
+            $totalPerDay = ReadingSession::whereHas('book', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+                ->select(DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
+                ->groupBy('day')
+                ->orderBy('day')
+                ->pluck('total_seconds', 'day');
+
+            // Per client per day
+            $clientPerDay = ReadingSession::whereHas('book', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+                ->select('client', DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
+                ->groupBy('client', 'day')
+                ->orderBy('day')
+                ->get();
+
+            // Group by client
+            $clientDayMap = [];
+            $clientKeys = [];
+            foreach ($clientPerDay as $row) {
+                $clientDayMap[$row->client][$row->day] = (int) $row->total_seconds;
+                $clientKeys[$row->client] = $this->getClientLabel($row->client);
+            }
+
+            // Build cumulative series
+            $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
+            $cumulativeTotal = 0;
+            $cumulativeClients = array_fill_keys(array_keys($clientKeys), 0);
+
+            foreach ($period as $day) {
+                $dayStr = $day->format('Y-m-d');
+                $cumulativeTotal += (int) ($totalPerDay[$dayStr] ?? 0);
+
+                $clientValues = [];
+                foreach ($clientKeys as $clientKey => $clientLabel) {
+                    $cumulativeClients[$clientKey] += $clientDayMap[$clientKey][$dayStr] ?? 0;
+                    $clientValues[$clientKey] = round($cumulativeClients[$clientKey] / 3600, 1);
+                }
+
+                $readingHoursByDay[] = [
+                    'date' => $dayStr,
+                    'total' => round($cumulativeTotal / 3600, 1),
+                    'clients' => $clientValues,
+                ];
+            }
+
+            $readingHoursByDay = [
+                'clients' => array_map(
+                    fn ($key, $label) => ['key' => $key, 'label' => $label],
+                    array_keys($clientKeys),
+                    array_values($clientKeys)
+                ),
+                'days' => $readingHoursByDay,
+            ];
+        }
+
         // Recent sessions
         $recentSessions = ReadingSession::with('book:id,title,author,cover_path')
             ->whereHas('book', function ($query) use ($user) {
@@ -168,6 +236,30 @@ class StatsController extends Controller
                 'client' => $session->client,
             ]);
 
+        // Monthly rank: rank the current user among all users by reading time this month
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+
+        $monthlyRanking = DB::table('reading_sessions')
+            ->join('books', 'reading_sessions.book_id', '=', 'books.id')
+            ->whereBetween('reading_sessions.started_at', [$startOfMonth, $endOfMonth])
+            ->select('books.user_id', DB::raw('SUM(reading_sessions.duration_seconds) as total_seconds'))
+            ->groupBy('books.user_id')
+            ->orderByDesc('total_seconds')
+            ->get();
+
+        $monthlyRank = null;
+        $monthlyRankTotal = $monthlyRanking->count();
+        $monthlyRankHours = 0;
+
+        foreach ($monthlyRanking->values() as $index => $row) {
+            if ((int) $row->user_id === $user->id) {
+                $monthlyRank = $index + 1;
+                $monthlyRankHours = round($row->total_seconds / 3600, 1);
+                break;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'total_books' => $totalBooks,
@@ -177,8 +269,12 @@ class StatsController extends Controller
                 'total_reading_seconds' => $totalReadingSeconds,
                 'total_reading_time' => $this->formatDuration($totalReadingSeconds),
                 'total_sessions' => $totalSessions,
+                'monthly_rank' => $monthlyRank,
+                'monthly_rank_total' => $monthlyRankTotal,
+                'monthly_rank_hours' => $monthlyRankHours,
                 'reading_by_month' => $readingByMonth,
                 'reading_by_client' => $readingByClient,
+                'reading_hours_by_day' => $readingHoursByDay,
                 'top_readers' => $topReadersData,
                 'recent_sessions' => $recentSessions,
             ],

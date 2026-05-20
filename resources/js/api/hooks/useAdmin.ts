@@ -95,11 +95,23 @@ export function useDeleteUser() {
 }
 
 // Admin Activity Stats
-export function useAdminActivityStats() {
+export interface AdminActivityParams {
+    start_date?: string;
+    end_date?: string;
+}
+
+export function useAdminActivityStats(params: AdminActivityParams = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.start_date) searchParams.set('start_date', params.start_date);
+    if (params.end_date) searchParams.set('end_date', params.end_date);
+
+    const queryString = searchParams.toString();
+    const url = `/admin/stats/activity${queryString ? `?${queryString}` : ''}`;
+
     return useQuery({
-        queryKey: ['admin', 'stats', 'activity'],
+        queryKey: ['admin', 'stats', 'activity', params],
         queryFn: async (): Promise<AdminActivityStats> => {
-            const { data } = await api.get('/admin/stats/activity');
+            const { data } = await api.get(url);
             return data.data;
         },
     });

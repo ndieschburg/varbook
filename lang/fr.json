@@ -338,10 +338,20 @@
     "settings.reader.debug_mode": "Mode debug",
     "settings.reader.debug_mode_description": "Expose les objets epub.js dans la console du navigateur pour le débogage",
     "Admin Statistics": "Statistiques Admin",
-    "Active Users This Month": "Utilisateurs actifs ce mois-ci",
-    "Total Hours This Month": "Heures totales ce mois-ci",
+    "Platform overview and metrics": "Vue d'ensemble et indicateurs",
+    "Active Users": "Utilisateurs actifs",
     "Reading Time by User": "Temps de lecture par utilisateur",
     "No reading activity this month": "Aucune activité de lecture ce mois-ci",
+    "Monthly Rank": "Classement du mois",
+    "Reading Journey": "Parcours de lecture",
+    "Your reading activity at a glance": "Votre activité de lecture en un coup d'oeil",
     "Failed to load stats": "Échec du chargement des statistiques",
-    "This month": "Ce mois-ci"
+    "This week": "Cette semaine",
+    "This month": "Ce mois-ci",
+    "This year": "Cette année",
+    "All time": "Depuis le début",
+    "Custom": "Personnalisé",
+    "Verified Users": "Utilisateurs vérifiés",
+    "Total Reading Hours": "Heures de lecture totales",
+    "users": "utilisateurs"
 }
