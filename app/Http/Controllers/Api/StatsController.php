@@ -109,10 +109,11 @@ class StatsController extends Controller
                 $clientKeys[$row->client] = $this->getClientLabel($row->client);
             }
 
-            // Build cumulative series
+            // Build daily series with cumulative totals
             $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
             $cumulativeTotal = 0;
             $cumulativeClients = array_fill_keys(array_keys($clientKeys), 0);
+            $dayEntries = [];
 
             foreach ($period as $day) {
                 $dayStr = $day->format('Y-m-d');
@@ -125,7 +126,7 @@ class StatsController extends Controller
                     $clientValues[$clientKey] = round($cumulativeClients[$clientKey] / 3600, 1);
                 }
 
-                $readingHoursByDay[] = [
+                $dayEntries[] = [
                     'date' => $dayStr,
                     'total' => round($cumulativeTotal / 3600, 1),
                     'day_hours' => round($daySeconds / 3600, 1),
@@ -134,12 +135,12 @@ class StatsController extends Controller
             }
 
             $readingHoursByDay = [
-                'clients' => array_map(
+                'clients' => array_values(array_map(
                     fn ($key, $label) => ['key' => $key, 'label' => $label],
                     array_keys($clientKeys),
                     array_values($clientKeys)
-                ),
-                'days' => $readingHoursByDay,
+                )),
+                'days' => $dayEntries,
             ];
         }
 

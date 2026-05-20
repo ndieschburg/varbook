@@ -438,7 +438,7 @@ export function StatsPage() {
             )}
 
             {/* Cumulative Reading Hours Chart */}
-            {stats.reading_hours_by_day?.days?.length > 1 && (
+            {stats.reading_hours_by_day?.days?.length > 0 && (
                 <ReadingHoursChart data={stats.reading_hours_by_day} />
             )}
 

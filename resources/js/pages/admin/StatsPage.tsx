@@ -601,7 +601,7 @@ export function AdminStatsPage() {
                                                 const clientData = user.clients[client.key];
                                                 return (
                                                     <td key={client.key} className="px-6 py-3.5 text-right tabular-nums">
-                                                        <span className={`text-sm ${clientData && clientData.hours > 0 ? 'text-gray-700 dark:text-slate-300' : 'text-gray-200 dark:text-slate-700'}`}>
+                                                        <span className={`text-sm ${clientData && clientData.hours > 0 ? 'text-gray-700 dark:text-slate-300' : 'text-gray-400 dark:text-slate-500'}`}>
                                                             {clientData ? `${clientData.hours}h` : '0h'}
                                                         </span>
                                                     </td>
