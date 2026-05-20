@@ -140,7 +140,7 @@ class StatsController extends Controller
         );
 
         // Reading hours cumulative day by day
-        $readingHoursByDay = $this->buildCumulativeHoursSeries($startDate, $endOfRange);
+        $readingHoursByDay = $this->buildDailyHoursSeries($startDate, $endOfRange);
 
         $lastBookEntry = end($booksByDay);
 
@@ -269,11 +269,8 @@ class StatsController extends Controller
     /**
      * Build a cumulative reading hours series over a date range
      */
-    protected function buildCumulativeHoursSeries(Carbon $startDate, Carbon $endDate): array
+    protected function buildDailyHoursSeries(Carbon $startDate, Carbon $endDate): array
     {
-        $secondsBefore = (int) ReadingSession::where('started_at', '<', $startDate)
-            ->sum('duration_seconds');
-
         $perDay = ReadingSession::whereBetween('started_at', [$startDate, $endDate])
             ->select(DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
             ->groupBy('day')
@@ -281,15 +278,13 @@ class StatsController extends Controller
             ->pluck('total_seconds', 'day');
 
         $result = [];
-        $cumulative = $secondsBefore;
         $period = CarbonPeriod::create($startDate->copy()->startOfDay(), $endDate->copy()->startOfDay());
 
         foreach ($period as $day) {
             $dayStr = $day->format('Y-m-d');
-            $cumulative += (int) ($perDay[$dayStr] ?? 0);
             $result[] = [
                 'date' => $dayStr,
-                'total' => round($cumulative / 3600, 1),
+                'total' => round((int) ($perDay[$dayStr] ?? 0) / 3600, 1),
             ];
         }
 

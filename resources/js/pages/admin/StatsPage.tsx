@@ -371,7 +371,7 @@ export function AdminStatsPage() {
                 {stats.reading_hours_by_day.length > 1 && (
                     <DailyChart
                         data={stats.reading_hours_by_day}
-                        title={t('Total Reading Hours')}
+                        title={t('Daily Reading Hours')}
                         color="#f59e0b"
                         gradientId="hoursFill"
                         icon={<ClockIcon className="h-4 w-4 text-amber-500" />}
