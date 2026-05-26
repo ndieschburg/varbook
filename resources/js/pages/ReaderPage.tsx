@@ -294,6 +294,7 @@ export function ReaderPage() {
                 {activePanel === 'toc' && (
                     <TocPanel
                         toc={toc}
+                        currentChapter={locationInfo.currentChapter}
                         onNavigate={goTo}
                         onClose={() => setActivePanel(null)}
                     />
