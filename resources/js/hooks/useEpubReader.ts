@@ -79,8 +79,10 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
     const lastUserCfiRef = useRef<string | null>(null);
     // Deferred percentage navigation when locations aren't ready yet (cross-client sync)
     const pendingPercentageRef = useRef<number | null>(null);
-    // Store initial restore CFI to re-navigate after locations generate (fixes font-loading drift)
+    // Store initial restore CFI to re-navigate after fonts load (fixes font-loading drift)
     const initialRestoreCfiRef = useRef<string | null>(null);
+    // Promise that resolves when iframe fonts are loaded
+    const fontsReadyPromiseRef = useRef<Promise<void> | null>(null);
     const [state, setState] = useState<EpubReaderState>({
         isLoading: true,
         error: null,
@@ -353,6 +355,13 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     dyslexicLink.href = 'https://fonts.cdnfonts.com/css/opendyslexic';
                     doc.head.appendChild(dyslexicLink);
 
+                    // Track font loading for position correction after restore
+                    if (doc.fonts?.ready) {
+                        fontsReadyPromiseRef.current = doc.fonts.ready.then(() => {
+                            debug('Iframe fonts loaded');
+                        });
+                    }
+
                     // Block browser navigation gestures via CSS
                     doc.body.style.touchAction = 'pan-y pinch-zoom';
                     doc.body.style.overscrollBehavior = 'none';
@@ -442,9 +451,33 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                     await rendition.display();
                 }
 
+                // After initial display, wait for fonts then correct position drift
+                if (initialRestoreCfiRef.current && fontsReadyPromiseRef.current) {
+                    const restoreCfi = initialRestoreCfiRef.current;
+                    fontsReadyPromiseRef.current.then(() => {
+                        if (!initialRestoreCfiRef.current) return; // Already cleared
+                        initialRestoreCfiRef.current = null;
+                        // Small delay to let epub.js repaginate after font change
+                        setTimeout(() => {
+                            const currentLocation = renditionRef.current?.currentLocation() as any;
+                            if (currentLocation?.start?.cfi && currentLocation.start.cfi !== restoreCfi) {
+                                debug('Font-load position correction', {
+                                    driftedTo: currentLocation.start.cfi,
+                                    restoringTo: restoreCfi,
+                                });
+                                skipSaveCountRef.current = 1;
+                                lastUserCfiRef.current = restoreCfi;
+                                renditionRef.current?.display(restoreCfi);
+                            } else {
+                                debug('Fonts loaded, no position drift detected');
+                            }
+                        }, 100);
+                    });
+                }
+
                 // Generate locations in background (non-blocking)
-                debug('Starting background location generation (1600 chars/location)...');
-                book.locations.generate(1600).then(() => {
+                debug('Starting background location generation (1024 chars/location)...');
+                book.locations.generate(1024).then(() => {
                     locationsReadyRef.current = true;
                     debug(`Locations generated: ${book.locations.length()} total locations`);
 
@@ -460,25 +493,6 @@ export function useEpubReader({ bookId, epubUrl, containerRef, bookMeta, debugMo
                             rendition.display(targetCfi);
                         }
                         setState(prev => ({ ...prev, syncingPositionFrom: null }));
-                    } else if (initialRestoreCfiRef.current) {
-                        // Re-navigate to initial restore CFI now that layout is settled
-                        // (fonts loaded, locations ready). This fixes drift caused by
-                        // font loading changing page boundaries after the initial display.
-                        const restoreCfi = initialRestoreCfiRef.current;
-                        initialRestoreCfiRef.current = null;
-                        const currentLocation = rendition.currentLocation() as any;
-                        if (currentLocation?.start?.cfi && currentLocation.start.cfi !== restoreCfi) {
-                            debug('Post-locations position correction', {
-                                currentCfi: currentLocation.start.cfi,
-                                restoreCfi,
-                            });
-                            skipSaveCountRef.current = 1;
-                            lastUserCfiRef.current = restoreCfi;
-                            rendition.display(restoreCfi);
-                        } else {
-                            initialRestoreCfiRef.current = null;
-                            debug('Post-locations position OK, no correction needed');
-                        }
                     }
 
                     // Recalculate and update progress now that locations are ready
