@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Facades\Settings;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreBookRequest extends FormRequest
 {
@@ -18,7 +19,32 @@ class StoreBookRequest extends FormRequest
         $maxSize = $maxSizeMb * 1024; // Convert to KB
 
         return [
-            'file' => ['required', 'file', 'mimes:epub', "max:{$maxSize}"],
+            'file' => ['required', 'file', "max:{$maxSize}"],
+        ];
+    }
+
+    /**
+     * Validate that the uploaded file is an EPUB
+     *
+     * Checks both MIME type and file extension since some EPUB files
+     * are detected as application/zip instead of application/epub+zip.
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator) {
+                $file = $this->file('file');
+                if (! $file) {
+                    return;
+                }
+
+                $hasEpubMime = in_array($file->getMimeType(), ['application/epub+zip', 'application/epub']);
+                $hasEpubExtension = strtolower($file->getClientOriginalExtension()) === 'epub';
+
+                if (! $hasEpubMime && ! $hasEpubExtension) {
+                    $validator->errors()->add('file', __('Only EPUB files are allowed'));
+                }
+            },
         ];
     }
 
