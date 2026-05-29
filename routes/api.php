@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/{user}/verify-email', [AdminUserController::class, 'verifyEmail'])->name('users.verify-email');
         Route::get('/stats', [AdminStatsController::class, 'index'])->name('stats');
         Route::get('/stats/activity', [AdminStatsController::class, 'activity'])->name('stats.activity');
+        Route::get('/stats/books-reading', [AdminStatsController::class, 'booksReading'])->name('stats.books-reading');
         Route::get('/settings', [AdminSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/{key}', [AdminSettingsController::class, 'update'])->name('settings.update');
 

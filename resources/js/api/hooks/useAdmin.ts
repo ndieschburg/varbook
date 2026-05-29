@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../client';
-import type { User, PaginatedResponse, ProgressLog, ProgressLogsStats, AdminActivityStats } from '@/types';
+import type { User, PaginatedResponse, ProgressLog, ProgressLogsStats, AdminActivityStats, AdminBookReading } from '@/types';
 
 export function useAdminUsers() {
     return useQuery({
@@ -113,6 +113,29 @@ export function useAdminActivityStats(params: AdminActivityParams = {}) {
         queryFn: async (): Promise<AdminActivityStats> => {
             const { data } = await api.get(url);
             return data.data;
+        },
+    });
+}
+
+// Admin Books Reading Activity
+export interface AdminBooksReadingParams {
+    page?: number;
+    per_page?: number;
+}
+
+export function useAdminBooksReading(params: AdminBooksReadingParams = {}) {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.per_page) searchParams.set('per_page', String(params.per_page));
+
+    const queryString = searchParams.toString();
+    const url = `/admin/stats/books-reading${queryString ? `?${queryString}` : ''}`;
+
+    return useQuery({
+        queryKey: ['admin', 'stats', 'books-reading', params],
+        queryFn: async (): Promise<PaginatedResponse<AdminBookReading>> => {
+            const { data } = await api.get(url);
+            return data;
         },
     });
 }

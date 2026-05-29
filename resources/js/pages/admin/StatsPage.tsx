@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAdminActivityStats } from '@/api/hooks';
+import { useAdminActivityStats, useAdminBooksReading } from '@/api/hooks';
 import { LoadingSpinner } from '@/components/ui';
-import { UserIcon, ClockIcon, BookIcon, TrophyIcon } from '@/components/icons';
+import { UserIcon, ClockIcon, BookIcon, TrophyIcon, ChevronLeftIcon, ChevronRightIcon } from '@/components/icons';
 import type { AdminBooksByDay } from '@/types';
 
 type PresetKey = 'this_week' | 'this_month' | 'this_year' | 'all' | 'custom';
@@ -193,6 +193,140 @@ function KpiCard({ label, value, icon, gradient, shadowColor }: {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5 tabular-nums">{value}</p>
                 </div>
             </div>
+        </div>
+    );
+}
+
+/**
+ * Paginated table showing per-book reading activity across all users
+ */
+function BooksReadingTable() {
+    const { t } = useTranslation();
+    const [page, setPage] = useState(1);
+    const { data, isLoading } = useAdminBooksReading({ page, per_page: 20 });
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '—';
+        return new Date(dateStr).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
+    };
+
+    if (isLoading && !data) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <LoadingSpinner size="md" />
+            </div>
+        );
+    }
+
+    if (!data || data.data.length === 0) {
+        return null;
+    }
+
+    const { current_page, last_page, total } = data.meta;
+
+    return (
+        <div className="bg-gradient-to-br from-white to-gray-50/50 dark:from-slate-800 dark:to-slate-800/50 rounded-2xl border border-gray-200/60 dark:border-slate-700/60 overflow-hidden">
+            <div className="px-6 py-4 flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 shadow-md shadow-indigo-500/20">
+                    <BookIcon className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{t('Reading Time by Book')}</h2>
+                    <p className="text-[11px] text-gray-400 dark:text-slate-500">{total} {t('Books').toLowerCase()}</p>
+                </div>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead>
+                        <tr className="border-t border-gray-100 dark:border-slate-700/50">
+                            <th className="text-left text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('Title')}
+                            </th>
+                            <th className="text-left text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('Author')}
+                            </th>
+                            <th className="text-left text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('Owner')}
+                            </th>
+                            <th className="text-right text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('First Read')}
+                            </th>
+                            <th className="text-right text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('Last Read')}
+                            </th>
+                            <th className="text-right text-[11px] font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider px-6 py-2.5">
+                                {t('Reading Time')}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.data.map((book) => (
+                            <tr key={book.id} className="border-t border-gray-50 dark:border-slate-700/30 hover:bg-gray-50/50 dark:hover:bg-slate-700/20 transition-colors">
+                                <td className="px-6 py-3.5">
+                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{book.title}</span>
+                                </td>
+                                <td className="px-6 py-3.5">
+                                    <span className="text-sm text-gray-700 dark:text-slate-300">{book.author || '—'}</span>
+                                </td>
+                                <td className="px-6 py-3.5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 flex-shrink-0">
+                                            <span className="text-[10px] font-bold text-gray-500 dark:text-slate-300">
+                                                {book.owner.charAt(0).toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm text-gray-700 dark:text-slate-300">{book.owner}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-3.5 text-right">
+                                    <span className="text-sm text-gray-500 dark:text-slate-400 tabular-nums">
+                                        {formatDate(book.first_read_at)}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-3.5 text-right">
+                                    <span className="text-sm text-gray-500 dark:text-slate-400 tabular-nums">
+                                        {formatDate(book.last_read_at)}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-3.5 text-right">
+                                    <span className="text-sm font-bold text-accent tabular-nums">
+                                        {book.total_formatted}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Pagination */}
+            {last_page > 1 && (
+                <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-slate-700/50">
+                    <span className="text-[11px] text-gray-400 dark:text-slate-500 tabular-nums">
+                        {t('Page')} {current_page} / {last_page}
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={current_page <= 1}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                            <ChevronLeftIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setPage((p) => Math.min(last_page, p + 1))}
+                            disabled={current_page >= last_page}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-500 dark:hover:text-slate-300 dark:hover:bg-slate-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                        >
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -637,6 +771,9 @@ export function AdminStatsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Books Reading Activity Table */}
+            <BooksReadingTable />
         </div>
     );
 }

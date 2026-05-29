@@ -177,6 +177,17 @@ export interface AdminBooksByDay {
     total: number;
 }
 
+export interface AdminBookReading {
+    id: number;
+    title: string;
+    author: string | null;
+    owner: string;
+    total_reading_seconds: number;
+    total_formatted: string;
+    first_read_at: string | null;
+    last_read_at: string | null;
+}
+
 export interface AdminActivityStats {
     total_books: number;
     active_users_count: number;

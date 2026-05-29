@@ -313,6 +313,51 @@ class StatsController extends Controller
     }
 
     /**
+     * GET /api/admin/stats/books-reading
+     * Get paginated list of books with reading activity (owner, reading time, first/last read)
+     *
+     * @param Request $request Query params: page (int), per_page (int, default 20)
+     */
+    public function booksReading(Request $request): JsonResponse
+    {
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $perPage = (int) $request->query('per_page', 20);
+
+        $books = Book::query()
+            ->join('users', 'users.id', '=', 'books.user_id')
+            ->leftJoin('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
+            ->select(
+                'books.id',
+                'books.title',
+                'books.author',
+                'users.name as owner',
+                'books.total_reading_seconds',
+                DB::raw('MIN(reading_sessions.started_at) as first_read_at'),
+                DB::raw('MAX(COALESCE(reading_sessions.ended_at, reading_sessions.started_at)) as last_read_at'),
+            )
+            ->groupBy('books.id', 'books.title', 'books.author', 'users.name', 'books.total_reading_seconds')
+            ->orderByRaw('last_read_at IS NULL, last_read_at DESC')
+            ->paginate($perPage);
+
+        $books->getCollection()->transform(fn ($book) => [
+            'id' => $book->id,
+            'title' => $book->title,
+            'author' => $book->author,
+            'owner' => $book->owner,
+            'total_reading_seconds' => $book->total_reading_seconds,
+            'total_formatted' => $this->formatDuration($book->total_reading_seconds),
+            'first_read_at' => $book->first_read_at,
+            'last_read_at' => $book->last_read_at,
+        ]);
+
+        return response()->json($books);
+    }
+
+    /**
      * Find the earliest date across books, users, and reading sessions
      */
     protected function getEarliestDate(): ?Carbon
