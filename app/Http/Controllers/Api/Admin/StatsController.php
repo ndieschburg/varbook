@@ -343,7 +343,7 @@ class StatsController extends Controller
             ->orderByRaw('last_read_at IS NULL, last_read_at DESC')
             ->paginate($perPage);
 
-        $books->getCollection()->transform(fn ($book) => [
+        $items = $books->getCollection()->map(fn ($book) => [
             'id' => $book->id,
             'title' => $book->title,
             'author' => $book->author,
@@ -354,7 +354,15 @@ class StatsController extends Controller
             'last_read_at' => $book->last_read_at,
         ]);
 
-        return response()->json($books);
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $books->currentPage(),
+                'last_page' => $books->lastPage(),
+                'per_page' => $books->perPage(),
+                'total' => $books->total(),
+            ],
+        ]);
     }
 
     /**
