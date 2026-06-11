@@ -7,6 +7,16 @@
 
     <title>{{ config('app.name', 'Varbook') }}</title>
 
+    <!-- OpenGraph / Twitter Card -->
+    <meta property="og:title" content="Varbook — Your books, everywhere">
+    <meta property="og:description" content="Self-hosted EPUB library with cross-device reading sync. Read on your e-reader, pick up where you left off in the browser.">
+    <meta property="og:image" content="{{ url('og-image.png') }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="{{ config('app.url') }}">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+
     <!-- Favicon -->
     <link rel="icon" href="/favicon.ico" sizes="32x32">
     <link rel="icon" href="/pwa-icons/favicon-32.png" type="image/png" sizes="32x32">
