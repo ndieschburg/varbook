@@ -19,16 +19,16 @@ class StatsController extends Controller
     {
         $user = $request->user();
 
-        // Basic stats (include soft-deleted books to preserve history)
-        $totalBooks = Book::withTrashed()->where('user_id', $user->id)->count();
-        $booksFinished = Book::withTrashed()->where('user_id', $user->id)->where('is_finished', true)->count();
-        $booksReading = Book::withTrashed()->where('user_id', $user->id)
+        // Book counts reflect active library only
+        $totalBooks = Book::where('user_id', $user->id)->count();
+        $booksFinished = Book::where('user_id', $user->id)->where('is_finished', true)->count();
+        $booksReading = Book::where('user_id', $user->id)
             ->where('progress', '>', 0)
             ->where('is_finished', false)
             ->count();
         $booksNotStarted = $totalBooks - $booksFinished - $booksReading;
 
-        // Reading time
+        // Reading time includes deleted books to preserve history
         $totalReadingSeconds = Book::withTrashed()->where('user_id', $user->id)->sum('total_reading_seconds');
 
         // Sessions

@@ -22,11 +22,13 @@ class StatsController extends Controller
     public function index(): JsonResponse
     {
         $totalUsers = User::count();
-        $totalBooks = Book::withTrashed()->count();
+        // Book counts reflect active library only
+        $totalBooks = Book::count();
+        // Reading time includes deleted books to preserve history
         $totalReadingSeconds = Book::withTrashed()->sum('total_reading_seconds');
         $totalSessions = ReadingSession::count();
-        $booksFinished = Book::withTrashed()->where('is_finished', true)->count();
-        $booksReading = Book::withTrashed()->where('progress', '>', 0)->where('is_finished', false)->count();
+        $booksFinished = Book::where('is_finished', true)->count();
+        $booksReading = Book::where('progress', '>', 0)->where('is_finished', false)->count();
 
         return response()->json([
             'data' => [
@@ -122,12 +124,13 @@ class StatsController extends Controller
 
         $endOfRange = min($endDate->copy(), Carbon::now());
 
-        // Books cumulative day by day
+        // Books cumulative day by day (active library only)
         $booksByDay = $this->buildCumulativeSeries(
             table: 'books',
             dateColumn: 'created_at',
             startDate: $startDate,
             endDate: $endOfRange,
+            excludeSoftDeleted: true,
         );
 
         // Verified users cumulative day by day
@@ -246,10 +249,14 @@ class StatsController extends Controller
         Carbon $startDate,
         Carbon $endDate,
         ?string $whereNotNull = null,
+        bool $excludeSoftDeleted = false,
     ): array {
         $query = DB::table($table)->where($dateColumn, '<', $startDate);
         if ($whereNotNull) {
             $query->whereNotNull($whereNotNull);
+        }
+        if ($excludeSoftDeleted) {
+            $query->whereNull('deleted_at');
         }
         $countBefore = $query->count();
 
@@ -260,6 +267,9 @@ class StatsController extends Controller
             ->orderBy('day');
         if ($whereNotNull) {
             $perDayQuery->whereNotNull($whereNotNull);
+        }
+        if ($excludeSoftDeleted) {
+            $perDayQuery->whereNull('deleted_at');
         }
         $perDay = $perDayQuery->pluck('count', 'day');
 
