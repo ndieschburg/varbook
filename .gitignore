@@ -25,6 +25,7 @@ Homestead.yaml
 Thumbs.db
 CLAUDE.md
 docs/
+screenshots/
 varbook.koplugin/
 
 # Personal dotfiles (symlinked from dotfiles repo)

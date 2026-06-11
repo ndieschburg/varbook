@@ -124,14 +124,8 @@ class StatsController extends Controller
 
         $endOfRange = min($endDate->copy(), Carbon::now());
 
-        // Books cumulative day by day (active library only)
-        $booksByDay = $this->buildCumulativeSeries(
-            table: 'books',
-            dateColumn: 'created_at',
-            startDate: $startDate,
-            endDate: $endOfRange,
-            excludeSoftDeleted: true,
-        );
+        // Books cumulative day by day (accounts for deletions)
+        $booksByDay = $this->buildBooksCumulativeSeries($startDate, $endOfRange);
 
         // Verified users cumulative day by day
         $verifiedByDay = $this->buildCumulativeSeries(
@@ -249,14 +243,10 @@ class StatsController extends Controller
         Carbon $startDate,
         Carbon $endDate,
         ?string $whereNotNull = null,
-        bool $excludeSoftDeleted = false,
     ): array {
         $query = DB::table($table)->where($dateColumn, '<', $startDate);
         if ($whereNotNull) {
             $query->whereNotNull($whereNotNull);
-        }
-        if ($excludeSoftDeleted) {
-            $query->whereNull('deleted_at');
         }
         $countBefore = $query->count();
 
@@ -268,12 +258,56 @@ class StatsController extends Controller
         if ($whereNotNull) {
             $perDayQuery->whereNotNull($whereNotNull);
         }
-        if ($excludeSoftDeleted) {
-            $perDayQuery->whereNull('deleted_at');
-        }
         $perDay = $perDayQuery->pluck('count', 'day');
 
         return $this->expandCumulative($startDate, $endDate, $countBefore, $perDay);
+    }
+
+    /**
+     * Build a cumulative book count series accounting for creations and deletions
+     */
+    protected function buildBooksCumulativeSeries(Carbon $startDate, Carbon $endDate): array
+    {
+        // Count active books before the range: created before start and (not deleted OR deleted after start)
+        $countBefore = DB::table('books')
+            ->where('created_at', '<', $startDate)
+            ->where(function ($q) use ($startDate) {
+                $q->whereNull('deleted_at')
+                    ->orWhere('deleted_at', '>=', $startDate);
+            })
+            ->count();
+
+        // Books created per day in range
+        $createdPerDay = DB::table('books')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as count'))
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('count', 'day');
+
+        // Books deleted per day in range
+        $deletedPerDay = DB::table('books')
+            ->whereNotNull('deleted_at')
+            ->whereBetween('deleted_at', [$startDate, $endDate])
+            ->select(DB::raw('DATE(deleted_at) as day'), DB::raw('COUNT(*) as count'))
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('count', 'day');
+
+        $result = [];
+        $cumulative = $countBefore;
+        $period = CarbonPeriod::create($startDate->copy()->startOfDay(), $endDate->copy()->startOfDay());
+
+        foreach ($period as $day) {
+            $dayStr = $day->format('Y-m-d');
+            $cumulative += ($createdPerDay[$dayStr] ?? 0) - ($deletedPerDay[$dayStr] ?? 0);
+            $result[] = [
+                'date' => $dayStr,
+                'total' => $cumulative,
+            ];
+        }
+
+        return $result;
     }
 
     /**
