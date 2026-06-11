@@ -22,11 +22,11 @@ class StatsController extends Controller
     public function index(): JsonResponse
     {
         $totalUsers = User::count();
-        $totalBooks = Book::count();
-        $totalReadingSeconds = Book::sum('total_reading_seconds');
+        $totalBooks = Book::withTrashed()->count();
+        $totalReadingSeconds = Book::withTrashed()->sum('total_reading_seconds');
         $totalSessions = ReadingSession::count();
-        $booksFinished = Book::where('is_finished', true)->count();
-        $booksReading = Book::where('progress', '>', 0)->where('is_finished', false)->count();
+        $booksFinished = Book::withTrashed()->where('is_finished', true)->count();
+        $booksReading = Book::withTrashed()->where('progress', '>', 0)->where('is_finished', false)->count();
 
         return response()->json([
             'data' => [
@@ -327,7 +327,7 @@ class StatsController extends Controller
 
         $perPage = (int) $request->query('per_page', 20);
 
-        $books = Book::query()
+        $books = Book::withTrashed()
             ->join('users', 'users.id', '=', 'books.user_id')
             ->leftJoin('reading_sessions', 'reading_sessions.book_id', '=', 'books.id')
             ->select(
@@ -371,7 +371,7 @@ class StatsController extends Controller
     protected function getEarliestDate(): ?Carbon
     {
         $dates = array_filter([
-            Book::min('created_at'),
+            Book::withTrashed()->min('created_at'),
             User::min('created_at'),
             ReadingSession::min('started_at'),
         ]);

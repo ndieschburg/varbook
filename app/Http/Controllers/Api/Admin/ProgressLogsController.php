@@ -16,7 +16,7 @@ class ProgressLogsController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = ProgressLog::with(['user:id,name,email', 'book:id,title'])
+        $query = ProgressLog::with(['user:id,name,email', 'book' => fn ($q) => $q->withTrashed()->select('id', 'title')])
             ->orderBy('created_at', 'desc');
 
         // Filter by user
@@ -64,7 +64,7 @@ class ProgressLogsController extends Controller
      */
     public function show(ProgressLog $progressLog): JsonResponse
     {
-        $progressLog->load(['user:id,name,email', 'book:id,title,author']);
+        $progressLog->load(['user:id,name,email', 'book' => fn ($q) => $q->withTrashed()->select('id', 'title', 'author')]);
 
         return response()->json([
             'data' => $progressLog,

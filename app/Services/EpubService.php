@@ -317,19 +317,11 @@ class EpubService
         };
     }
 
+    /**
+     * Soft delete a book, preserving files on disk and reading sessions
+     */
     public function deleteBook(Book $book): void
     {
-        // Delete EPUB file
-        if ($book->storage_path && Storage::exists($book->storage_path)) {
-            Storage::delete($book->storage_path);
-        }
-
-        // Delete cover image
-        if ($book->cover_path && Storage::disk('public')->exists($book->cover_path)) {
-            Storage::disk('public')->delete($book->cover_path);
-        }
-
-        // Delete database record
         $book->delete();
     }
 

@@ -19,26 +19,26 @@ class StatsController extends Controller
     {
         $user = $request->user();
 
-        // Basic stats
-        $totalBooks = Book::where('user_id', $user->id)->count();
-        $booksFinished = Book::where('user_id', $user->id)->where('is_finished', true)->count();
-        $booksReading = Book::where('user_id', $user->id)
+        // Basic stats (include soft-deleted books to preserve history)
+        $totalBooks = Book::withTrashed()->where('user_id', $user->id)->count();
+        $booksFinished = Book::withTrashed()->where('user_id', $user->id)->where('is_finished', true)->count();
+        $booksReading = Book::withTrashed()->where('user_id', $user->id)
             ->where('progress', '>', 0)
             ->where('is_finished', false)
             ->count();
         $booksNotStarted = $totalBooks - $booksFinished - $booksReading;
 
         // Reading time
-        $totalReadingSeconds = Book::where('user_id', $user->id)->sum('total_reading_seconds');
+        $totalReadingSeconds = Book::withTrashed()->where('user_id', $user->id)->sum('total_reading_seconds');
 
         // Sessions
         $totalSessions = ReadingSession::whereHas('book', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
+            $query->withTrashed()->where('user_id', $user->id);
         })->count();
 
         // Reading by month (last 12 months)
         $readingByMonth = ReadingSession::whereHas('book', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
+            $query->withTrashed()->where('user_id', $user->id);
         })
             ->where('started_at', '>=', now()->subMonths(12))
             ->select(
@@ -57,7 +57,7 @@ class StatsController extends Controller
 
         // Reading by client
         $readingByClient = ReadingSession::whereHas('book', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
+            $query->withTrashed()->where('user_id', $user->id);
         })
             ->select(
                 'client',
@@ -75,7 +75,7 @@ class StatsController extends Controller
 
         // Cumulative reading hours by day per client (from first session to now)
         $firstSession = ReadingSession::whereHas('book', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
+            $query->withTrashed()->where('user_id', $user->id);
         })->orderBy('started_at')->first();
 
         $readingHoursByDay = ['clients' => [], 'days' => []];
@@ -85,7 +85,7 @@ class StatsController extends Controller
 
             // Total per day (all clients)
             $totalPerDay = ReadingSession::whereHas('book', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+                $query->withTrashed()->where('user_id', $user->id);
             })
                 ->select(DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
                 ->groupBy('day')
@@ -94,7 +94,7 @@ class StatsController extends Controller
 
             // Per client per day
             $clientPerDay = ReadingSession::whereHas('book', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+                $query->withTrashed()->where('user_id', $user->id);
             })
                 ->select('client', DB::raw('DATE(started_at) as day'), DB::raw('SUM(duration_seconds) as total_seconds'))
                 ->groupBy('client', 'day')
@@ -145,9 +145,11 @@ class StatsController extends Controller
         }
 
         // Recent sessions
-        $recentSessions = ReadingSession::with('book:id,title,author,cover_path')
+        $recentSessions = ReadingSession::with(['book' => function ($query) {
+                $query->withTrashed()->select('id', 'title', 'author', 'cover_path');
+            }])
             ->whereHas('book', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+                $query->withTrashed()->where('user_id', $user->id);
             })
             ->orderBy('started_at', 'desc')
             ->limit(1000)

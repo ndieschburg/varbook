@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Book;
+use App\Models\ReadingSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -87,13 +88,44 @@ class BookTest extends TestCase
         $user = User::factory()->create();
         $book = Book::factory()->for($user)->create([
             'storage_path' => 'books/test.epub',
+            'cover_path' => 'covers/test.jpg',
         ]);
+
+        // Create files on disk
+        Storage::put('books/test.epub', 'fake epub content');
+        Storage::disk('public')->put('covers/test.jpg', 'fake cover');
 
         $response = $this->actingAs($user)
             ->deleteJson("/api/books/{$book->id}");
 
         $response->assertOk();
-        $this->assertDatabaseMissing('books', ['id' => $book->id]);
+        $this->assertSoftDeleted('books', ['id' => $book->id]);
+
+        // Files must be preserved on disk
+        Storage::assertExists('books/test.epub');
+        Storage::disk('public')->assertExists('covers/test.jpg');
+    }
+
+    public function test_deleting_book_preserves_reading_sessions(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->for($user)->create();
+        $session = ReadingSession::create([
+            'book_id' => $book->id,
+            'started_at' => now()->subHour(),
+            'ended_at' => now(),
+            'duration_seconds' => 3600,
+            'progress_before' => 0,
+            'progress_after' => 50,
+            'client' => 'web',
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/books/{$book->id}")
+            ->assertOk();
+
+        $this->assertSoftDeleted('books', ['id' => $book->id]);
+        $this->assertDatabaseHas('reading_sessions', ['id' => $session->id]);
     }
 
     public function test_user_cannot_delete_another_users_book(): void
